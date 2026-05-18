@@ -1,0 +1,489 @@
+from fastapi import APIRouter, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
+from passlib.context import CryptContext
+from app.utils.logger import save_log
+from app.database import SessionLocal
+from app.models.user import User
+from app.models.activity_log import ActivityLog
+from fastapi.responses import FileResponse
+import shutil
+import os
+from datetime import datetime, timedelta
+import pandas as pd
+import io
+from fastapi.responses import StreamingResponse
+
+router = APIRouter()
+
+templates = Jinja2Templates(
+    directory="app/templates"
+)
+
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto"
+)
+
+
+# =========================
+# 계정 관리 페이지
+# =========================
+
+@router.get(
+    "/admin/users",
+    response_class=HTMLResponse
+)
+def admin_users(request: Request):
+
+    if request.session.get("role") != "admin":
+
+        return RedirectResponse(
+            "/search",
+            status_code=303
+        )
+
+    db = SessionLocal()
+
+    users = db.query(User).all()
+
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/users.html",
+        context={
+            "users": users,
+            "current_user": request.session.get("user")
+        }
+    )
+
+
+# =========================
+# 계정 생성
+# =========================
+
+@router.post("/admin/create-user")
+def create_user(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...)
+):
+
+    if request.session.get("role") != "admin":
+
+        return RedirectResponse(
+            "/search",
+            status_code=303
+        )
+
+    db = SessionLocal()
+
+    exists = db.query(User).filter(
+        User.username == username
+    ).first()
+
+    if exists:
+
+        db.close()
+
+        return RedirectResponse(
+            "/admin/users",
+            status_code=303
+        )
+
+
+    # 🔐 비밀번호 암호화
+    hashed_password = pwd_context.hash(
+        password
+    )
+
+    user = User(
+        username=username,
+        password=hashed_password,
+        role="user",
+        must_change_password=True
+    )
+
+    db.add(user)
+
+    db.commit()
+
+    save_log(
+        user=request.session.get("user"),
+        product="ADMIN",
+        action="CREATE_USER",
+        serial=username,
+        detail="계정 생성"
+    )
+
+    db.close()
+
+    return RedirectResponse(
+        "/admin/users",
+        status_code=303
+    )
+
+@router.post("/admin/reset-password/{user_id}")
+def reset_password(
+    request: Request,
+    user_id: int
+):
+
+    if request.session.get("role") != "admin":
+
+        return RedirectResponse(
+            "/search",
+            status_code=303
+        )
+
+    db = SessionLocal()
+
+    user = db.query(User).filter(
+        User.id == user_id
+    ).first()
+
+    if user:
+
+        user.password = pwd_context.hash(
+            "1234"
+        )
+
+        user.must_change_password = True
+
+        db.commit()
+
+    save_log(
+        user=request.session.get("user"),
+        product="ADMIN",
+        action="RESET_PASSWORD",
+        serial=user.username,
+        detail="비밀번호 초기화"
+    )
+
+    db.close()
+
+    return RedirectResponse(
+        "/admin/users",
+        status_code=303
+    )
+
+@router.post("/admin/delete-user/{user_id}")
+def delete_user(
+    request: Request,
+    user_id: int
+):
+
+    if request.session.get("role") != "admin":
+
+        return RedirectResponse(
+            "/search",
+            status_code=303
+        )
+
+    db = SessionLocal()
+
+    user = db.query(User).filter(
+        User.id == user_id
+    ).first()
+
+    current_user = request.session.get(
+        "user"
+    )
+
+    if user and user.username != current_user:
+
+        db.delete(user)
+
+        db.commit()
+
+        save_log(
+            user=request.session.get("user"),
+            product="ADMIN",
+            action="DELETE_USER",
+            serial=user.username,
+            detail="계정 삭제"
+        )
+
+
+    db.close()
+
+    return RedirectResponse(
+        "/admin/users",
+        status_code=303
+    )
+
+@router.get("/admin/activity")
+def admin_activity(
+    request: Request
+):
+
+    if request.session.get("role") != "admin":
+
+        return RedirectResponse(
+            "/search",
+            status_code=303
+        )
+
+    db = SessionLocal()
+
+    query = db.query(ActivityLog)
+
+    # =========================
+    # 날짜 필터
+    # =========================
+
+    start_date = request.query_params.get(
+        "start_date"
+    )
+
+    end_date = request.query_params.get(
+        "end_date"
+    )
+
+    if start_date:
+
+        start_dt = datetime.strptime(
+            start_date,
+            "%Y-%m-%d"
+        )
+
+        query = query.filter(
+            ActivityLog.created_at >= start_dt
+        )
+
+    if end_date:
+
+        end_dt = (
+            datetime.strptime(
+                end_date,
+                "%Y-%m-%d"
+            )
+            + timedelta(days=1)
+        )
+
+        query = query.filter(
+            ActivityLog.created_at < end_dt
+        )
+
+    # =========================
+    # 검색 파라미터
+    # =========================
+
+    user = request.query_params.get("user")
+
+    action = request.query_params.get(
+        "action"
+    )
+
+    serial = request.query_params.get(
+        "serial"
+    )
+
+    # =========================
+    # 페이지
+    # =========================
+
+    page = int(
+        request.query_params.get(
+            "page",
+            1
+        )
+    )
+
+    per_page = 30
+
+    # =========================
+    # 사용자 검색
+    # =========================
+
+    if user:
+
+        query = query.filter(
+            ActivityLog.user.contains(user)
+        )
+
+    # =========================
+    # 작업 검색
+    # =========================
+
+    if action:
+
+        query = query.filter(
+            ActivityLog.action == action
+        )
+
+    # =========================
+    # serial 검색
+    # =========================
+
+    if serial:
+
+        query = query.filter(
+            ActivityLog.serial.contains(serial)
+        )
+
+    # =========================
+    # 전체 개수
+    # =========================
+
+    total_count = query.count()
+
+    total_pages = (
+        total_count + per_page - 1
+    ) // per_page
+
+    # =========================
+    # 최신순 + 페이징
+    # =========================
+
+    logs = (
+        query
+        .order_by(ActivityLog.id.asc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
+    db.close()
+
+    ACTIONS = [
+        "LOGIN",
+        "LOGOUT",
+        "UPLOAD_EXCEL",
+        "DOWNLOAD_EXCEL",
+        "OUTBOUND",
+        "INBOUND",
+        "MOVE_IN",
+        "MOVE_OUT",
+        "DELETE_SELECTED",
+        "DELETE_ALL",
+        "BULK_UPDATE",
+        "UPDATE_FIELD",
+        "UPDATE_SIZE",
+        "CREATE_USER",
+        "RESET_PASSWORD",
+        "DELETE_USER",
+        "CHANGE_PASSWORD"
+    ]
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/activity.html",
+        context={
+
+            "logs": logs,
+
+            "actions": ACTIONS,
+
+            "selected_action": action,
+
+            "search_user": user,
+
+            "search_serial": serial,
+
+            "page": page,
+
+            "total_pages": total_pages,
+
+            "start_date": start_date,
+
+            "end_date": end_date
+        }
+    )
+
+@router.get("/admin/backup-db")
+def backup_db(request: Request):
+
+    if request.session.get("role") != "admin":
+
+        return RedirectResponse(
+            "/search",
+            status_code=303
+        )
+
+    db_path = "logistics.db"
+
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )
+
+    backup_name = (
+        f"backup_{timestamp}.db"
+    )
+
+    backup_path = os.path.join(
+        "backups",
+        backup_name
+    )
+
+    os.makedirs(
+        "backups",
+        exist_ok=True
+    )
+
+    shutil.copy(
+        db_path,
+        backup_path
+    )
+
+    return FileResponse(
+        path=backup_path,
+        filename=backup_name,
+        media_type="application/octet-stream"
+    )
+
+@router.get("/admin/activity-export")
+def export_activity_excel(
+    request: Request
+):
+
+    if request.session.get("role") != "admin":
+
+        return RedirectResponse(
+            "/search",
+            status_code=303
+        )
+
+    db = SessionLocal()
+
+    logs = db.query(ActivityLog)\
+        .order_by(ActivityLog.id.desc())\
+        .all()
+
+    rows = []
+
+    for log in logs:
+
+        rows.append({
+            "Product": log.product,
+            "시간": log.created_at.strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+            "사용자": log.user,
+            "작업": log.action,
+            "Serial": log.serial,
+            "작업 내용": log.detail
+        })
+
+    df = pd.DataFrame(rows)
+
+    output = io.BytesIO()
+
+    df.to_excel(
+        output,
+        index=False
+    )
+
+    output.seek(0)
+
+    db.close()
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition":
+            "attachment; filename=activity_logs.xlsx"
+        }
+    )

@@ -1,0 +1,1456 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+/* =========================
+🔥 Title
+========================= */
+
+.page-title{
+    margin-bottom:28px;
+
+    font-size:24px;
+    font-weight:750;
+
+    color:#1f2937;
+
+    display:flex;
+    align-items:center;
+
+    gap:10px;
+}
+
+/* =========================
+🔥 Filter
+========================= */
+
+.filter-bar{
+    display:flex;
+    justify-content:flex-end;
+    align-items:flex-start;
+
+    margin-bottom:24px;
+
+    position:relative;
+    z-index:50;
+}
+
+.filter-wrap{
+    position:relative;
+    overflow:visible;
+    z-index:9999;
+}
+
+.filter-button{
+    width:48px;
+    height:48px;
+
+    border:none;
+    border-radius:14px;
+
+    background:white;
+
+    box-shadow:
+        0 8px 24px rgba(15,23,42,0.08);
+
+    cursor:pointer;
+
+    font-size:18px;
+
+    transition:0.2s ease;
+}
+
+.filter-button:hover{
+    transform:translateY(-2px);
+}
+
+.filter-popup{
+
+    position:absolute;
+
+    top:60px;
+    right:0;
+
+    width:360px;
+
+    background:white;
+
+    border-radius:24px;
+
+    padding:24px;
+    box-sizing:border-box;
+    box-shadow:
+        0 20px 40px rgba(15,23,42,0.12);
+
+    border:
+        1px solid rgba(148,163,184,0.12);
+
+    display:none;
+
+    z-index:9999;
+}
+
+.filter-title{
+    font-size:18px;
+    font-weight:800;
+
+    color:#0f172a;
+
+    margin-bottom:22px;
+}
+
+.filter-inputs{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    width:100%;
+    margin-bottom:20px;
+}
+
+.filter-inputs input{
+    width:100%; /* 추가 */
+
+    min-width:0;
+
+    height:46px;
+
+    border-radius:12px;
+
+    border:
+        1px solid rgba(148,163,184,0.25);
+
+    padding:0 14px;
+
+    background:#f8fafc;
+
+    font-size:14px;
+    font-weight:600;
+    box-sizing:border-box;
+    color:#334155;
+}
+
+.filter-inputs span{
+    color:#94a3b8;
+    font-weight:700;
+}
+
+.filter-submit{
+
+    width:100%;
+
+    height:48px;
+
+    border:none;
+
+    border-radius:14px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #2563eb,
+            #1d4ed8
+        );
+
+    color:white;
+
+    font-size:14px;
+    font-weight:800;
+
+    cursor:pointer;
+
+    transition:0.2s ease;
+}
+
+.filter-submit:hover{
+    transform:translateY(-1px);
+}
+
+/* =========================
+🔥 KPI GRID
+========================= */
+
+.kpi-grid{
+    display:grid;
+    justify-content:center;
+    grid-template-columns:
+        repeat(4, minmax(220px, 250px));
+
+    gap:18px;
+
+    margin-bottom:26px;
+}
+
+.kpi-card{
+    position:relative;
+
+    background:
+        linear-gradient(
+            135deg,
+            #172554 0%,
+            #1e3a8a 100%
+        );
+
+    border-radius:24px;
+
+    padding:18px 20px;
+
+    overflow:hidden;
+
+    color:white;
+
+    box-shadow:
+        0 10px 24px rgba(30,58,138,0.18);
+
+    transition:0.25s ease;
+}
+
+.kpi-card:hover{
+    transform:translateY(-2px);
+}
+
+.kpi-card::after{
+    content:"";
+
+    position:absolute;
+
+    right:-35px;
+    bottom:-35px;
+
+    width:120px;
+    height:120px;
+
+    background:rgba(255,255,255,0.06);
+
+    border-radius:50%;
+}
+
+.kpi-title{
+    font-size:13px;
+    font-weight:700;
+
+    color:rgba(255,255,255,0.72);
+
+    margin-bottom:10px;
+}
+
+.kpi-value{
+    font-size:34px;
+    font-weight:800;
+
+    line-height:1;
+}
+
+.kpi-sub{
+    margin-top:12px;
+
+    font-size:12px;
+    font-weight:600;
+
+    color:rgba(255,255,255,0.65);
+}
+
+/* =========================
+🔥 Layout
+========================= */
+
+.top-layout{
+    display:grid;
+    grid-template-columns:
+        2.8fr 0.9fr;
+    gap:22px;
+    margin-bottom:28px;
+}
+
+/* =========================
+🔥 Card
+========================= */
+
+.dashboard-card{
+    position:relative;
+
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff 0%,
+            #f8fbff 100%
+        );
+
+    border-radius:30px;
+
+    padding:28px;
+
+    border:1px solid rgba(59,130,246,0.08);
+
+    box-shadow:
+        0 14px 40px rgba(15,23,42,0.06);
+
+    overflow:hidden;
+}
+
+.dashboard-card::before{
+    content:"";
+
+    position:absolute;
+
+    top:-60px;
+    right:-60px;
+
+    width:180px;
+    height:180px;
+
+    border-radius:50%;
+
+    background:rgba(59,130,246,0.04);
+}
+
+.card-header{
+    display:flex;
+
+    justify-content:space-between;
+    align-items:center;
+
+    margin-bottom:20px;
+}
+
+.card-title{
+    font-size:18px;
+    font-weight:800;
+
+    color:#0f172a;
+}
+
+.card-desc{
+    font-size:13px;
+    font-weight:600;
+
+    color:#94a3b8;
+}
+
+/* =========================
+🔥 Activity Chart
+========================= */
+
+.activity-chart{
+    height:320px;
+}
+
+/* =========================
+🔥 Service Rank
+========================= */
+
+.service-list{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+}
+
+.service-item{
+    display:flex;
+
+    align-items:center;
+    justify-content:space-between;
+}
+
+.service-name{
+    font-size:15px;
+    font-weight:700;
+
+    color:#334155;
+}
+
+.service-count{
+    min-width:44px;
+
+    text-align:center;
+
+    padding:6px 12px;
+
+    border-radius:999px;
+
+    background:rgba(37,99,235,0.08);
+
+    color:#2563eb;
+
+    font-size:13px;
+    font-weight:800;
+}
+
+/* =========================
+🔥 Table
+========================= */
+
+.activity-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.activity-table thead th{
+    position:sticky;
+    background:#30445a;
+    top:0;
+    color:white;
+    z-index:10;
+    padding:16px 14px;
+
+    font-size:14px;
+    font-weight:700;
+
+    text-align:center;
+}
+
+.activity-table thead th:first-child{
+    border-top-left-radius:14px;
+}
+
+.activity-table thead th:last-child{
+    border-top-right-radius:14px;
+}
+
+.activity-table tbody td{
+
+    padding:14px;
+
+    border-bottom:
+        1px solid rgba(148,163,184,0.12);
+
+    text-align:center;
+
+    font-size:14px;
+
+    color:#334155;
+}
+
+.activity-table tbody tr{
+    transition:0.2s ease;
+}
+
+.activity-table tbody tr:hover{
+    background:rgba(59,130,246,0.06);
+}
+
+/* =========================
+🔥 Type Badge
+========================= */
+
+.type-badge{
+    display:inline-flex;
+
+    align-items:center;
+    justify-content:center;
+
+    min-width:60px;
+
+    padding:6px 12px;
+
+    border-radius:999px;
+
+    font-size:12px;
+    font-weight:800;
+}
+
+.type-IN{
+
+    background:
+        rgba(37,99,235,0.12);
+
+    color:#2563eb;
+}
+
+.type-OUT{
+
+    background:
+        rgba(236,72,153,0.12);
+
+    color:#ec4899;
+}
+
+.serial-text{
+    font-weight:700;
+    color:#2563eb;
+}
+
+.log-table-wrap{
+
+    max-height:650px;   /* 원하는 높이 */
+
+    overflow-y:auto;
+    overflow-x:auto;
+
+    border-radius:18px;
+}
+
+/* 스크롤바 */
+
+.log-table-wrap::-webkit-scrollbar{
+    width:10px;
+    height:10px;
+}
+
+.log-table-wrap::-webkit-scrollbar-thumb{
+    background:
+        rgba(148,163,184,0.35);
+
+    border-radius:999px;
+}
+
+.log-table-wrap::-webkit-scrollbar-track{
+    background:transparent;
+}
+
+/* =========================
+🔥 Responsive
+========================= */
+
+@media (max-width:1200px){
+    .top-summary{
+        flex-direction:column;
+        align-items:stretch;
+    }
+
+    .top-layout{
+        grid-template-columns:1fr;
+    }
+
+    .kpi-grid{
+        grid-template-columns:
+            repeat(2, 1fr);
+        max-width:none;
+    }
+}
+
+@media (max-width:900px){
+
+    .kpi-grid{
+        grid-template-columns:1fr;
+    }
+
+    .activity-table{
+        min-width:1000px;
+    }
+}
+
+@media (max-width:768px){
+
+    .filter-popup{
+
+        width:300px;
+
+        right:0;
+    }
+
+    .filter-inputs{
+        flex-direction:column;
+        align-items:stretch;
+    }
+
+    .filter-inputs span{
+        display:none;
+    }
+}
+
+.type-MOVE{
+
+    background:
+        rgba(37,99,235,0.12);
+
+    color:#2563eb;
+}
+
+.type-DELETE{
+
+    background:
+        rgba(148,163,184,0.18);
+
+    color:#475569;
+}
+
+.table-toolbar{
+
+    display:flex;
+
+    justify-content:space-between;
+    align-items:center;
+
+    gap:16px;
+
+    margin-bottom:20px;
+}
+
+.toolbar-left{
+    flex:1;
+}
+
+.toolbar-right{
+
+    display:flex;
+    align-items:center;
+
+    gap:10px;
+}
+
+.search-box{
+
+    display:flex;
+    align-items:center;
+
+    gap:10px;
+
+    height:46px;
+
+    padding:0 14px;
+
+    background:#f8fafc;
+
+    border:
+        1px solid rgba(148,163,184,0.18);
+
+    border-radius:14px;
+}
+
+.search-box input{
+
+    flex:1;
+
+    border:none;
+    outline:none;
+
+    background:transparent;
+
+    font-size:14px;
+    font-weight:600;
+
+    color:#334155;
+}
+
+.toolbar-right select{
+
+    height:46px;
+
+    padding:0 14px;
+
+    border-radius:12px;
+
+    border:
+        1px solid rgba(148,163,184,0.18);
+
+    background:#f8fafc;
+
+    font-size:13px;
+    font-weight:600;
+
+    color:#334155;
+}
+
+.reset-btn{
+
+    height:46px;
+
+    padding:0 18px;
+
+    border:none;
+
+    border-radius:12px;
+
+    background:#e2e8f0;
+
+    color:#475569;
+
+    font-size:13px;
+    font-weight:700;
+
+    cursor:pointer;
+
+    transition:0.2s ease;
+}
+
+.reset-btn:hover{
+
+    background:#cbd5e1;
+}
+</style>
+
+<h2 class="page-title">
+    Dashboard
+</h2>
+
+<!-- FILTER -->
+
+<div class="filter-bar">
+
+    <div class="filter-wrap">
+
+        <button
+            id="dateFilterBtn"
+            type="button"
+            class="filter-button"
+        >
+            📅
+        </button>
+
+        <div
+            id="dateFilterPopup"
+            class="filter-popup"
+        >
+
+            <form method="get">
+
+                <div class="filter-title">
+                    기간 선택
+                </div>
+
+                <div class="filter-inputs">
+
+                    <input
+                        type="date"
+                        name="start"
+                        value="{{ start }}"
+                    >
+
+                    <span>~</span>
+
+                    <input
+                        type="date"
+                        name="end"
+                        value="{{ end }}"
+                    >
+
+                </div>
+
+                <button
+                    type="submit"
+                    class="filter-submit"
+                >
+                    적용
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- KPI -->
+
+<div class="kpi-grid">
+
+    <div class="kpi-card">
+        <div class="kpi-title">기간 내 출고</div>
+        <div class="kpi-value">{{ today_out }}</div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-title">기간 내 입고</div>
+        <div class="kpi-value">{{ today_in }}</div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-title">미입력 출고 건수</div>
+        <div class="kpi-value">{{ missing_client }}</div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-title">최근 1시간 활동</div>
+        <div class="kpi-value">{{ recent_hour }}</div>
+    </div>
+
+</div>
+
+<!-- TOP -->
+
+<div class="top-layout">
+
+    <div class="dashboard-card">
+
+        <div class="card-header">
+
+            <div>
+
+                <div class="card-title">
+                    시간대별 처리 추이
+                </div>
+
+                <div class="card-desc">
+                    {{ start }} ~ {{ end }} 활동 로그
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="activity-chart">
+            <canvas id="activityChart"></canvas>
+        </div>
+
+    </div>
+
+    <div class="dashboard-card">
+
+        <div class="card-header">
+
+            <div>
+
+                <div class="card-title">
+                    Product별 활동 추이
+                </div>
+
+                <div class="card-desc">
+                    {{ start }} ~ {{ end }} 활동 로그
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="service-list">
+
+            {% for s in service_stats %}
+
+            <div class="service-item">
+
+                <div class="service-name">
+                    {{ s.name }}
+                </div>
+
+                <div class="service-count">
+                    {{ s.count }}
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- TABLE -->
+
+<div class="dashboard-card">
+
+    <div class="card-header">
+
+        <div>
+
+            <div class="card-title">
+                Log Table
+            </div>
+
+            <div class="card-desc">
+                {{ start }} ~ {{ end }} 활동 로그
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="table-toolbar">
+
+        <div class="toolbar-left">
+
+            <div class="search-box">
+
+                <span class="search-icon">
+                    🔍
+                </span>
+
+                <input
+                    type="text"
+                    id="serialSearch"
+                    placeholder="Serial No. 검색"
+                >
+
+            </div>
+
+        </div>
+
+        <div class="toolbar-right">
+
+            <select id="productFilter">
+
+                <option value="">
+                    전체 Product
+                </option>
+
+                {% for service in SERVICES %}
+
+                <option value="{{ SERVICE_NAMES[service] }}">
+                    {{ SERVICE_NAMES[service] }}
+                </option>
+
+                {% endfor %}
+
+            </select>
+
+            <select id="typeFilter">
+
+                <option value="">
+                    전체 Type
+                </option>
+
+                <option value="입고">
+                    입고
+                </option>
+
+                <option value="출고">
+                    출고
+                </option>
+
+                <option value="입고 이동">
+                    입고 이동
+                </option>
+
+                <option value="출고 이동">
+                    출고 이동
+                </option>
+
+                <option value="입고 삭제">
+                    입고 삭제
+                </option>
+
+                <option value="출고 삭제">
+                    출고 삭제
+                </option>
+
+            </select>
+
+            <button
+                type="button"
+                class="reset-btn"
+                onclick="resetFilters()"
+            >
+                초기화
+            </button>
+
+        </div>
+
+    </div>
+
+    <div class="log-table-wrap">
+
+        <table class="activity-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>Product</th>
+                    <th>Serial no.</th>
+                    <th>Type</th>
+                    <th>출고처</th>
+                    <th>작업자</th>
+                    <th>Time</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                {% for r in records %}
+
+                <tr>
+
+                    <td>
+                        {{ SERVICE_NAMES[r.product] }}
+                    </td>
+
+                    <td class="serial-text">
+                        {{ r.serial }}
+                    </td>
+
+                    <td>
+
+                        {% if r.type == "IN" %}
+
+                            <span class="type-badge type-IN">
+                                입고
+                            </span>
+
+                        {% elif r.type == "OUT" %}
+
+                            <span class="type-badge type-OUT">
+                                출고
+                            </span>
+
+                        {% elif r.type == "MOVE_IN" %}
+
+                            <span class="type-badge type-MOVE">
+                                입고 이동
+                            </span>
+
+                        {% elif r.type == "MOVE_OUT" %}
+
+                            <span class="type-badge type-MOVE">
+                                출고 이동
+                            </span>
+
+                        {% elif r.type == "DELETE_IN" %}
+
+                            <span class="type-badge type-DELETE">
+                                입고 삭제
+                            </span>
+
+                        {% elif r.type == "DELETE_OUT" %}
+
+                            <span class="type-badge type-DELETE">
+                                출고 삭제
+                            </span>
+
+                        {% endif %}
+
+                    </td>
+
+                    <td>
+                        {{ r.client or "-" }}
+                    </td>
+
+                    <td>
+                        {{ r.user or "-" }}
+                    </td>
+
+                    <td>
+                        {{ r.created_at.strftime("%Y-%m-%d %H:%M") }}
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+<script>
+
+if (typeof ChartDataLabels !== "undefined") {
+    Chart.register(ChartDataLabels);
+}
+
+new Chart(
+    document.getElementById("activityChart"),
+    {
+        type:"line",
+
+        data:{
+            labels: JSON.parse('{{ activity_labels | tojson | safe }}'),
+
+            datasets:[
+
+                {
+                    label:"{{ SERVICE_NAMES['cart_bp_pro'] }}",
+
+                    data: JSON.parse('{{ activity_cart_bp_pro | tojson | safe }}'),
+
+                    borderColor:"#3b82f6",
+
+                    backgroundColor:"rgba(59,130,246,0.10)",
+
+                    tension:0.35,
+
+                    borderWidth:2,
+
+                    pointRadius:3,
+
+                    pointHoverRadius:5,
+
+                    pointBackgroundColor:"#3b82f6",
+
+                    fill:false
+                },
+
+                {
+                    label:"{{ SERVICE_NAMES['cart_bp'] }}",
+
+                    data: JSON.parse('{{ activity_cart_bp | tojson | safe }}'),
+
+                    borderColor:"#8b5cf6",
+
+                    backgroundColor:"rgba(139,92,246,0.10)",
+
+                    tension:0.35,
+
+                    borderWidth:2,
+
+                    pointRadius:3,
+
+                    pointHoverRadius:5,
+
+                    pointBackgroundColor:"#8b5cf6",
+
+                    fill:false
+                },
+
+                {
+                    label:"{{ SERVICE_NAMES['cart_on'] }}",
+
+                    data: JSON.parse('{{ activity_cart_on | tojson | safe }}'),
+
+                    borderColor:"#14b8a6",
+
+                    backgroundColor:"rgba(20,184,166,0.10)",
+
+                    tension:0.35,
+
+                    borderWidth:2,
+
+                    pointRadius:3,
+
+                    pointHoverRadius:5,
+
+                    pointBackgroundColor:"#14b8a6",
+
+                    fill:false
+                },
+
+                {
+                    label:"{{ SERVICE_NAMES['hanbang'] }}",
+
+                    data: JSON.parse('{{ activity_hanbang | tojson | safe }}'),
+
+                    borderColor:"#f472b6",
+
+                    backgroundColor:"rgba(244,114,182,0.10)",
+
+                    tension:0.35,
+
+                    borderWidth:3,
+
+                    pointRadius:4,
+
+                    pointHoverRadius:6,
+
+                    pointBackgroundColor:"#f472b6",
+
+                    fill:false
+                },
+
+                {
+                    label:"{{ SERVICE_NAMES['cart_platform'] }}",
+
+                    data: JSON.parse('{{ activity_cart_platform | tojson | safe }}'),
+
+                    borderColor:"#f59e0b",
+
+                    backgroundColor:"rgba(245,158,11,0.10)",
+
+                    tension:0.35,
+
+                    borderWidth:3,
+
+                    pointRadius:4,
+
+                    pointHoverRadius:6,
+
+                    pointBackgroundColor:"#f59e0b",
+
+                    fill:false
+                },
+                {
+                    label:"{{ SERVICE_NAMES['cart_ring'] }}",
+
+                    data: JSON.parse('{{ activity_cart_ring | tojson | safe }}'),
+
+                    borderColor:"#ef4444",
+
+                    backgroundColor:"rgba(239,68,68,0.10)",
+
+                    tension:0.35,
+
+                    borderWidth:3,
+
+                    pointRadius:4,
+
+                    pointHoverRadius:6,
+
+                    pointBackgroundColor:"#ef4444",
+
+                    fill:false
+                },
+                {
+                    label:"{{ SERVICE_NAMES['cart_o2'] }}",
+
+                    data: JSON.parse('{{ activity_cart_o2 | tojson | safe }}'),
+
+                    borderColor:"#06b6d4",
+
+                    backgroundColor:"rgba(6,182,212,0.10)",
+
+                    tension:0.35,
+
+                    borderWidth:3,
+
+                    pointRadius:4,
+
+                    pointHoverRadius:6,
+
+                    pointBackgroundColor:"#06b6d4",
+
+                    fill:false
+                }
+            ]
+        },
+
+        options:{
+
+            responsive:true,
+
+            maintainAspectRatio:false,
+
+            interaction:{
+                mode:"index",
+                intersect:false
+            },
+
+            plugins:{
+
+                legend:{
+                    display:true,
+
+                    position:"bottom",
+
+                    labels:{
+
+                        usePointStyle:true,
+
+                        pointStyle:"circle",
+
+                        padding:18,
+
+                        color:"#475569",
+
+                        font:{
+                            size:11,
+                            weight:"700"
+                        }
+                    }
+                },
+
+                tooltip:{
+
+                    backgroundColor:"#0f172a",
+
+                    titleColor:"#fff",
+
+                    bodyColor:"#fff",
+
+                    padding:12,
+
+                    borderColor:"rgba(255,255,255,0.08)",
+
+                    borderWidth:1,
+
+                    displayColors:true
+                },
+
+                datalabels:{
+
+                    display:function(context){
+
+                        return context.dataset.data[
+                            context.dataIndex
+                        ] > 0;
+                    },
+
+                    color:function(context){
+
+                        return context.dataset.borderColor;
+                    },
+
+                    font:{
+                        size:10,
+                        weight:"700"
+                    },
+
+                    align:"top",
+
+                    anchor:"end",
+
+                    offset:4,
+
+                    formatter:function(value){
+
+                        return value;
+                    }
+                }
+            },
+
+            scales:{
+
+                x:{
+                    grid:{
+                        color:"rgba(148,163,184,0.08)"
+                    },
+
+                    ticks:{
+                        color:"#64748b",
+
+                        font:{
+                            size:11,
+                            weight:"600"
+                        }
+                    }
+                },
+
+                y:{
+                    beginAtZero:true,
+
+                    grid:{
+                        color:"rgba(148,163,184,0.08)"
+                    },
+
+                    ticks:{
+                        color:"#64748b",
+
+                        font:{
+                            size:11,
+                            weight:"600"
+                        },
+
+                        precision:0
+                    }
+                }
+            },
+
+            elements:{
+                line:{
+                    capBezierPoints:true
+                }
+            }
+        }
+    }
+);
+
+/* =========================
+🔥 Date Filter
+========================= */
+
+const filterBtn =
+    document.getElementById("dateFilterBtn");
+
+const popup =
+    document.getElementById("dateFilterPopup");
+
+filterBtn.addEventListener("click", () => {
+
+    if(popup.style.display === "block"){
+        popup.style.display = "none";
+    }else{
+        popup.style.display = "block";
+    }
+
+});
+
+document.addEventListener("click", (e) => {
+
+    if(
+        !popup.contains(e.target) &&
+        !filterBtn.contains(e.target)
+    ){
+        popup.style.display = "none";
+    }
+
+});
+
+const serialSearch =
+    document.getElementById("serialSearch");
+
+const productFilter =
+    document.getElementById("productFilter");
+
+const typeFilter =
+    document.getElementById("typeFilter");
+
+const tableRows =
+    document.querySelectorAll(
+        ".activity-table tbody tr"
+    );
+
+function filterTable(){
+
+    const serialValue =
+        serialSearch.value.toLowerCase();
+
+    const productValue =
+        productFilter.value;
+
+    const typeValue =
+        typeFilter.value;
+
+    tableRows.forEach(row => {
+
+        const product =
+            row.children[0].innerText;
+
+        const serial =
+            row.children[1]
+                .innerText
+                .toLowerCase();
+
+        const type =
+            row.children[2].innerText.trim();
+
+        const matchSerial =
+            serial.includes(serialValue);
+
+        const matchProduct =
+            !productValue ||
+            product === productValue;
+
+        const matchType =
+            !typeValue ||
+            type.includes(typeValue);
+
+        if(
+            matchSerial &&
+            matchProduct &&
+            matchType
+        ){
+            row.style.display = "";
+        }else{
+            row.style.display = "none";
+        }
+
+    });
+
+}
+
+serialSearch.addEventListener(
+    "keyup",
+    filterTable
+);
+
+productFilter.addEventListener(
+    "change",
+    filterTable
+);
+
+typeFilter.addEventListener(
+    "change",
+    filterTable
+);
+
+function resetFilters(){
+
+    serialSearch.value = "";
+    productFilter.value = "";
+    typeFilter.value = "";
+
+    filterTable();
+}
+
+</script>
+
+{% endblock %}

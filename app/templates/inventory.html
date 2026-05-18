@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+.page-title {
+    font-size:22px;
+    font-weight:700;
+    margin-bottom:15px;
+}
+
+.filter-box {
+    margin-bottom:15px;
+    display:flex;
+    gap:10px;
+}
+
+.filter-btn {
+    padding:8px 14px;
+    border-radius:8px;
+    border:1px solid #ddd;
+    cursor:pointer;
+    background:white;
+}
+
+.filter-btn.active {
+    background:black;
+    color:white;
+}
+
+.table-container {
+    background:white;
+    padding:15px;
+    border-radius:10px;
+}
+
+table {
+    width:100%;
+    border-collapse:collapse;
+}
+
+th, td {
+    padding:10px;
+    border-bottom:1px solid #eee;
+    text-align:center;
+}
+
+th {
+    background:#2c3e50;
+    color:white;
+}
+
+/* 상태 색상 */
+.status-IN { color:green; font-weight:600; }
+.status-OUT { color:gray; }
+.status-OUT_ONLY { color:red; font-weight:600; }
+</style>
+
+<div class="page-title">📦 재고 조회</div>
+
+<div class="filter-box">
+    <button class="filter-btn active" onclick="filterData('ALL')">전체</button>
+    <button class="filter-btn" onclick="filterData('IN')">입고</button>
+    <button class="filter-btn" onclick="filterData('OUT')">출고 완료</button>
+    <button class="filter-btn" onclick="filterData('OUT_ONLY')">출고만</button>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Serial no.</th>
+                <th>Product</th>
+                <th>Stock</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<script>
+let originalData = [];
+
+fetch("/inventory")
+.then(res => res.json())
+.then(data => {
+    originalData = data;
+    renderTable(data);
+});
+
+function renderTable(data){
+    const tbody = document.getElementById("tableBody");
+
+    tbody.innerHTML = data.map(item => `
+        <tr>
+            <td>
+                <a href="/movement-history/${item.serial}" style="text-decoration:none; color:#2c3e50;">
+                    ${item.serial}
+                </a>
+            </td>
+            <td>${item.product}</td>
+            <td>${item.stock}</td>
+            <td class="status-${item.status}">
+                ${getStatusLabel(item.status)}
+            </td>
+        </tr>
+    `).join("");
+}
+
+function getStatusLabel(status){
+    if(status === "IN") return "입고";
+    if(status === "OUT") return "출고 완료";
+    if(status === "OUT_ONLY") return "출고만";
+}
+
+function filterData(type){
+
+    // 버튼 active 처리
+    document.querySelectorAll(".filter-btn").forEach(btn=>{
+        btn.classList.remove("active");
+    });
+    event.target.classList.add("active");
+
+    if(type === "ALL"){
+        renderTable(originalData);
+        return;
+    }
+
+    const filtered = originalData.filter(item => item.status === type);
+    renderTable(filtered);
+}
+</script>
+
+{% endblock %}

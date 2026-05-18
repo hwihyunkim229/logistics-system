@@ -1,0 +1,731 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+
+.log-page{
+    display:flex;
+    flex-direction:column;
+    gap:24px;
+}
+
+.log-card{
+    background:white;
+    border-radius:24px;
+    padding:28px;
+    box-shadow:0 8px 24px rgba(15,23,42,0.06);
+}
+
+.log-title{
+    font-size:28px;
+    font-weight:800;
+    color:#0f172a;
+    margin-bottom:8px;
+}
+
+.log-desc{
+    font-size:14px;
+    color:#94a3b8;
+    margin-bottom:24px;
+}
+
+.filter-wrap{
+    display:flex;
+    gap:12px;
+    margin-bottom:24px;
+    flex-wrap:wrap;
+    align-items:center;
+    margin:0;
+}
+
+.filter-input,
+.filter-select{
+    height:44px;
+    border:1px solid #dbe2ea;
+    border-radius:12px;
+    padding:0 14px;
+    font-size:14px;
+    background:#f8fafc;
+}
+
+.filter-select{
+    min-width:180px;
+}
+
+.filter-btn{
+    height:44px;
+    padding:0 18px;
+    border:none;
+    border-radius:12px;
+    background:#2563eb;
+    color:white;
+    font-weight:700;
+    cursor:pointer;
+}
+
+.word-break{
+    word-break:break-all;
+}
+
+.action-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:100px;
+    height:34px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:700;
+    padding:0 12px;
+}
+
+.action-login{
+    background:#dbeafe;
+    color:#2563eb;
+}
+
+.action-create{
+    background:#dcfce7;
+    color:#16a34a;
+}
+
+.action-reset{
+    background:#fef3c7;
+    color:#d97706;
+}
+
+.action-delete{
+    background:#fee2e2;
+    color:#dc2626;
+}
+
+.action-out{
+    background:#ede9fe;
+    color:#7c3aed;
+}
+
+.action-in{
+    background:#cffafe;
+    color:#0891b2;
+}
+
+.action-download{
+    background:#e0f2fe;
+    color:#0284c7;
+}
+
+.action-upload{
+    background:#dcfce7;
+    color:#16a34a;
+}
+
+.action-move{
+    background:#ede9fe;
+    color:#7c3aed;
+}
+
+.action-update{
+    background:#f1f5f9;
+    color:#475569;
+}
+
+.empty-row{
+    padding:40px !important;
+    color:#94a3b8;
+}
+
+.serial-link{
+    color:#2563eb;
+    text-decoration:none;
+    font-weight:600;
+}
+
+.serial-link:hover{
+    text-decoration:underline;
+}
+
+.action-logout{
+    background:#e2e8f0;
+    color:#334155;
+}
+
+.table-wrap{
+    min-height:500px;
+    max-height:850px;
+    overflow-y:auto;
+    overflow-x:auto;
+    margin-top:8px;
+    border:1px solid #e2e8f0;
+    border-radius:18px;
+    background:white;
+}
+
+.log-table{
+    width:100%;
+    min-width:1200px;
+    border-collapse:collapse;
+    background:white;
+    max-height: 1000px;
+}
+
+
+.log-table thead th{
+    position:sticky;
+    top:0;
+    z-index:100;
+    background:#314766;
+    color:white;
+    padding:18px;
+    font-size:14px;
+    text-align:center;
+    white-space:nowrap;
+}
+
+.log-table thead th:first-child{
+    border-top-left-radius:18px;
+}
+
+.log-table thead th:last-child{
+    border-top-right-radius:18px;
+}
+
+.log-table tbody td{
+    background:white;
+    padding:18px;
+    font-size:14px;
+    text-align:center;
+    border-bottom:1px solid #e2e8f0;
+    vertical-align:middle;
+}
+
+.log-table tbody tr:hover td{
+    background:#f8fafc;
+}
+
+.calendar-btn{
+    width:42px;
+    height:42px;
+    border-radius:10px;
+    border:1px solid #ddd;
+    background:white;
+    cursor:pointer;
+    font-size:18px;
+}
+
+.calendar-btn:hover{
+    background:#f8fafc;
+}
+
+.date-popup{
+    position:absolute;
+    top:52px;
+    right:0;
+    width:320px;
+    background:white;
+    border-radius:16px;
+    padding:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.12);
+    border:1px solid #e2e8f0;
+    display:none;
+    z-index:999;
+}
+
+.date-popup.show{
+    display:block;
+}
+
+.popup-title{
+    font-size:16px;
+    font-weight:700;
+    margin-bottom:16px;
+}
+
+.date-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:16px;
+}
+
+.date-row input{
+    flex:1;
+    padding:10px;
+    border-radius:10px;
+    border:1px solid #ddd;
+}
+
+.quick-range{
+    display:flex;
+    gap:8px;
+    margin-bottom:16px;
+}
+
+.quick-range button{
+    flex:1;
+}
+
+.apply-btn{
+    width:100%;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    background:#314766;
+    color:white;
+    font-weight:600;
+    cursor:pointer;
+}
+
+.date-filter-wrap{
+    display:flex;
+    justify-content:flex-end;
+    margin-bottom:20px;
+    position:relative;
+    flex-shrink:0;
+}
+
+.top-filter-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:24px;
+}
+
+.pagination{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:12px;
+    margin-top:20px;
+}
+
+.pagination a{
+    padding:8px 14px;
+    border-radius:8px;
+    border:1px solid #ddd;
+    text-decoration:none;
+    color:#334155;
+    background:white;
+    font-weight:600;
+}
+
+.pagination a:hover{
+    background:#314766;
+    color:white;
+}
+
+</style>
+<div class="log-page">
+
+    <div class="log-card">
+
+        <div class="log-title">
+            활동 로그
+        </div>
+
+        <div class="log-desc">
+            관리자 및 사용자 활동 이력
+        </div>
+
+        <div class="top-filter-row">
+
+            <form
+                method="get"
+                class="filter-wrap"
+            >
+
+                <input
+                    type="text"
+                    name="user"
+                    placeholder="사용자 검색"
+                    value="{{ search_user or '' }}"
+                    class="filter-input"
+                >
+
+                <select
+                    name="action"
+                    class="filter-select"
+                >
+
+                    <option value="">
+                        전체 작업
+                    </option>
+
+                    {% for action in actions %}
+
+                    <option
+                        value="{{ action }}"
+                        {% if selected_action == action %}
+                            selected
+                        {% endif %}
+                    >
+                        {{ action }}
+                    </option>
+
+                    {% endfor %}
+
+                </select>
+
+                <input
+                    type="text"
+                    name="serial"
+                    placeholder="Serial 검색"
+                    value="{{ search_serial or '' }}"
+                    class="filter-input"
+                >
+
+                <button
+                    type="submit"
+                    class="filter-btn"
+                >
+                    검색
+                </button>
+
+            </form>
+
+            <!-- 날짜 필터 -->
+            <div class="date-filter-wrap">
+
+                <button
+                    id="dateFilterBtn"
+                    class="calendar-btn"
+                    type="button"
+                >
+                    🗓️
+                </button>
+
+                <div
+                    id="dateFilterPopup"
+                    class="date-popup"
+                >
+
+                    <div class="popup-title">
+                        기간 선택
+                    </div>
+
+                    <div class="date-row">
+
+                        <input
+                            type="date"
+                            id="startDate"
+                            value="{{ start_date or '' }}"
+                        >
+
+                        <span>~</span>
+
+                        <input
+                            type="date"
+                            id="endDate"
+                            value="{{ end_date or '' }}"
+                        >
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="apply-btn"
+                        onclick="applyDateFilter()"
+                    >
+                        적용
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div
+            style="
+                display:flex;
+                gap:12px;
+                margin-bottom:20px;
+            "
+        >
+
+            <a
+                href="/admin/activity-export"
+                class="filter-btn"
+                style="
+                    text-decoration:none;
+                    display:flex;
+                    align-items:center;
+                "
+            >
+                활동 로그 다운로드
+            </a>
+
+            <a
+                href="/admin/backup-db"
+                class="filter-btn"
+                style="
+                    background:#0f172a;
+                    text-decoration:none;
+                    display:flex;
+                    align-items:center;
+                "
+            >
+                DB 백업
+            </a>
+
+        </div>
+
+        <div class="table-wrap">
+
+            <table class="log-table">
+
+                <thead>
+
+                    <tr>
+                        <th>Product</th>
+                        <th>시간</th>
+                        <th>사용자</th>
+                        <th>작업</th>
+                        <th>작업 대상 Serial</th>
+                        <th>작업 내용</th>
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                    {% if logs %}
+
+                        {% for log in logs %}
+
+                        <tr>
+
+                            <td>
+                                {{ log.product }}
+                            </td>
+
+                            <td>
+                                {{ log.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </td>
+
+                            <td>
+                                {{ log.user }}
+                            </td>
+
+                            <td>
+
+                                {% if log.action == "LOGIN" %}
+                                    <span class="action-badge action-login">
+                                        로그인
+                                    </span>
+
+                                {% elif log.action == "LOGOUT" %}
+                                    <span class="action-badge action-logout">
+                                        로그아웃
+                                    </span>
+
+                                {% elif log.action == "CREATE_USER" %}
+                                    <span class="action-badge action-create">
+                                        계정 생성
+                                    </span>
+
+                                {% elif log.action == "RESET_PASSWORD" %}
+                                    <span class="action-badge action-reset">
+                                        비밀번호 초기화
+                                    </span>
+
+                                {% elif log.action == "CHANGE_PASSWORD" %}
+                                    <span class="action-badge action-reset">
+                                        비밀번호 변경
+                                    </span>
+
+                                {% elif log.action == "DELETE_USER" %}
+                                    <span class="action-badge action-delete">
+                                        계정 삭제
+                                    </span>
+
+                                {% elif log.action == "OUTBOUND" %}
+                                    <span class="action-badge action-out">
+                                        출고
+                                    </span>
+
+                                {% elif log.action == "INBOUND" %}
+                                    <span class="action-badge action-in">
+                                        입고
+                                    </span>
+
+                                {% elif log.action == "DOWNLOAD_EXCEL" %}
+                                    <span class="action-badge action-download">
+                                        엑셀 다운로드
+                                    </span>
+
+                                {% elif log.action == "UPLOAD_EXCEL" %}
+                                    <span class="action-badge action-upload">
+                                        엑셀 업로드
+                                    </span>
+
+                                {% elif log.action == "MOVE_IN" %}
+                                    <span class="action-badge action-move">
+                                        입고 이동
+                                    </span>
+
+                                {% elif log.action == "MOVE_OUT" %}
+                                    <span class="action-badge action-move">
+                                        출고 이동
+                                    </span>
+
+                                {% elif log.action == "DELETE_SELECTED" %}
+                                    <span class="action-badge action-delete">
+                                        선택 삭제
+                                    </span>
+
+                                {% elif log.action == "DELETE_ALL" %}
+                                    <span class="action-badge action-delete">
+                                        전체 삭제
+                                    </span>
+
+                                {% elif log.action == "BULK_UPDATE" %}
+                                    <span class="action-badge action-update">
+                                        일괄 수정
+                                    </span>
+
+                                {% elif log.action == "UPDATE_FIELD" %}
+                                    <span class="action-badge action-update">
+                                        수정
+                                    </span>
+
+                                {% elif log.action == "UPDATE_SIZE" %}
+                                    <span class="action-badge action-update">
+                                        사이즈 수정
+                                    </span>
+
+                                {% else %}
+                                    {{ log.action }}
+                                {% endif %}
+
+                            </td>
+
+                            <td class="word-break">
+
+                                {% if log.serial %}
+
+                                <a
+                                    href="/movement-history/{{ log.serial.split(',')[0].strip() }}"
+                                    class="serial-link"
+                                    target="_blank"
+                                >
+                                    {{ log.serial }}
+                                </a>
+
+                                {% endif %}
+
+                            </td>
+
+                            <td class="word-break">
+                                {{ log.detail }}
+                            </td>
+
+                        </tr>
+
+                        {% endfor %}
+
+                    {% else %}
+
+                        <tr>
+
+                            <td
+                                colspan="6"
+                                class="empty-row"
+                            >
+                                활동 로그가 없습니다.
+                            </td>
+
+                        </tr>
+
+                    {% endif %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+        <div class="pagination">
+
+            {% if page > 1 %}
+
+            <a
+                href="?page={{ page - 1 }}&user={{ search_user or '' }}&action={{ selected_action or '' }}&serial={{ search_serial or '' }}&start_date={{ start_date or '' }}&end_date={{ end_date or '' }}"
+            >
+                이전
+            </a>
+
+            {% endif %}
+
+            <span>
+                {{ page }} / {{ total_pages }}
+            </span>
+
+            {% if page < total_pages %}
+
+            <a
+                href="?page={{ page + 1 }}&user={{ search_user or '' }}&action={{ selected_action or '' }}&serial={{ search_serial or '' }}&start_date={{ start_date or '' }}&end_date={{ end_date or '' }}"
+            >
+                다음
+            </a>
+
+            {% endif %}
+
+        </div>
+
+<script>
+
+const filterBtn =
+    document.getElementById("dateFilterBtn");
+
+const filterPopup =
+    document.getElementById("dateFilterPopup");
+
+filterBtn.addEventListener("click", function(e){
+
+    e.stopPropagation();
+
+    filterPopup.classList.toggle("show");
+
+});
+
+document.addEventListener("click", function(e){
+
+    if(
+        !filterPopup.contains(e.target)
+        && !filterBtn.contains(e.target)
+    ){
+        filterPopup.classList.remove("show");
+    }
+});
+
+function applyDateFilter(){
+
+    const start =
+        document.getElementById("startDate").value;
+
+    const end =
+        document.getElementById("endDate").value;
+
+    const url =
+        new URL(window.location.href);
+
+    if(start){
+        url.searchParams.set(
+            "start_date",
+            start
+        );
+    }
+
+    if(end){
+        url.searchParams.set(
+            "end_date",
+            end
+        );
+    }
+
+    window.location.href = url.toString();
+}
+
+</script>
+{% endblock %}

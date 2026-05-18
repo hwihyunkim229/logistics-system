@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+<style>
+html, body {
+    height: 100%;
+    overflow: hidden;   /* 🔥 전체 스크롤 제거 */
+}
+
+.search-container {
+    width: 100%;
+    padding: 20px 40px;
+    box-sizing: border-box;
+}
+
+/* 검색 박스 */
+.search-box {
+    width: 100%;
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    box-sizing: border-box;
+}
+
+.search-box form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
+.search-input {
+    min-width: 140px;
+    width: auto;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    margin-right: 10px;
+}
+
+.search-btn {
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: white;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.search-btn:hover {
+    background: black;
+    color: white;
+    border-color: black;
+}
+
+/* 결과 카드 */
+.result-card {
+    width: 100%;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    box-sizing: border-box;
+}
+
+/* 테이블 */
+.search-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+
+.search-table thead th {
+    position: sticky;
+    top: 0;
+    background: #2c3e50;
+    z-index: 2;
+}
+
+.search-table th {
+    background: #2c3e50;
+    color: white;
+    padding: 10px;
+}
+
+.search-table td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    text-align: center;
+}
+
+/* serial 클릭 */
+.serial {
+    cursor: pointer;
+    color: #2980b9;
+    font-weight: 500;
+}
+
+/* 상태 뱃지 */
+.badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: white;
+}
+
+.badge.outbound {
+    background: #e74c3c;
+}
+
+.badge.inbound {
+    background: #3498db;
+}
+
+.section-title {
+    font-size: 27px;
+    font-weight: 800;
+    color: #2c3e50;
+    margin-bottom: 15px;
+}
+
+.flatpickr-calendar {
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+    border: none;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* 헤더 */
+.flatpickr-months {
+    background: #2c3e50;
+    color: white;
+    border-radius: 12px 12px 0 0;
+}
+
+/* 요일 */
+.flatpickr-weekdays {
+    background: #f5f6fa;
+}
+
+/* 날짜 */
+.flatpickr-day {
+    border-radius: 6px;
+    transition: all 0.15s;
+}
+
+/* hover */
+.flatpickr-day:hover {
+    background: #2c3e50;
+    color: white;
+}
+
+/* 선택된 날짜 */
+.flatpickr-day.selected {
+    background: black;
+    color: white;
+}
+
+/* 오늘 */
+.flatpickr-day.today {
+    border: 1px solid #2c3e50;
+}
+
+.flatpickr-current-month {
+    color: white !important;
+}
+
+/* 🔥 연도 input */
+.flatpickr-current-month input.cur-year {
+    color: white !important;
+}
+
+.flatpickr-monthDropdown-months option {
+    color: #333 !important;
+    background: white;
+}
+
+.flatpickr-monthDropdown-months option:hover {
+    background: #2c3e50;
+    color: white;
+}
+
+.flatpickr-prev-month,
+.flatpickr-next-month {
+    color: white !important;
+    fill: white !important;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.excel-download {
+    width: 36px;
+    height: 36px;
+
+    border-radius: 8px;
+    border: 1px solid #ddd;
+    background: white;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    color: #1D6F42;
+}
+
+/* hover */
+.excel-download:hover {
+    background: #1D6F42;
+    color: white;
+}
+
+.excel-download i {
+    font-size: 16px;
+}
+
+.table-wrapper {
+    max-height: 800px;
+    overflow-y: auto;
+    border-radius: 10px;
+}
+
+</style>
+
+<div class="search-container">
+
+    <!-- 🔍 검색 박스 -->
+    <div class="search-box">
+        <h2 class="section-title">통합 검색</h2>
+
+        <form method="get" action="/search">
+            <input 
+                name="q" 
+                value="{{ q }}" 
+                placeholder="검색어를 입력하세요."
+                class="search-input"
+            >
+
+            <select name="status" class="search-input">
+                <option value="">전체</option>
+                <option value="outbound" {% if status=='outbound' %}selected{% endif %}>출고</option>
+                <option value="inbound" {% if status=='inbound' %}selected{% endif %}>입고</option>
+            </select>
+
+            <button type="button" onclick="toggleDate()" class="search-btn">📅</button>
+
+            <div id="dateRange" style="display:none; align-items:center; gap:6px;">
+                <input 
+                    id="startDate" 
+                    name="start_date" 
+                    value="{{ start_date }}" 
+                    class="search-input"
+                    placeholder="시작일"
+                >
+                <span>~</span>
+                <input 
+                    id="endDate" 
+                    name="end_date" 
+                    value="{{ end_date }}" 
+                    class="search-input"
+                    placeholder="종료일"
+                >
+            </div>
+            <button class="search-btn">검색</button>
+        </form>
+    </div>
+
+    {% if q or status or start_date or end_date %}
+    <div class="result-card">
+
+        <div class="result-header">
+            <h3 class="section-title">검색 결과</h3>
+
+            <button class="excel-download" onclick="downloadSearchExcel()" title="엑셀 다운로드">
+                <i class="fa-solid fa-file-excel"></i>
+            </button>
+        </div>
+
+        <div class="table-wrapper">
+            <table class="search-table">
+                <thead>
+                    <tr>
+                        <th>상태</th>
+                        <th>Product</th>
+                        <th>Serial No.</th>
+                        <th>Size</th>
+                        <th>출고 구분</th>
+                        <th>출고처</th>
+                        <th>비고</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for item in outbound %}
+                    <tr>
+                        <td><span class="badge outbound">출고</span></td>
+                        <td>{{ SERVICE_NAMES[item.product] }}</td>
+
+                        <td>
+                            <a href="/movement-history/{{ item.serial }}" 
+                            style="color:#2980b9; text-decoration:none; font-weight:600;">
+                                {{ item.serial }}
+                            </a>
+                        </td>
+
+                        <td>{{item.size or "-"}}</td>          <!-- 추가 -->
+                        <td>{{item.category or "-"}}</td>      <!-- 추가 -->
+
+                        <td>{{item.client or "-"}}</td>
+                        <td>{{item.note or "-"}}</td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- 🔵 입고 -->
+                    {% for item in inbound %}
+                    <tr>
+                        <td><span class="badge inbound">입고</span></td>
+                        <td>{{ SERVICE_NAMES[item.product] }}</td>
+
+                        <td>
+                            <a href="/movement-history/{{ item.serial }}" 
+                            style="color:#2980b9; text-decoration:none;">
+                                {{ item.serial }}
+                            </a>
+                        </td>
+                        <td>{{item.size or "-"}}</td>          <!-- 추가 -->
+                        <td>{{item.category or "-"}}</td>      <!-- 추가 -->
+
+                        <td>{{item.client or "-"}}</td>
+                        <td>{{item.note or "-"}}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not outbound and not inbound %}
+                    <tr>
+                        <td colspan="7" style="padding:20px; color:#999;">
+                            검색 결과가 없습니다.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+<script>
+function toggleDate(){
+    const el = document.getElementById("dateRange");
+    el.style.display = el.style.display === "none" ? "flex" : "none";
+}
+
+// 🔥 flatpickr 적용
+flatpickr("#startDate", {
+    dateFormat: "Y-m-d",
+    allowInput: true
+});
+
+flatpickr("#endDate", {
+    dateFormat: "Y-m-d",
+    allowInput: true
+});
+
+window.onload = function(){
+    if ("{{ start_date }}" || "{{ end_date }}"){
+        document.getElementById("dateRange").style.display = "flex";
+    }
+}
+
+function downloadSearchExcel() {
+    const q = document.querySelector("input[name='q']").value;
+    const status = document.querySelector("select[name='status']").value;
+
+    window.location.href = `/download-search-excel?q=${q}&status=${status}`;
+}
+</script>
+{% endblock %}

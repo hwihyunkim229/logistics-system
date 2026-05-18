@@ -1,0 +1,707 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+<style>
+
+/* =========================
+🔥 Page Title
+========================= */
+
+.page-title{
+    margin-bottom:28px;
+
+    font-size:24px;
+    font-weight:750;
+
+    color:#1f2937;
+
+    display:flex;
+    align-items:center;
+
+    gap:10px;
+}
+
+/* =========================
+🔥 KPI
+========================= */
+
+.kpi-grid{
+    display:grid;
+    justify-content:center;
+    grid-template-columns:
+        repeat(4, minmax(180px, 250px));
+
+    gap:18px;
+
+    margin-bottom:28px;
+}
+
+.kpi-card{
+    position:relative;
+
+    background:
+        linear-gradient(
+            135deg,
+            #172554 0%,
+            #1e3a8a 100%
+        );
+
+    border-radius:24px;
+
+    padding:16px 18px;
+
+    overflow:hidden;
+
+    color:white;
+
+    box-shadow:
+        0 10px 24px rgba(30,58,138,0.18);
+
+    transition:0.25s ease;
+}
+
+.kpi-card:hover{
+    transform:translateY(-3px);
+}
+
+.kpi-card::after{
+    content:"";
+
+    position:absolute;
+
+    right:-35px;
+    bottom:-35px;
+
+    width:130px;
+    height:130px;
+
+    background:rgba(255,255,255,0.06);
+
+    border-radius:50%;
+}
+
+.kpi-product{
+    position:relative;
+    z-index:2;
+
+    font-size:17px;
+    font-weight:500;
+
+    margin-bottom:12px;
+}
+
+.kpi-stats{
+    position:relative;
+    z-index:2;
+
+    display:flex;
+
+    align-items:center;
+    justify-content:space-between;
+}
+
+.kpi-stat{
+    flex:1;
+}
+
+.kpi-label{
+    font-size:13px;
+    font-weight:700;
+
+    color:rgba(255,255,255,0.7);
+
+    margin-bottom:8px;
+}
+
+.kpi-value{
+    font-size:32px;
+    font-weight:800;
+
+    line-height:1;
+}
+
+.kpi-value.out{
+    color:#f9a8d4;
+}
+
+.kpi-value.in{
+    color:#93c5fd;
+}
+
+.kpi-divider{
+    width:1px;
+    height:52px;
+
+    background:rgba(255,255,255,0.12);
+
+    margin:0 18px;
+}
+
+/* =========================
+🔥 Chart Grid
+========================= */
+
+.chart-grid{
+    display:grid;
+
+    grid-template-columns:1fr 1fr;
+
+    gap:24px;
+}
+
+/* =========================
+🔥 Chart Card
+========================= */
+
+.chart-card{
+    position:relative;
+
+    background:white;
+
+    border-radius:28px;
+
+    padding:26px;
+
+    overflow:hidden;
+
+    box-shadow:
+        0 6px 20px rgba(15,23,42,0.05);
+}
+
+.chart-card::after{
+    content:"";
+
+    position:absolute;
+
+    top:-50px;
+    right:-50px;
+
+    width:140px;
+    height:140px;
+
+    border-radius:50%;
+
+    background:rgba(59,130,246,0.03);
+}
+
+.chart-header{
+    position:relative;
+    z-index:2;
+
+    display:flex;
+
+    justify-content:space-between;
+    align-items:center;
+
+    margin-bottom:18px;
+}
+
+.chart-title{
+    font-size:16px;
+    font-weight:700;
+
+    color:#0f172a;
+}
+
+.chart-sub{
+    font-size:13px;
+    font-weight:600;
+
+    color:#94a3b8;
+}
+
+.chart-card canvas{
+    position:relative;
+    z-index:2;
+
+    height:320px !important;
+}
+
+/* =========================
+🔥 Responsive
+========================= */
+
+@media (max-width:1400px){
+
+    .kpi-grid{
+        grid-template-columns:
+            repeat(2, minmax(220px, 1fr));
+    }
+
+    .chart-grid{
+        grid-template-columns:1fr;
+    }
+}
+
+@media (max-width:900px){
+
+    .kpi-grid{
+        grid-template-columns:1fr;
+    }
+
+    .chart-card canvas{
+        height:280px !important;
+    }
+}
+
+.filter-wrap{
+    position:relative;
+    display:flex;
+    justify-content:flex-end;
+    min-width:60px;
+}
+
+.calendar-btn{
+    width:48px;
+    height:48px;
+    border:none;
+    margin-top:40px;
+    border-radius:16px;
+    background:white;
+    font-size:20px;
+    cursor:pointer;
+    box-shadow:
+        0 8px 24px rgba(15,23,42,0.08);
+}
+
+.date-popup{
+    display:none;
+    position:absolute;
+    top:68px;
+    right:0;
+    width:360px;
+    background:white;
+    border-radius:24px;
+    padding:22px;
+    z-index:1000;
+    overflow:hidden;
+    box-sizing:border-box;
+    box-shadow:
+        0 20px 40px rgba(15,23,42,0.15);
+}
+
+.popup-title{
+    font-size:18px;
+    font-weight:800;
+
+    margin-bottom:20px;
+
+    color:#0f172a;
+}
+
+.date-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    width:100%;
+    margin-bottom:20px;
+}
+
+.date-row input{
+    width:100%;
+    min-width:145px;
+    flex:1;
+    height:44px;
+    border:1px solid #cbd5e1;
+    border-radius:12px;
+    padding:0 14px;
+    font-size:14px;
+    font-weight:600;
+    box-sizing:border-box;
+}
+
+.apply-btn{
+    width:100%;
+    height:48px;
+
+    border:none;
+
+    border-radius:16px;
+
+    background:#2563eb;
+
+    color:white;
+
+    font-size:15px;
+    font-weight:700;
+
+    cursor:pointer;
+}
+</style>
+
+<h2 class="page-title">
+    Dashboard
+</h2>
+
+<div class="filter-wrap">
+
+    <button
+        id="dateFilterBtn"
+        class="calendar-btn"
+    >
+        🗓️
+    </button>
+
+    <div
+        id="dateFilterPopup"
+        class="date-popup"
+    >
+
+        <form
+            method="get"
+            action="/dashboard/trend"
+        >
+
+            <div class="popup-title">
+                기간 선택
+            </div>
+
+            <div class="date-row">
+
+                <input
+                    type="date"
+                    name="start"
+                    value="{{ start }}"
+                    required
+                >
+
+                <span>~</span>
+
+                <input
+                    type="date"
+                    name="end"
+                    value="{{ end }}"
+                    required
+                >
+
+            </div>
+
+            <button
+                type="submit"
+                class="apply-btn"
+            >
+                적용
+            </button>
+
+        </form>
+
+    </div>
+
+</div>
+
+<div class="kpi-grid">
+
+    {% for chart in charts %}
+
+    <div class="kpi-card">
+
+        <div class="kpi-product">
+            {{ chart.display_name }}
+        </div>
+
+        <div class="kpi-stats">
+
+            <div class="kpi-stat">
+
+                <div class="kpi-label">
+                    출고
+                </div>
+
+                <div class="kpi-value out">
+                    {{ chart.total_out }}
+                </div>
+
+            </div>
+
+            <div class="kpi-divider"></div>
+
+            <div class="kpi-stat">
+
+                <div class="kpi-label">
+                    입고
+                </div>
+
+                <div class="kpi-value in">
+                    {{ chart.total_in }}
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    {% endfor %}
+
+</div>
+
+<div class="chart-grid">
+
+{% for chart in charts %}
+
+<div class="chart-card">
+
+    <div class="chart-header">
+
+        <div class="chart-title">
+            {{ chart.display_name }} : 입출고 현황
+        </div>
+
+        <div class="chart-sub">
+
+            {{ start }} ~ {{ end }}
+
+            {% if group_mode == "day" %}
+                · 일별 기준
+
+            {% elif group_mode == "week" %}
+                · 주간 집계
+
+            {% elif group_mode == "month" %}
+                · 월간 집계
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    <canvas id="chart{{ loop.index }}"></canvas>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+{% for chart in charts %}
+
+<script>
+
+Chart.register(
+    ChartDataLabels
+);
+
+new Chart(
+    document.getElementById("chart{{ loop.index }}"),
+    {
+        type:"line",
+
+        data:{
+            labels: JSON.parse('{{ chart.labels | tojson | safe }}'),
+
+            datasets:[
+                {
+                    label:"출고",
+
+                    data: JSON.parse('{{ chart.out_counts | tojson | safe }}'),
+
+                    borderColor:"#ec4899",
+
+                    backgroundColor:"#ec4899",
+
+                    borderWidth:2.5,
+
+                    pointRadius:3,
+
+                    pointHoverRadius:5,
+
+                    pointBackgroundColor:"#ec4899",
+                    pointBorderColor:"#ffffff",
+                    pointBorderWidth:1.5,
+
+                    tension:0.35,
+
+                    fill:true,
+
+                    /* 🔥 실제 영역 fill 색상 */
+                    backgroundColor:"rgba(236,72,153,0.12)"
+                },
+
+                {
+                    label:"입고",
+
+                    data: JSON.parse('{{ chart.in_counts | tojson | safe }}'),
+
+                    borderColor:"#2563eb",
+
+                    /* 🔥 legend 선명도 개선 */
+                    backgroundColor:"#2563eb",
+
+                    borderWidth:2.5,
+
+                    pointRadius:3,
+
+                    pointHoverRadius:5,
+
+                    pointBackgroundColor:"#2563eb",
+                    pointBorderColor:"#ffffff",
+                    pointBorderWidth:1.5,
+
+                    tension:0.35,
+
+                    fill:true,
+
+                    /* 🔥 실제 영역 fill 색상 */
+                    backgroundColor:"rgba(37,99,235,0.12)"
+                }
+            ]
+        },
+
+        options:{
+
+            responsive:true,
+
+            maintainAspectRatio:false,
+
+            plugins:{
+                datalabels:{
+
+                    display:function(context){
+
+                        const value =
+                            context.dataset.data[
+                                context.dataIndex
+                            ];
+
+                        return value > 0;
+                    },
+
+                    color:"#475569",
+
+                    anchor:"end",
+
+                    align:"top",
+
+                    offset:6,
+
+                    font:{
+                        size:11,
+                        weight:"700"
+                    }
+                },    
+
+                legend:{
+                    position:"top",
+
+                    labels:{
+
+                        /* 🔥 legend 가독성 개선 */
+                        color:"#334155",
+
+                        usePointStyle:true,
+
+                        pointStyle:"circle",
+
+                        boxWidth:10,
+                        boxHeight:10,
+
+                        padding:20,
+
+                        font:{
+                            size:12,
+                            weight:"700"
+                        }
+                    }
+                }
+            },
+
+            scales:{
+
+                x:{
+                    grid:{
+                        color:"rgba(148,163,184,0.08)"
+                    },
+
+                    ticks:{
+                        color:"#64748b",
+
+                        font:{
+                            size:11,
+                            weight:"600"
+                        }
+                    }
+                },
+
+                y:{
+                    beginAtZero:true,
+
+                    grid:{
+                        color:"rgba(148,163,184,0.08)"
+                    },
+
+                    ticks:{
+                        color:"#64748b",
+
+                        font:{
+                            size:11,
+                            weight:"600"
+                        }
+                    }
+                }
+            }
+        }
+    }
+);
+
+</script>
+
+{% endfor %}
+
+<script>
+
+const filterBtn =
+    document.getElementById(
+        "dateFilterBtn"
+    );
+
+const filterPopup =
+    document.getElementById(
+        "dateFilterPopup"
+    );
+
+filterBtn.addEventListener(
+    "click",
+    function(e){
+
+        e.stopPropagation();
+
+        if(
+            filterPopup.style.display
+            === "block"
+        ){
+
+            filterPopup.style.display =
+                "none";
+
+        }else{
+
+            filterPopup.style.display =
+                "block";
+        }
+    }
+);
+
+// 🔥 바깥 클릭 시 닫기
+document.addEventListener(
+    "click",
+    function(e){
+
+        if(
+            !filterPopup.contains(e.target)
+            &&
+            !filterBtn.contains(e.target)
+        ){
+
+            filterPopup.style.display =
+                "none";
+        }
+    }
+);
+
+</script>
+
+{% endblock %}

@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+html, body {
+    height: 100%;
+    overflow: hidden;   /* 🔥 전체 스크롤 제거 */
+}
+
+.history-header {
+    background: white;
+    padding: 18px 22px;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    margin-bottom: 15px;
+}
+
+/* 왼쪽 */
+.history-left {
+    display: flex;
+    flex-direction: column;
+}
+
+.history-title {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 4px;
+}
+
+.history-serial {
+    font-size: 20px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+/* 상태 뱃지 */
+.status-badge {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* 입고 */
+.status-IN {
+    background: #e8f4fd;
+    color: #3498db;
+}
+
+/* 출고 */
+.status-OUT {
+    background: #fdecea;
+    color: #e74c3c;
+}
+
+/* ===== 테이블 카드 ===== */
+.table-container {
+    background:white;
+    padding:15px;
+    border-radius:10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+/* 테이블 */
+table {
+    width:100%;
+    border-collapse:collapse;
+}
+
+th, td {
+    padding:12px;
+    border-bottom:1px solid #eee;
+    text-align:center;
+}
+
+th {
+    background:#2c3e50;
+    color:white;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+/* 타입 색상 */
+.type-IN {
+    color:#3498db;
+    font-weight:600;
+}
+
+.type-OUT {
+    color:#e74c3c;
+    font-weight:600;
+}
+
+/* hover 효과 */
+tbody tr:hover {
+    background: #f9fafb;
+}
+</style>
+
+
+<!-- 🔥 헤더 카드 -->
+<div class="history-header">
+
+    <div class="history-left">
+        <div class="history-title">
+            Movement History · {{ service_name }}
+        </div>
+        <div class="history-serial">{{ serial }}</div>
+    </div>
+
+    <div>
+        {% if current_status in ["IN", "MOVE_IN"] %}
+            <span class="status-badge status-IN">
+                ● 입고
+            </span>
+
+        {% elif current_status in ["OUT", "MOVE_OUT"] %}
+            <span class="status-badge status-OUT">
+                ● 출고
+            </span>
+
+        {% else %}
+            <span class="status-badge">
+                UNKNOWN
+            </span>
+        {% endif %}
+    </div>
+
+</div>
+
+
+<!-- 🔥 테이블 -->
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Type</th>
+                <th>Source</th>
+                <th>출고 구분</th>
+                <th>출고처</th>
+                <th>Time</th>
+                <th>작업자</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for r in records %}
+            <tr>
+                <td>{{ SERVICE_NAMES.get(r.product, r.product) }}</td>
+
+                <td class="type-{{ r.type }}">
+                    {% if r.type in ["IN", "MOVE_IN"] %}
+
+                        입고
+
+                    {% elif r.type in ["OUT", "MOVE_OUT"] %}
+
+                        출고
+
+                    {% elif r.type == "DELETE_IN" %}
+
+                        입고 삭제
+
+                    {% elif r.type == "DELETE_OUT" %}
+
+                        출고 삭제
+
+                    {% else %}
+
+                        {{ r.type }}
+
+                    {% endif %}
+                </td>
+
+                <td>
+
+                    {% if r.source == "scan" %}
+                        QR 스캔
+
+                    {% elif r.source == "excel" %}
+                        엑셀 업로드
+
+                    {% elif r.source == "move" %}
+                        상태 이동
+
+                    {% elif r.source == "manual" %}
+                        수동 수정
+
+                    {% else %}
+                        {{ r.source or "-" }}
+
+                    {% endif %}
+
+                </td>
+                <td>{{ r.category or "-" }}</td>
+                <td>{{ r.client or "-" }}</td>
+
+                <td>{{ r.created_at.strftime("%Y-%m-%d %H:%M") }}</td>
+
+                <td>{{ r.user or "-" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

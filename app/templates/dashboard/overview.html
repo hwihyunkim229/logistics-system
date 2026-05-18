@@ -1,0 +1,848 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+<style>
+.dashboard-page{
+    padding:4px 4px 20px 4px;
+}
+
+.dashboard-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    margin-bottom:24px;
+}
+
+.dashboard-title{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:24px;
+    font-weight:750;
+    color:#1f2937;
+    margin-bottom:24px;
+}
+
+.kpi-grid{
+    display:grid;
+    grid-template-columns:
+        repeat(5, minmax(180px, 220px));
+    gap:16px;
+    justify-content:center;
+    margin-bottom:24px;
+}
+
+.kpi-card{
+    position:relative;
+    background:
+        linear-gradient(
+            135deg,
+            #172554 0%,
+            #1e3a8a 100%
+        );
+    border-radius:24px;
+    padding:18px 20px;
+    overflow:hidden;
+    color:white;
+    box-shadow:
+        0 12px 30px rgba(30,58,138,0.25);
+    transition:0.25s ease;
+}
+
+.kpi-card:hover{
+    transform:translateY(-3px);
+}
+
+.kpi-card::after{
+    content:"";
+    position:absolute;
+    right:-30px;
+    bottom:-30px;
+    width:120px;
+    height:120px;
+    background:rgba(255,255,255,0.06);
+    border-radius:50%;
+}
+
+.kpi-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:14px;
+}
+
+.kpi-icon{
+    width:42px;
+    height:42px;
+    border-radius:14px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(255,255,255,0.12);
+    font-size:18px;
+}
+
+.kpi-title{
+    font-size:14px;
+    font-weight:700;
+    color:rgba(255,255,255,0.7);
+}
+
+.kpi-value{
+    font-size:36px;
+    font-weight:800;
+    line-height:1;
+}
+
+.kpi-sub{
+    margin-top:14px;
+
+    font-size:13px;
+    font-weight:600;
+
+    color:rgba(255,255,255,0.65);
+}
+
+.chart-card{
+    position:relative;
+    background:
+        linear-gradient(
+            180deg,
+            #ffffff 0%,
+            #f8fbff 100%
+        );
+    border-radius:30px;
+    padding:30px;
+    margin-bottom:30px;
+    border:1px solid rgba(59,130,246,0.08);
+    box-shadow:
+        0 14px 40px rgba(15,23,42,0.06);
+    overflow:hidden;
+}
+
+.chart-card::before{
+    content:"";
+    position:absolute;
+    top:-60px;
+    right:-60px;
+    width:180px;
+    height:180px;
+    border-radius:50%;
+    background:rgba(59,130,246,0.04);
+}
+
+.chart-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding-bottom: 16px;
+}
+
+.chart-title{
+    font-size:16px;
+    font-weight:700;
+    color:#0f172a;
+    margin-bottom:6px;
+}
+
+.chart-desc{
+    font-size:13px;
+    color:#94a3b8;
+    font-weight:600;
+}
+
+.chart-card canvas{
+    height:300px !important;
+}
+
+@media (max-width:1400px){
+
+    .kpi-grid{
+        grid-template-columns:repeat(3, 1fr);
+    }
+}
+
+@media (max-width:900px){
+
+    .kpi-grid{
+        grid-template-columns:repeat(2, 1fr);
+    }
+
+    .chart-card canvas{
+        height:280px !important;
+    }
+}
+
+.filter-wrap{
+    position:relative;
+    display:flex;
+    justify-content:flex-end;
+    min-width:60px;
+}
+
+.calendar-btn{
+    width:48px;
+    height:48px;
+    border:none;
+    margin-top:40px;
+    border-radius:16px;
+    background:white;
+    font-size:20px;
+    cursor:pointer;
+    box-shadow:
+        0 8px 24px rgba(15,23,42,0.08);
+}
+
+.date-popup{
+    display:none;
+    position:absolute;
+    top:68px;
+    right:0;
+    width:360px;
+    background:white;
+    border-radius:24px;
+    padding:22px;
+    z-index:1000;
+    overflow:hidden;
+    box-sizing:border-box;
+    box-shadow:
+        0 20px 40px rgba(15,23,42,0.15);
+}
+
+.popup-title{
+    font-size:18px;
+    font-weight:800;
+
+    margin-bottom:20px;
+
+    color:#0f172a;
+}
+
+.date-row{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    width:100%;
+    margin-bottom:20px;
+}
+
+.date-row input{
+    width:100%;
+    min-width:145px;
+    flex:1;
+    height:44px;
+    border:1px solid #cbd5e1;
+    border-radius:12px;
+    padding:0 14px;
+    font-size:14px;
+    font-weight:600;
+    box-sizing:border-box;
+}
+
+.apply-btn{
+    width:100%;
+    height:48px;
+
+    border:none;
+
+    border-radius:16px;
+
+    background:#2563eb;
+
+    color:white;
+
+    font-size:15px;
+    font-weight:700;
+
+    cursor:pointer;
+}
+</style>
+
+<div class="dashboard-header">
+
+    <div class="dashboard-title">
+        Dashboard
+    </div>
+
+    <div class="filter-wrap">
+
+        <button
+            id="dateFilterBtn"
+            class="calendar-btn"
+        >
+            🗓️
+        </button>
+
+        <div
+            id="dateFilterPopup"
+            class="date-popup"
+        >
+
+            <form
+                method="get"
+                action="/dashboard/overview"
+            >
+
+                <div class="popup-title">
+                    기간 선택
+                </div>
+
+                <div class="date-row">
+
+                    <input
+                        type="date"
+                        name="start"
+                        value="{{ start }}"
+                        required
+                    >
+
+                    <span>~</span>
+
+                    <input
+                        type="date"
+                        name="end"
+                        value="{{ end }}"
+                        required
+                    >
+
+                </div>
+
+                <button
+                    type="submit"
+                    class="apply-btn"
+                >
+                    적용
+                </button>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+    <!-- KPI -->
+
+    <div class="kpi-grid">
+
+    <!-- 전체 누적 출고 -->
+
+        <div class="kpi-card">
+
+            <div class="kpi-top">
+
+                <div class="kpi-title">
+                    전체 누적 출고
+                </div>
+
+            </div>
+
+            <div class="kpi-value">
+                {{ total_out }}
+            </div>
+
+            <div class="kpi-sub">
+                Total outbound
+            </div>
+
+        </div>
+
+
+        <!-- 전체 누적 입고 -->
+
+        <div class="kpi-card">
+
+            <div class="kpi-top">
+
+                <div class="kpi-title">
+                    전체 누적 입고
+                </div>
+
+            </div>
+
+            <div class="kpi-value">
+                {{ total_in }}
+            </div>
+
+            <div class="kpi-sub">
+                Total inbound
+            </div>
+
+        </div>
+
+
+        <!-- 선택 기간 출고 -->
+
+        <div class="kpi-card">
+
+            <div class="kpi-top">
+
+                <div class="kpi-title">
+                    선택 기간 출고
+                </div>
+
+            </div>
+
+            <div class="kpi-value">
+                {{ period_out }}
+            </div>
+
+            <div class="kpi-sub">
+                {{ start }} ~ {{ end }}
+            </div>
+
+        </div>
+
+
+        <!-- 선택 기간 입고 -->
+
+        <div class="kpi-card">
+
+            <div class="kpi-top">
+
+                <div class="kpi-title">
+                    선택 기간 입고
+                </div>
+
+            </div>
+
+            <div class="kpi-value">
+                {{ period_in }}
+            </div>
+
+            <div class="kpi-sub">
+                {{ start }} ~ {{ end }}
+            </div>
+
+        </div>
+
+
+        <!-- 출고 정보 미입력 -->
+
+        <div class="kpi-card">
+
+            <div class="kpi-top">
+
+                <div class="kpi-title">
+                    출고 정보 미입력
+                </div>
+
+            </div>
+
+            <div class="kpi-value">
+                {{ missing }}
+            </div>
+
+            <div class="kpi-sub">
+                Missing outbound info
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- TREND -->
+
+    <div class="chart-card">
+
+        <div class="chart-header">
+
+            <div>
+                <div class="chart-title">
+                    전체 입출고 추이
+                </div>
+
+                <div class="chart-desc">
+
+                    {{ start }} ~ {{ end }}
+
+                    {% if group_mode == "day" %}
+                        · 일별 기준
+
+                    {% elif group_mode == "week" %}
+                        · 주간 집계
+
+                    {% elif group_mode == "month" %}
+                        · 월간 집계
+
+                    {% endif %}
+
+                </div>
+            </div>
+
+        </div>
+
+        <canvas id="trendChart"></canvas>
+
+    </div>
+
+
+    <!-- SIZE -->
+
+    <div class="chart-card">
+
+        <div class="chart-header">
+
+            <div>
+                <div class="chart-title">
+                    전체 입출고 사이즈 분포
+                </div>
+            </div>
+
+        </div>
+
+        <canvas id="sizeChart"></canvas>
+
+    </div>
+
+</div>
+
+
+<script>
+
+Chart.register(ChartDataLabels);
+
+
+// =========================
+// TREND CHART
+// =========================
+
+new Chart(
+    document.getElementById("trendChart"),
+    {
+        type:"line",
+
+        data:{
+            labels: JSON.parse('{{ trend_labels | tojson | safe }}'),
+
+            datasets:[
+
+                {
+                    label:"출고",
+
+                    data: JSON.parse('{{ trend_out | tojson | safe }}'),
+
+                    borderColor:"#ec4899",
+                    backgroundColor:"rgba(236,72,153,0.10)",
+
+                    pointBackgroundColor:"#ec4899",
+                    pointBorderColor:"#ffffff",
+
+                    pointBorderWidth:3,
+
+                    pointRadius:5,
+                    pointHoverRadius:7,
+
+                    borderWidth:4,
+
+                    tension:0.4,
+
+                    fill:true
+                },
+
+                {
+                    label:"입고",
+
+                    data: JSON.parse('{{ trend_in | tojson | safe }}'),
+
+                    borderColor:"#2563eb",
+                    backgroundColor:"rgba(37,99,235,0.12)",
+
+                    pointBackgroundColor:"#2563eb",
+                    pointBorderColor:"#ffffff",
+
+                    pointBorderWidth:3,
+
+                    pointRadius:5,
+                    pointHoverRadius:7,
+
+                    borderWidth:4,
+
+                    tension:0.4,
+
+                    fill:true
+                }
+
+            ]
+        },
+
+        options:{
+
+            responsive:true,
+            maintainAspectRatio:false,
+
+            interaction:{
+                intersect:false,
+                mode:'index'
+            },
+
+            plugins:{
+
+                legend:{
+                    position:'top',
+
+                    labels:{
+                        usePointStyle:true,
+                        pointStyle:'circle',
+
+                        padding:24,
+
+                        color:'#475569',
+
+                        font:{
+                            size:13,
+                            weight:'700'
+                        }
+                    }
+                },
+
+                tooltip:{
+                    backgroundColor:"#0f172a",
+
+                    titleColor:"#ffffff",
+                    bodyColor:"#e2e8f0",
+
+                    padding:14,
+
+                    cornerRadius:14,
+
+                    displayColors:true
+                },
+
+                datalabels:{
+                    color:"#64748b",
+
+                    anchor:'end',
+                    align:'top',
+
+                    offset:10,
+
+                    font:{
+                        weight:'700',
+                        size:11
+                    }
+                }
+            },
+
+            scales:{
+
+                x:{
+                    grid:{
+                        color:"rgba(148,163,184,0.08)",
+                        drawBorder:false
+                    },
+
+                    ticks:{
+                        color:"#64748b",
+
+                        font:{
+                            size:12,
+                            weight:'600'
+                        }
+                    }
+                },
+
+                y:{
+                    beginAtZero:true,
+
+                    grid:{
+                        color:"rgba(148,163,184,0.3)",
+                        drawBorder:false
+                    },
+
+                    ticks:{
+                        color:"#64748b",
+
+                        font:{
+                            size:12,
+                            weight:'600'
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+);
+
+
+// =========================
+// SIZE CHART
+// =========================
+
+new Chart(
+    document.getElementById("sizeChart"),
+    {
+        type:"bar",
+
+        data:{
+            labels: JSON.parse('{{ size_labels | tojson | safe }}'),
+
+            datasets:[
+
+                {
+                    label:"출고",
+
+                    data: JSON.parse('{{ size_out | tojson | safe }}'),
+
+                    backgroundColor:"#ec4899",
+
+                    borderRadius:12,
+                    borderSkipped:false,
+
+                    maxBarThickness:48
+                },
+
+                {
+                    label:"입고",
+
+                    data: JSON.parse('{{ size_in | tojson | safe }}'),
+
+                    backgroundColor:"#2563eb",
+
+                    borderRadius:12,
+                    borderSkipped:false,
+
+                    maxBarThickness:48
+                },
+            ]
+        },
+
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+
+            interaction:{
+                intersect:false,
+                mode:'index'
+            },
+
+            plugins:{
+
+                legend:{
+                    position:'top',
+
+                    labels:{
+                        usePointStyle:true,
+                        pointStyle:'circle',
+
+                        padding:24,
+
+                        color:'#475569',
+
+                        font:{
+                            size:13,
+                            weight:'700'
+                        }
+                    }
+                },
+
+                tooltip:{
+                    backgroundColor:"#0f172a",
+
+                    titleColor:"#ffffff",
+                    bodyColor:"#e2e8f0",
+
+                    padding:14,
+
+                    cornerRadius:14,
+
+                    displayColors:true
+                },
+
+                datalabels:{
+                    color:function(context){
+                        return context.dataset.data[context.dataIndex] > 0
+                            ? "#ffffff"
+                            : "#64748b";
+                    },
+
+                    anchor:'end',
+                    align:'start',
+
+                    offset:+10,
+
+                    clamp:true,
+
+                    font:{
+                        weight:'700',
+                        size:14
+                    }
+                }
+            },
+
+            scales:{
+
+                x:{
+                    grid:{
+                        color:"rgba(148,163,184,0.08)",
+                        drawBorder:false
+                    },
+
+                    ticks:{
+                        color:"#64748b",
+
+                        font:{
+                            size:12,
+                            weight:'600'
+                        }
+                    }
+                },
+
+                y:{
+                    beginAtZero:true,
+
+                    grid:{
+                        color:"rgba(148,163,184,0.3)",
+                        drawBorder:false
+                    },
+
+                    ticks:{
+                        color:"#64748b",
+
+                        font:{
+                            size:12,
+                            weight:'600'
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+);
+
+const filterBtn =
+    document.getElementById("dateFilterBtn");
+
+const popup =
+    document.getElementById("dateFilterPopup");
+
+filterBtn.addEventListener("click", () => {
+
+    if(popup.style.display === "block"){
+        popup.style.display = "none";
+    }else{
+        popup.style.display = "block";
+    }
+
+});
+
+document.addEventListener("click", (e) => {
+
+    if(
+        !popup.contains(e.target) &&
+        !filterBtn.contains(e.target)
+    ){
+        popup.style.display = "none";
+    }
+
+});
+</script>
+
+{% endblock %}

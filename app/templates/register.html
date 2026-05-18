@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Register</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: #f5f6fa;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* 🔥 카드 */
+.register-card {
+    background: white;
+    padding: 40px;
+    border-radius: 16px;
+    width: 360px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+/* 🔥 타이틀 */
+.register-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+/* 🔥 입력창 */
+.register-input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 15px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    font-size: 14px;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+.register-input:focus {
+    border-color: #2c3e50;
+    box-shadow: 0 0 0 2px rgba(44,62,80,0.1);
+    outline: none;
+}
+
+/* 🔥 비밀번호 wrapper */
+.password-wrapper {
+    position: relative;
+    margin-bottom: 15px;
+}
+
+.password-wrapper input {
+    padding-right: 40px;
+}
+
+/* 👁 버튼 */
+.pw-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+/* 🔥 버튼 */
+.register-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    background: white;
+    color: #333;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.register-btn:hover {
+    background: black;
+    color: white;
+    border-color: black;
+}
+
+/* 🔥 하단 링크 */
+.register-footer {
+    margin-top: 15px;
+    text-align: center;
+    font-size: 13px;
+}
+
+.register-footer a {
+    color: #2c3e50;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.register-footer a:hover {
+    text-decoration: underline;
+}
+
+/* 🔥 에러 */
+.error {
+    color: red;
+    font-size: 13px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="register-card">
+
+    <div class="register-title">📝 회원가입</div>
+
+    {% if error %}
+    <div class="error">{{error}}</div>
+    {% endif %}
+
+    <form method="post">
+
+        <!-- 아이디 -->
+        <input 
+            name="username"
+            class="register-input"
+            placeholder="아이디"
+            required
+        >
+
+        <!-- 비밀번호 -->
+        <div class="password-wrapper">
+            <input 
+                id="password"
+                name="password"
+                type="password"
+                placeholder="비밀번호"
+                class="register-input"
+                required
+            >
+
+            <button 
+                type="button"
+                class="pw-toggle"
+                onclick="togglePassword()"
+            >
+                👁
+            </button>
+        </div>
+
+        <button class="register-btn">가입하기</button>
+
+    </form>
+
+    <div class="register-footer">
+        이미 계정이 있으신가요? <a href="/login">로그인</a>
+    </div>
+
+    <!-- 🔥 토스트 -->
+    <div id="toast" style="
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        background: black;
+        color: white;
+        padding: 12px 18px;
+        border-radius: 10px;
+        display: none;
+        font-size: 14px;
+    ">
+        회원가입 완료 🎉
+    </div>
+
+</div>
+
+</body>
+</html>
+
+<script>
+window.onload = function(){
+    const url = new URL(window.location.href);
+
+    if(url.searchParams.get("registered") === "1"){
+        const toast = document.getElementById("toast");
+        toast.style.display = "block";
+
+        setTimeout(() => {
+            toast.style.display = "none";
+        }, 2000);
+    }
+}
+
+function togglePassword(){
+    const pw = document.getElementById("password");
+
+    pw.type = pw.type === "password" ? "text" : "password";
+}
+</script>
