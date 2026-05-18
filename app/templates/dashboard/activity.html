@@ -880,7 +880,7 @@
 
                 {% for service in SERVICES %}
 
-                <option value="{{ SERVICE_NAMES[service] }}">
+                <option value="{{ service }}">
                     {{ SERVICE_NAMES[service] }}
                 </option>
 
@@ -955,7 +955,7 @@
 
                 {% for r in records %}
 
-                <tr>
+                <tr data-product="{{ r.product }}">
 
                     <td>
                         {{ SERVICE_NAMES[r.product] }}
@@ -1392,7 +1392,7 @@ function filterTable(){
     tableRows.forEach(row => {
 
         const product =
-            row.children[0].innerText;
+            row.dataset.product;
 
         const serial =
             row.children[1]
