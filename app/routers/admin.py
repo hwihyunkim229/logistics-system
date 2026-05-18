@@ -13,6 +13,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import io
 from fastapi.responses import StreamingResponse
+from zoneinfo import ZoneInfo
 
 router = APIRouter()
 
@@ -404,7 +405,9 @@ def backup_db(request: Request):
 
     db_path = "logistics.db"
 
-    timestamp = datetime.now().strftime(
+    timestamp = datetime.now(
+        ZoneInfo("Asia/Seoul")
+    ).strftime(
         "%Y%m%d_%H%M%S"
     )
 

@@ -8,6 +8,7 @@ from app.models.outbound import Outbound
 from app.models.inbound import Inbound
 from app.models.movement import Movement
 from sqlalchemy import or_
+from zoneinfo import ZoneInfo
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -674,7 +675,9 @@ def dashboard_activity(
 
     recent_hour = db.query(Movement).filter(
         Movement.created_at >= (
-            datetime.now() - timedelta(hours=1)
+            datetime.now(
+                ZoneInfo("Asia/Seoul")
+            ) - timedelta(hours=1)
         )
     ).count()
 

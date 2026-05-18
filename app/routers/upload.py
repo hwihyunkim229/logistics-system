@@ -15,6 +15,7 @@ from sqlalchemy import func, case
 from fastapi.responses import StreamingResponse
 import io
 from app.utils.logger import save_log
+from zoneinfo import ZoneInfo
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -352,7 +353,12 @@ async def upload_excel(request: Request, product: str, mode: str, file: UploadFi
                 category=category,
                 client=client,
                 user=username,
-                created_at = datetime.combine(date_val, datetime.now().time()) if date_val else datetime.now()
+                created_at = datetime.combine(
+                                date_val,
+                                datetime.now(
+                                    ZoneInfo("Asia/Seoul")
+                                ).time()
+                            )
             ))
 
         elif mode == "inbound":
@@ -373,7 +379,12 @@ async def upload_excel(request: Request, product: str, mode: str, file: UploadFi
                 category=category,
                 client=client,
                 user=username,
-                created_at = datetime.combine(date_val, datetime.now().time()) if date_val else datetime.now()
+                created_at = datetime.combine(
+                                date_val,
+                                datetime.now(
+                                    ZoneInfo("Asia/Seoul")
+                                ).time()
+                            )
             ))
 
         created_count += 1
@@ -496,7 +507,9 @@ async def delete_selected(
                 type="DELETE_OUT",
                 client=item.client,
                 user=user,
-                created_at=datetime.now()
+                created_at=datetime.now(
+                    ZoneInfo("Asia/Seoul")
+                )
             )
 
             db.add(log)
@@ -521,7 +534,9 @@ async def delete_selected(
                 type="DELETE_IN",
                 client=None,
                 user=user,
-                created_at=datetime.now()
+                created_at=datetime.now(
+                    ZoneInfo("Asia/Seoul")
+                )
             )
 
             db.add(log)
@@ -578,7 +593,9 @@ async def delete_all(
                 type="DELETE_OUT",
                 client=item.client,
                 user=user,
-                created_at=datetime.now()
+                created_at=datetime.now(
+                    ZoneInfo("Asia/Seoul")
+                )
             )
 
             db.add(log)
@@ -597,7 +614,9 @@ async def delete_all(
                 type="DELETE_IN",
                 client=None,
                 user=user,
-                created_at=datetime.now()
+                created_at=datetime.now(
+                    ZoneInfo("Asia/Seoul")
+                )
             )
 
             db.add(log)
@@ -670,7 +689,9 @@ async def move_to_inbound(request: Request, data: dict):
             type="MOVE_IN",
             source="move",
             user=username,
-            created_at=datetime.now()
+            created_at=datetime.now(
+                ZoneInfo("Asia/Seoul")
+            )
         ))
 
         db.delete(item)
@@ -748,7 +769,9 @@ async def move_to_inbound(request: Request, data: dict):
             type="MOVE_OUT",
             source="move",
             user=username,
-            created_at=datetime.now()
+            created_at=datetime.now(
+                ZoneInfo("Asia/Seoul")
+            )
         ))
 
         # 🔥 inbound 삭제
