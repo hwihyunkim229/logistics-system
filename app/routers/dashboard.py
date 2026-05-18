@@ -822,6 +822,7 @@ def dashboard_activity(
             "activity_cart_o2" : activity_cart_o2,
             "start": start_date.strftime("%Y-%m-%d"),
             "end": end_date.strftime("%Y-%m-%d"),
+            "SERVICES": SERVICES,
             "SERVICE_NAMES": SERVICE_NAMES
         }
     )
