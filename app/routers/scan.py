@@ -25,7 +25,9 @@ templates = Jinja2Templates(directory="app/templates")
 
 @router.get("/")
 def root():
-    return RedirectResponse("/cart_bp_pro/outbound")
+    return RedirectResponse(
+        "/product/cart_bp_pro/outbound"
+    )
 
 @router.post("/scan")
 async def scan(request: Request, data: dict):
