@@ -7,7 +7,7 @@ class ActivityLog(Base):
     __tablename__ = "activity_logs"
     id = Column(Integer, primary_key=True)
     created_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(
             ZoneInfo("Asia/Seoul")
         )

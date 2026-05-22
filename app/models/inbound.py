@@ -10,7 +10,7 @@ class Inbound(Base):
     serial = Column(String, index=True)
     size = Column(String)
     created_at = Column(
-        DateTime,
+        DateTime(timezone=True),
         default=lambda: datetime.now(
             ZoneInfo("Asia/Seoul")
         )

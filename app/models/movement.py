@@ -22,4 +22,4 @@ class Movement(Base):
             ZoneInfo("Asia/Seoul")
         )
 
-    created_at = Column(DateTime, default=korea_time)
+    created_at = Column(DateTime(timezone=True), default=korea_time)
