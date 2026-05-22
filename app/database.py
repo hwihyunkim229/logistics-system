@@ -4,11 +4,27 @@ import os
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True
-)
+if DATABASE_URL.startswith("postgresql"):
 
-SessionLocal = sessionmaker(bind=engine)
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        connect_args={
+            "options": "-c timezone=Asia/Seoul"
+        }
+    )
+
+else:
+
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={
+            "check_same_thread": False
+        }
+    )
+
+SessionLocal = sessionmaker(
+    bind=engine
+)
 
 Base = declarative_base()
