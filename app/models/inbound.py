@@ -1,5 +1,7 @@
-from sqlalchemy import Column, Integer, String, Date
+from sqlalchemy import Column, Integer, String, DateTime
 from app.database import Base
+from zoneinfo import ZoneInfo
+from datetime import datetime
 
 class Inbound(Base):
     __tablename__ = "inbound"
@@ -7,7 +9,12 @@ class Inbound(Base):
     id = Column(Integer, primary_key=True)
     serial = Column(String, index=True)
     size = Column(String)
-    created_at = Column(Date)
+    created_at = Column(
+        DateTime,
+        default=lambda: datetime.now(
+            ZoneInfo("Asia/Seoul")
+        )
+    )
     product = Column(String)
     category = Column(String)
     client = Column(String)

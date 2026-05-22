@@ -5,10 +5,11 @@ import re
 from app.models.outbound import Outbound
 from app.models.inbound import Inbound
 from fastapi.responses import RedirectResponse
-from datetime import date
+from datetime import date, datetime
 from app.models.movement import Movement
 from fastapi import Request
 from app.utils.logger import save_log
+from zoneinfo import ZoneInfo
 
 SERVICE_NAMES = {
     "cart_bp_pro": "CART BP pro",
@@ -60,6 +61,9 @@ async def scan(request: Request, data: dict):
         db.add(Outbound(
             serial=serial,
             product=product,
+             created_at=datetime.now(
+                ZoneInfo("Asia/Seoul")
+            ),
             size=None,
             category=None
         ))
@@ -90,7 +94,9 @@ async def scan(request: Request, data: dict):
         db.add(Inbound(
             serial=serial,
             product=product,
-            created_at=date.today(),
+            created_at=datetime.now(
+                ZoneInfo("Asia/Seoul")
+            ),
             size=None,
             category=None
         ))

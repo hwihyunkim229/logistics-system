@@ -127,10 +127,13 @@ def global_search(
 
     if start_date:
 
-        start = datetime.strptime(
-            start_date,
-            "%Y-%m-%d"
-        ).date()
+        start = datetime.combine(
+            datetime.strptime(
+                start_date,
+                "%Y-%m-%d"
+            ).date(),
+            datetime.min.time()
+        )
 
         outbound = outbound.filter(
             Outbound.created_at >= start
@@ -142,10 +145,13 @@ def global_search(
 
     if end_date:
 
-        end = datetime.strptime(
-            end_date,
-            "%Y-%m-%d"
-        ).date()
+        end = datetime.combine(
+            datetime.strptime(
+                end_date,
+                "%Y-%m-%d"
+            ).date(),
+            datetime.max.time()
+        )
 
         outbound = outbound.filter(
             Outbound.created_at <= end
@@ -677,7 +683,9 @@ async def move_to_inbound(request: Request, data: dict):
             serial=item.serial,
             size=item.size,
             product=item.product,
-            created_at=date.today(),
+            created_at=datetime.now(
+                ZoneInfo("Asia/Seoul")
+            ),
             category=item.category,
             client=item.client,
             note=item.note
@@ -757,7 +765,9 @@ async def move_to_inbound(request: Request, data: dict):
             serial=item.serial,
             size=item.size,
             product=item.product,
-            created_at=date.today(),
+            created_at=datetime.now(
+                ZoneInfo("Asia/Seoul")
+            ),
             category=item.category,
             client=item.client,
             note=item.note
@@ -991,7 +1001,7 @@ async def bulk_update(
             serials.append(item.serial)
 
             if field == "size":
-                item.size = int(value)
+                item.size = str(value)
 
             elif field == "category":
                 item.category = value

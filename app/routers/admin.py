@@ -245,9 +245,12 @@ def admin_activity(
 
     if start_date:
 
-        start_dt = datetime.strptime(
-            start_date,
-            "%Y-%m-%d"
+        start_dt = datetime.combine(
+            datetime.strptime(
+                start_date,
+                "%Y-%m-%d"
+            ).date(),
+            datetime.min.time()
         )
 
         query = query.filter(
@@ -256,16 +259,16 @@ def admin_activity(
 
     if end_date:
 
-        end_dt = (
+        end_dt = datetime.combine(
             datetime.strptime(
                 end_date,
                 "%Y-%m-%d"
-            )
-            + timedelta(days=1)
+            ).date(),
+            datetime.max.time()
         )
 
         query = query.filter(
-            ActivityLog.created_at < end_dt
+            ActivityLog.created_at <= end_dt
         )
 
     # =========================

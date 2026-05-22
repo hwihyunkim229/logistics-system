@@ -64,7 +64,9 @@ def dashboard_overview(
 
     db = SessionLocal()
 
-    today = date.today()
+    today = datetime.now(
+        ZoneInfo("Asia/Seoul")
+    ).date()
 
     if not start:
         start_date = today - timedelta(days=6)
@@ -318,7 +320,9 @@ def dashboard_trend(
 
     charts = []
 
-    today = date.today()
+    today = datetime.now(
+        ZoneInfo("Asia/Seoul")
+    ).date()
 
     # =========================
     # 날짜 처리
@@ -354,14 +358,24 @@ def dashboard_trend(
     )
 
     # KPI
+    start_datetime = datetime.combine(
+        start_date,
+        datetime.min.time()
+    )
+
+    end_datetime = datetime.combine(
+        end_date,
+        datetime.max.time()
+    )
+
     total_out = db.query(Outbound).filter(
-        Outbound.created_at >= start_date,
-        Outbound.created_at <= end_date
+        Outbound.created_at >= start_datetime,
+        Outbound.created_at <= end_datetime
     ).count()
 
-    total_in = db.query(Inbound).filter(
-        Inbound.created_at >= start_date,
-        Inbound.created_at <= end_date
+    total_in = db.query(Outbound).filter(
+        Inbound.created_at >= start_datetime,
+        Inbound.created_at <= end_datetime
     ).count()
 
     for service in SERVICES:
@@ -380,20 +394,30 @@ def dashboard_trend(
                     current + timedelta(days=1)
                 )
 
+                current_start = datetime.combine(
+                    current,
+                    datetime.min.time()
+                )
+
+                next_day_start = datetime.combine(
+                    next_day,
+                    datetime.min.time()
+                )
+
                 labels.append(
                     current.strftime("%m-%d")
                 )
 
                 out_count = db.query(Outbound).filter(
                     Outbound.product == service,
-                    Outbound.created_at >= current,
-                    Outbound.created_at < next_day
+                    Outbound.created_at >= current_start,
+                    Outbound.created_at < next_day_start
                 ).count()
 
                 in_count = db.query(Inbound).filter(
                     Inbound.product == service,
-                    Inbound.created_at >= current,
-                    Inbound.created_at < next_day
+                    Inbound.created_at >= current_start,
+                    Inbound.created_at < next_day_start
                 ).count()
 
                 out_counts.append(out_count)
@@ -416,20 +440,30 @@ def dashboard_trend(
                     current + timedelta(days=7)
                 )
 
+                current_start = datetime.combine(
+                    current,
+                    datetime.min.time()
+                )
+
+                next_week_start = datetime.combine(
+                    next_week,
+                    datetime.min.time()
+                )
+
                 labels.append(
                     current.strftime("%m-%d")
                 )
 
                 out_count = db.query(Outbound).filter(
                     Outbound.product == service,
-                    Outbound.created_at >= current,
-                    Outbound.created_at < next_week
+                    Outbound.created_at >= current_start,
+                    Outbound.created_at < next_week_start
                 ).count()
 
                 in_count = db.query(Inbound).filter(
                     Inbound.product == service,
-                    Inbound.created_at >= current,
-                    Inbound.created_at < next_week
+                    Inbound.created_at >= current_start,
+                    Inbound.created_at < next_week_start
                 ).count()
 
                 out_counts.append(out_count)
@@ -443,7 +477,6 @@ def dashboard_trend(
         # =========================
 
         else:
-
             current = date(
                 start_date.year,
                 start_date.month,
@@ -468,20 +501,30 @@ def dashboard_trend(
                         1
                     )
 
+                month_start = datetime.combine(
+                    current,
+                    datetime.min.time()
+                )
+
+                next_month_start = datetime.combine(
+                    next_month,
+                    datetime.min.time()
+                )
+
                 labels.append(
                     current.strftime("%Y-%m")
                 )
 
                 out_count = db.query(Outbound).filter(
                     Outbound.product == service,
-                    Outbound.created_at >= current,
-                    Outbound.created_at < next_month
+                    Outbound.created_at >= month_start,
+                    Outbound.created_at < next_month_start
                 ).count()
 
                 in_count = db.query(Inbound).filter(
                     Inbound.product == service,
-                    Inbound.created_at >= current,
-                    Inbound.created_at < next_month
+                    Inbound.created_at >= month_start,
+                    Inbound.created_at < next_month_start
                 ).count()
 
                 out_counts.append(out_count)
@@ -603,7 +646,9 @@ def dashboard_activity(
     # 날짜 범위 처리
     # =========================
 
-    today = date.today()
+    today = datetime.now(
+        ZoneInfo("Asia/Seoul")
+    ).date()
 
     if not start:
         start_date = today
@@ -721,13 +766,23 @@ def dashboard_activity(
 
         next_day = current + timedelta(days=1)
 
+        current_start = datetime.combine(
+            current,
+            datetime.min.time()
+        )
+
+        next_day_start = datetime.combine(
+            next_day,
+            datetime.min.time()
+        )
+
         labels.append(current.strftime("%m-%d"))
 
         # CART BP Pro
         cart_bp_pro_count = db.query(Movement).filter(
             Movement.product == "cart_bp_pro",
-            Movement.created_at >= current,
-            Movement.created_at < next_day
+            Movement.created_at >= current_start,
+            Movement.created_at < next_day_start
         ).count()
 
         activity_cart_bp_pro.append(
@@ -737,8 +792,8 @@ def dashboard_activity(
         # CART BP
         cart_bp_count = db.query(Movement).filter(
             Movement.product == "cart_bp",
-            Movement.created_at >= current,
-            Movement.created_at < next_day
+            Movement.created_at >= current_start,
+            Movement.created_at < next_day_start
         ).count()
 
         activity_cart_bp.append(
@@ -748,8 +803,8 @@ def dashboard_activity(
         # CART ON
         cart_on_count = db.query(Movement).filter(
             Movement.product == "cart_on",
-            Movement.created_at >= current,
-            Movement.created_at < next_day
+            Movement.created_at >= current_start,
+            Movement.created_at < next_day_start
         ).count()
 
         activity_cart_on.append(
@@ -759,8 +814,8 @@ def dashboard_activity(
         # 한방 병원
         hanbang_count = db.query(Movement).filter(
             Movement.product == "hanbang",
-            Movement.created_at >= current,
-            Movement.created_at < next_day
+            Movement.created_at >= current_start,
+            Movement.created_at < next_day_start
         ).count()
 
         activity_hanbang.append(
@@ -769,8 +824,8 @@ def dashboard_activity(
 
         cart_platform_count = db.query(Movement).filter(
             Movement.product == "cart_platform",
-            Movement.created_at >= current,
-            Movement.created_at < next_day
+            Movement.created_at >= current_start,
+            Movement.created_at < next_day_start
         ).count()
 
         activity_cart_platform.append(
@@ -779,8 +834,8 @@ def dashboard_activity(
 
         cart_ring_count = db.query(Movement).filter(
             Movement.product == "cart_ring",
-            Movement.created_at >= current,
-            Movement.created_at < next_day
+            Movement.created_at >= current_start,
+            Movement.created_at < next_day_start
         ).count()
 
         activity_cart_ring.append(
@@ -789,8 +844,8 @@ def dashboard_activity(
 
         cart_o2_count = db.query(Movement).filter(
             Movement.product == "cart_o2",
-            Movement.created_at >= current,
-            Movement.created_at < next_day
+            Movement.created_at >= current_start,
+            Movement.created_at < next_day_start
         ).count()
 
         activity_cart_o2.append(
