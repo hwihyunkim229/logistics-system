@@ -260,7 +260,7 @@ def dashboard_overview(
     size_in = []
     size_out = []
 
-    for s in [7, 8, 9, 10, 11, 12, 13]:
+    for s in ["7", "8", "9", "10", "11", "12", "13"]:
 
         in_count = db.query(Inbound).filter(
             Inbound.size == s,
@@ -537,7 +537,7 @@ def dashboard_size(request: Request):
         in_counts = []
         out_counts = []
 
-        for s in [7,8,9,10,11,12,13]:
+        for s in ["7","8","9","10","11","12","13"]:
 
             in_count = db.query(Inbound).filter(
                 Inbound.product == service,
