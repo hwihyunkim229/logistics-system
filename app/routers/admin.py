@@ -68,7 +68,8 @@ def admin_users(request: Request):
 def create_user(
     request: Request,
     username: str = Form(...),
-    password: str = Form(...)
+    password: str = Form(...),
+    role: str = Form(...)
 ):
 
     if request.session.get("role") != "admin":
@@ -102,7 +103,7 @@ def create_user(
     user = User(
         username=username,
         password=hashed_password,
-        role="user",
+        role=role,
         must_change_password=True
     )
 
