@@ -347,7 +347,12 @@ async def upload_excel(request: Request, product: str, mode: str, file: UploadFi
                 size=size,
                 category=category,
                 client=client,
-                created_at=date_val,
+                created_at=datetime.combine(
+                    date_val,
+                    datetime.now(
+                        ZoneInfo("Asia/Seoul")
+                    ).time()
+                ),
                 product=product
             ))
 
@@ -373,7 +378,12 @@ async def upload_excel(request: Request, product: str, mode: str, file: UploadFi
                 size=size,
                 category=category,
                 client=client,
-                created_at=date_val,
+                created_at=datetime.combine(
+                    date_val,
+                    datetime.now(
+                        ZoneInfo("Asia/Seoul")
+                    ).time()
+                ),
                 product=product
             ))
 
