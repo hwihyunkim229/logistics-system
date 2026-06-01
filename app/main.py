@@ -1,28 +1,19 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-
 from fastapi import Request
 from fastapi.responses import RedirectResponse
-
 from starlette.middleware.base import (
     BaseHTTPMiddleware
 )
 from starlette.middleware.sessions import (
     SessionMiddleware
 )
-
 from passlib.context import CryptContext
-
 from app.database import (
     engine,
     Base,
     SessionLocal
 )
-
-# =========================
-# models
-# =========================
-
 from app.models import (
     inbound,
     outbound,
@@ -31,13 +22,7 @@ from app.models import (
     user,
     activity_log
 )
-
 from app.models.user import User
-
-# =========================
-# routers
-# =========================
-
 from app.routers import (
     scan,
     upload,
@@ -45,25 +30,14 @@ from app.routers import (
     dashboard,
     admin
 )
-
-# =========================
-# app
-# =========================
+import time
 
 app = FastAPI()
-
-# =========================
-# password context
-# =========================
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto"
 )
-
-# =========================
-# auth middleware
-# =========================
 
 class AuthMiddleware(BaseHTTPMiddleware):
 
@@ -72,10 +46,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next
     ):
-
         path = request.url.path
 
-        # 🔥 로그인 허용 경로
         if (
             path.startswith("/login")
             or path.startswith("/register")
@@ -87,39 +59,37 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 request
             )
 
-        # 🔥 session 확인
-        user = request.session.get(
-            "user"
-        )
+        user = request.session.get("user")
 
         if not user:
+            return RedirectResponse("/login")
 
-            return RedirectResponse(
-                "/login"
-            )
-
-        return await call_next(
-            request
+        last_activity = request.session.get(
+            "last_activity",
+            time.time()
         )
 
-# =========================
-# middleware
-# =========================
+        if time.time() - last_activity > 30:
 
-# ⚠️ Auth 먼저 등록
+            request.session.clear()
+
+            return RedirectResponse(
+                "/login?expired=1",
+                status_code=302
+            )
+
+        request.session["last_activity"] = time.time()
+
+        return await call_next(request)
+
 app.add_middleware(
     AuthMiddleware
 )
 
-# ⚠️ Session 나중 등록
 app.add_middleware(
     SessionMiddleware,
     secret_key="your-secret-key"
 )
-
-# =========================
-# static
-# =========================
 
 app.mount(
     "/static",
@@ -129,27 +99,15 @@ app.mount(
     name="static"
 )
 
-# =========================
-# router
-# =========================
-
 app.include_router(scan.router)
 app.include_router(upload.router)
 app.include_router(auth.router)
 app.include_router(dashboard.router)
 app.include_router(admin.router)
 
-# =========================
-# DB create
-# =========================
-
 Base.metadata.create_all(
     bind=engine
 )
-
-# =========================
-# 🔥 admin bootstrap
-# =========================
 
 db = SessionLocal()
 

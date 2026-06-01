@@ -363,6 +363,19 @@ window.onload = function(){
             window.history.replaceState({}, document.title, "/login");
         }, 1000);
     }
+
+    if(params.get("expired") === "1"){
+
+        showToast(
+            "세션이 만료되어 로그아웃되었습니다."
+        );
+
+        window.history.replaceState(
+            {},
+            document.title,
+            "/login"
+        );
+    }
 }
 window.addEventListener("DOMContentLoaded", () => {
     const params = new URLSearchParams(window.location.search);

@@ -7,7 +7,7 @@ from app.models.user import User
 from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
 from app.utils.logger import save_log
-
+import time
 router = APIRouter()
 
 templates = Jinja2Templates(
@@ -84,6 +84,7 @@ def login(
     request.session["user"] = username
 
     request.session["role"] = user.role
+    request.session["last_activity"] = time.time()
 
     save_log(
         user=username,
