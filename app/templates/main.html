@@ -557,7 +557,7 @@ th:hover span {
                 <tr>
                     <th><input type="checkbox" id="checkAll"></th>
 
-                    <th onclick="sortTable('date')" style="cursor:pointer;">
+                    <th onclick="changeSort('date')" style="cursor:pointer;">
                         {% if mode == "outbound" %}
                             출고 일자
                         {% else %}
@@ -566,7 +566,7 @@ th:hover span {
                         <span id="sort-date">↕</span>
                     </th>
                     <th>Serial No.</th>
-                    <th onclick="sortTable('size')" style="cursor:pointer;">
+                    <th onclick="changeSort('size')" style="cursor:pointer;">
                         Size <span id="sort-size">↕</span>
                     </th>
                     <th>출고 구분</th>
@@ -641,7 +641,7 @@ th:hover span {
         <div class="pagination">
 
             {% if page > 1 %}
-            <a href="/product/{{ product }}/{{ mode }}?page={{ page - 1 }}">
+            <a href="/product/{{ product }}/{{ mode }}?page={{ page - 1 }}&sort={{ sort }}&order={{ order }}">
                 이전
             </a>
             {% endif %}
@@ -651,7 +651,7 @@ th:hover span {
             </span>
 
             {% if page < total_pages %}
-            <a href="/product/{{ product }}/{{ mode }}?page={{ page + 1 }}">
+            <a href="/product/{{ product }}/{{ mode }}?page={{ page + 1 }}&sort={{ sort }}&order={{ order }}">
                 다음
             </a>
             {% endif %}
@@ -977,8 +977,36 @@ function moveToOutbound(){
 }
 
 window.onload = function(){
+
     focusInput();
     toggleButtons();
+
+    const params = new URLSearchParams(
+        window.location.search
+    );
+
+    const sort = params.get("sort");
+    const order = params.get("order");
+
+    if(sort && order){
+
+        document.getElementById("sort-date").innerText = "↕";
+        document.getElementById("sort-size").innerText = "↕";
+
+        const icon =
+            order === "asc"
+            ? "↑"
+            : "↓";
+
+        const target =
+            document.getElementById(
+                "sort-" + sort
+            );
+
+        if(target){
+            target.innerText = icon;
+        }
+    }
 };
 
 function getHistoryType(type){
@@ -1139,50 +1167,30 @@ let currentSort = {
     order: null
 };
 
-function sortTable(field){
-    const tbody = document.getElementById("tableBody");
-    const rows = Array.from(tbody.querySelectorAll("tr"));
+function changeSort(field){
 
-    if(currentSort.field !== field){
-        currentSort.field = field;
-        currentSort.order = "asc";
+    const url = new URL(window.location);
 
-    }else{
-        if(currentSort.order === "asc"){
-            currentSort.order = "desc";
+    const currentField =
+        url.searchParams.get("sort");
 
-        }else if(currentSort.order === "desc"){
-            // 🔥 세 번째 클릭 → 초기화
-            currentSort.field = null;
-            currentSort.order = null;
+    const currentOrder =
+        url.searchParams.get("order");
 
-        }else{
-            currentSort.order = "asc";
-        }
+    let order = "asc";
+
+    if(currentField === field){
+        order =
+            currentOrder === "asc"
+            ? "desc"
+            : "asc";
     }
 
-    rows.sort((a, b) => {
+    url.searchParams.set("sort", field);
+    url.searchParams.set("order", order);
+    url.searchParams.set("page", 1);
 
-        let valA, valB;
-
-        if(field === "date"){
-            valA = new Date(a.children[1].innerText.trim());
-            valB = new Date(b.children[1].innerText.trim());
-        }
-
-        if(field === "size"){
-            valA = parseInt(a.children[3].innerText.trim()) || 0;
-            valB = parseInt(b.children[3].innerText.trim()) || 0;
-        }
-
-        return currentSort.order === "asc"
-            ? valA - valB
-            : valB - valA;
-    });
-
-    rows.forEach(row => tbody.appendChild(row));
-
-    updateSortIcons();
+    window.location.href = url;
 }
 
 function updateSortIcons(){

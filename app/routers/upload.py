@@ -225,6 +225,8 @@ def main_page(
     request: Request,
     product: str,
     mode: str,
+    sort: str = "date",
+    order: str = "desc",
     page: int = 1
 ):
     db = SessionLocal()
@@ -239,6 +241,20 @@ def main_page(
 
         query = db.query(Outbound)\
             .filter(Outbound.product == product)
+        
+        if sort == "date":
+            query = query.order_by(
+                Outbound.created_at.desc()
+                if order == "desc"
+                else Outbound.created_at.asc()
+            )
+
+        elif sort == "size":
+            query = query.order_by(
+                Outbound.size.desc()
+                if order == "desc"
+                else Outbound.size.asc()
+            )
 
         total_count = query.count()
 
@@ -260,6 +276,20 @@ def main_page(
 
         query = db.query(Inbound)\
             .filter(Inbound.product == product)
+
+        if sort == "date":
+            query = query.order_by(
+                Inbound.created_at.desc()
+                if order == "desc"
+                else Inbound.created_at.asc()
+            )
+
+        elif sort == "size":
+            query = query.order_by(
+                Inbound.size.desc()
+                if order == "desc"
+                else Inbound.size.asc()
+            )
 
         total_count = query.count()
 
@@ -287,9 +317,9 @@ def main_page(
             "data": data,
             "product": product,
             "mode": mode,
-
-            # ✅ 추가
             "page": page,
+            "sort": sort,
+            "order": order,
             "total_pages": total_pages
         }
     )
