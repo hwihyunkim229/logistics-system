@@ -247,7 +247,7 @@ def main_page(
         ) // per_page
 
         data = query\
-            .order_by(Outbound.id.asc())\
+            .order_by(Outbound.id.desc())\
             .offset((page - 1) * per_page)\
             .limit(per_page)\
             .all()
@@ -268,7 +268,7 @@ def main_page(
         ) // per_page
 
         data = query\
-            .order_by(Inbound.id.asc())\
+            .order_by(Inbound.id.desc())\
             .offset((page - 1) * per_page)\
             .limit(per_page)\
             .all()
