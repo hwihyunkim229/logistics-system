@@ -9,7 +9,7 @@ import pandas as pd
 from datetime import date
 from app.models.movement import Movement
 from sqlalchemy import or_
-from sqlalchemy import cast, String
+from sqlalchemy import cast, String, Integer
 from datetime import datetime
 from sqlalchemy import func, case
 from fastapi.responses import StreamingResponse
@@ -251,9 +251,9 @@ def main_page(
 
         elif sort == "size":
             query = query.order_by(
-                Outbound.size.desc()
+                cast(Outbound.size, Integer).desc()
                 if order == "desc"
-                else Outbound.size.asc()
+                else cast(Outbound.size, Integer).asc()
             )
 
         total_count = query.count()
@@ -286,9 +286,9 @@ def main_page(
 
         elif sort == "size":
             query = query.order_by(
-                Inbound.size.desc()
+                cast(Inbound.size, Integer).desc()
                 if order == "desc"
-                else Inbound.size.asc()
+                else cast(Inbound.size, Integer).asc()
             )
 
         total_count = query.count()
