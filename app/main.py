@@ -69,7 +69,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             time.time()
         )
 
-        if time.time() - last_activity > 30:
+        if time.time() - last_activity > 7200:
 
             request.session.clear()
 
