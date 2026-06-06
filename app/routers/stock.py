@@ -455,30 +455,30 @@ async def upload_stock_excel(
             skipped += 1
             continue
 
-        # 이미 등록된 품목인지 확인
-        exists = (
-            db.query(Stock)
-            .filter(
-                Stock.item_code == item_code
+        for grade in ["A", "B", "F"]:
+
+            exists = (
+                db.query(Stock)
+                .filter(
+                    Stock.item_code == item_code,
+                    Stock.grade == grade
+                )
+                .first()
             )
-            .first()
-        )
 
-        if exists:
+            if exists:
+                continue
 
-            skipped += 1
-            continue
-
-        db.add(
-            Stock(
-                item_code=item_code,
-                item_name=master.item_name,
-                grade="",
-                rev=master.rev,
-                category=category,
-                qty=0
+            db.add(
+                Stock(
+                    item_code=item_code,
+                    item_name=master.item_name,
+                    grade=grade,
+                    rev=master.rev,
+                    category=category,
+                    qty=0
+                )
             )
-        )
 
         created += 1
 
