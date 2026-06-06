@@ -901,17 +901,3 @@ async def upload_item_master(
         "message":
             f"신규 {created}건 / 제외 {skipped}건"
     }
-
-@router.post("/stock/reset")
-def reset_stock(
-    db: Session = Depends(get_db)
-):
-
-    db.query(Stock).delete()
-
-    db.commit()
-
-    return {
-        "status": "success",
-        "message": "stock 테이블 전체 삭제 완료"
-    }
