@@ -373,7 +373,7 @@ def dashboard_trend(
         Outbound.created_at <= end_datetime
     ).count()
 
-    total_in = db.query(Outbound).filter(
+    total_in = db.query(Inbound).filter(
         Inbound.created_at >= start_datetime,
         Inbound.created_at <= end_datetime
     ).count()

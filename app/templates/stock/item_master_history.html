@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+
+.page-title{
+    margin-bottom:25px;
+    font-size:22px;
+    font-weight:700;
+    color:#2c3e50;
+    padding-left:10px;
+    border-left:4px solid #2c3e50;
+}
+
+.card{
+    background:white;
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+
+.toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:20px;
+}
+
+.search-input{
+    width:400px;
+    padding:10px 14px;
+    border:1px solid #ddd;
+    border-radius:8px;
+    font-size:14px;
+}
+
+.back-btn{
+    padding:10px 18px;
+    border:none;
+    border-radius:8px;
+    background:#2c3e50;
+    color:white;
+    cursor:pointer;
+    font-size:14px;
+}
+
+.back-btn:hover{
+    opacity:0.9;
+}
+
+.table-container{
+    max-height:800px;
+    overflow-y:auto;
+    border-radius:10px;
+}
+
+.history-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.history-table thead th{
+
+    position:sticky;
+    top:0;
+    z-index:10;
+
+    background:#2c3e50;
+    color:white;
+
+    padding:12px;
+
+    text-align:center;
+
+    border-right:1px solid white;
+}
+
+.history-table thead th:last-child{
+    border-right:none;
+}
+
+.history-table td{
+
+    padding:14px;
+
+    text-align:center;
+
+    border-bottom:1px solid #eee;
+    border-right:1px solid #eee;
+
+    vertical-align:middle;
+}
+
+.history-table td:last-child{
+    border-right:none;
+}
+
+.history-table tbody tr:hover{
+    background:#f8f9fb;
+}
+
+.change-arrow{
+    color:#999;
+    font-size:14px;
+    margin:5px 0;
+}
+
+.old-value{
+    color:#666;
+}
+
+.new-value{
+    font-weight:600;
+    color:#2c3e50;
+}
+
+.empty-row{
+    text-align:center;
+    padding:30px;
+    color:#888;
+}
+
+</style>
+
+<h2 class="page-title">
+    품목 변경 이력
+</h2>
+
+<div class="card">
+
+    <div class="toolbar">
+
+        <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="검색어를 입력하세요.">
+
+        <button
+            class="back-btn"
+            onclick="location.href='/stock/item-master/manage'">
+
+            품목 관리 이동
+
+        </button>
+
+    </div>
+
+    <div class="table-container">
+
+        <table
+            class="history-table"
+            id="historyTable">
+
+            <thead>
+
+                <tr>
+
+                    <th>변경 일시</th>
+                    <th>작업자</th>
+                    <th>품목코드</th>
+                    <th>품명</th>
+                    <th>Rev</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+            {% if history %}
+
+                {% for row in history %}
+
+                <tr>
+
+                    <td>
+                        {{ row.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                    </td>
+
+                    <td>
+                        {{ row.user }}
+                    </td>
+
+                    <td>
+
+                        {% if row.old_code != row.new_code %}
+
+                            <div class="old-value">
+                                {{ row.old_code }}
+                            </div>
+
+                            <div class="change-arrow">
+                                ↓ 변경
+                            </div>
+
+                            <div class="new-value">
+                                {{ row.new_code }}
+                            </div>
+
+                        {% else %}
+
+                            -
+
+                        {% endif %}
+
+                    </td>
+
+                    <td>
+
+                        {% if row.old_name != row.new_name %}
+
+                            <div class="old-value">
+                                {{ row.old_name }}
+                            </div>
+
+                            <div class="change-arrow">
+                                ↓ 변경
+                            </div>
+
+                            <div class="new-value">
+                                {{ row.new_name }}
+                            </div>
+
+                        {% else %}
+
+                            -
+
+                        {% endif %}
+
+                    </td>
+
+                    <td>
+
+                        {% if row.old_rev != row.new_rev %}
+
+                            <div class="old-value">
+                                {{ row.old_rev }}
+                            </div>
+
+                            <div class="change-arrow">
+                                ↓ 변경
+                            </div>
+
+                            <div class="new-value">
+                                {{ row.new_rev }}
+                            </div>
+
+                        {% else %}
+
+                            -
+
+                        {% endif %}
+
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            {% else %}
+
+                <tr>
+
+                    <td
+                        colspan="5"
+                        class="empty-row">
+
+                        변경 이력이 없습니다.
+
+                    </td>
+
+                </tr>
+
+            {% endif %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<script>
+
+document
+.getElementById("searchInput")
+.addEventListener(
+    "keyup",
+    function(){
+
+        const keyword =
+            this.value.toLowerCase();
+
+        document
+        .querySelectorAll(
+            "#historyTable tbody tr"
+        )
+        .forEach(row=>{
+
+            const text =
+                row.innerText.toLowerCase();
+
+            row.style.display =
+                text.includes(keyword)
+                ? ""
+                : "none";
+
+        });
+
+    }
+);
+
+</script>
+
+{% endblock %}

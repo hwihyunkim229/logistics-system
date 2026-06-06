@@ -4,7 +4,7 @@ import os
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if DATABASE_URL.startswith("postgresql"):
+if DATABASE_URL and DATABASE_URL.startswith("postgresql"):
 
     engine = create_engine(
         DATABASE_URL,
@@ -17,14 +17,12 @@ if DATABASE_URL.startswith("postgresql"):
 else:
 
     engine = create_engine(
-        DATABASE_URL,
+        "sqlite:///./local.db",
         connect_args={
             "check_same_thread": False
         }
     )
 
-SessionLocal = sessionmaker(
-    bind=engine
-)
+SessionLocal = sessionmaker(bind=engine)
 
 Base = declarative_base()

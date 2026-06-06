@@ -572,6 +572,34 @@ body{
 
     </div>
 
+    <div class="menu-group" data-menu="stock">
+
+        <div class="menu-title" onclick="toggleMenu(this)">
+            가계상 재고
+        </div>
+
+        <div class="submenu">
+
+            <a href="/stock">
+                재고 현황
+            </a>
+
+            <a href="/stock/history">
+                입/출고 현황
+            </a>
+
+            <a href="/stock/item-master/manage">
+                품목 관리
+            </a>
+
+            <a href="/stock/dashboard">
+                Dashboard
+            </a>
+
+        </div>
+
+    </div>
+
     {% if request.session.get("role") == "admin" %}
 
     <div class="menu-group" data-menu="admin">

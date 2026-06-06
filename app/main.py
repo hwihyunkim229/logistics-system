@@ -20,7 +20,10 @@ from app.models import (
     item,
     movement,
     user,
-    activity_log
+    activity_log,
+    stock,
+    stock_movement,
+    item_master_history
 )
 from app.models.user import User
 from app.routers import (
@@ -28,7 +31,9 @@ from app.routers import (
     upload,
     auth,
     dashboard,
-    admin
+    admin,
+    stock,
+    stock_dashboard
 )
 import time
 
@@ -104,6 +109,8 @@ app.include_router(upload.router)
 app.include_router(auth.router)
 app.include_router(dashboard.router)
 app.include_router(admin.router)
+app.include_router(stock.router)
+app.include_router(stock_dashboard.router)
 
 Base.metadata.create_all(
     bind=engine

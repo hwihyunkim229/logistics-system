@@ -1,0 +1,1316 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+.page-title{
+    margin-bottom:35px;
+    margin-left:8px;
+    font-size:22px;
+    font-weight:700;
+    color:#2c3e50;
+    padding-left:10px;
+    border-left:4px solid #2c3e50;
+    letter-spacing:0.5px;
+}
+
+.card{
+    background:white;
+    padding:20px;
+    border-radius:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.1);
+    display:flex;
+    flex-direction:column;
+    width:100%;
+    box-sizing:border-box;
+}
+
+.bottom{
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+    gap:14px;
+    min-height:760px;
+}
+
+.excel-download{
+    position:absolute;
+    top:215px;
+    right:38px;
+    width:36px;
+    height:36px;
+    border-radius:10px;
+    border:1px solid #ddd;
+    background:white;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#1D6F42;
+    transition:all .2s ease;
+}
+
+.excel-download:hover{
+    background:#1D6F42;
+    color:white;
+}
+
+.excel-download i{
+    font-size:18px;
+}
+
+.toolbar{
+    display:flex;
+    align-items:center;
+    gap:20px;
+    margin-bottom:10px;
+}
+
+.left-group{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:15px;
+}
+
+.center-group{
+    margin-right:20px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:15px;
+}
+
+.right-group{
+    margin-left:auto;
+    display:flex;
+    gap:8px;
+    margin-top:15px;
+}
+
+button{
+    padding:10px 18px;
+    border-radius:10px;
+    border:1px solid #ddd;
+    background:white;
+    color:#333;
+    font-size:14px;
+    font-weight:500;
+    cursor:pointer;
+    transition:all .2s ease;
+}
+
+button:hover{
+    background:black;
+    color:white;
+    border-color:black;
+}
+
+button:active{
+    transform:scale(.97);
+}
+
+button:disabled{
+    opacity:.4;
+    cursor:not-allowed;
+}
+
+button + button{
+    margin-left:6px;
+}
+
+.search-row{
+    margin-bottom:12px;
+}
+
+.search-row input,
+#searchInput{
+    width:500px;
+    padding:10px 14px;
+    border-radius:10px;
+    border:1px solid #ddd;
+    background:white;
+    font-size:14px;
+    transition:all .2s ease;
+}
+
+.search-row input:hover{
+    border-color:#bbb;
+}
+
+.search-row input:focus{
+    border-color:black;
+    outline:none;
+    box-shadow:0 0 0 2px rgba(0,0,0,.08);
+}
+
+.category-tabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:16px;
+}
+
+.tab-btn{
+    padding:10px 16px;
+    border-radius:10px;
+    border:1px solid #ddd;
+    background:white;
+    color:#333;
+    font-size:14px;
+    font-weight:500;
+    cursor:pointer;
+    transition:.2s;
+}
+
+.tab-btn:hover{
+    background:black;
+    color:white;
+}
+
+.tab-btn.active{
+    background:#2c3e50;
+    color:white;
+    border-color:#2c3e50;
+}
+
+.table-wrapper{
+    margin-top:12px;
+    flex:1;
+    overflow-y:auto;
+    max-height:750px;
+    border-radius:12px;
+}
+
+.inventory-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.inventory-table thead th{
+    position:sticky;
+    top:0;
+    background:#2c3e50;
+    color:white;
+    z-index:2;
+    text-align:center;
+    padding:12px;
+    border-bottom:1px solid #ddd;
+    border-right:1px solid rgba(255,255,255,.15);
+}
+
+.inventory-table thead th:last-child{
+    border-right:none;
+}
+
+.inventory-table td{
+    text-align:center;
+    padding:12px;
+    border-bottom:1px solid #ddd;
+    border-right:1px solid #eee;
+}
+
+.inventory-table td:last-child{
+    border-right:none;
+}
+
+.inventory-table tbody tr:hover{
+    background:#f7f9fb;
+}
+
+td input[type="checkbox"],
+th input[type="checkbox"]{
+    transform:scale(1.2);
+    cursor:pointer;
+}
+
+.modal{
+    display:none;
+    position:fixed;
+    left:0;
+    top:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.4);
+    z-index:9999;
+    justify-content:center;
+    align-items:center;
+}
+
+.modal-content{
+    width:350px;
+    background:#fff;
+    border-radius:16px;
+    padding:25px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    text-align:center;
+}
+
+.modal-content h3{
+    margin-bottom:15px;
+}
+
+.modal-content input{
+    width:100%;
+    padding:10px;
+    border-radius:8px;
+    border:1px solid #ddd;
+    margin-top:10px;
+    margin-bottom:15px;
+    box-sizing:border-box;
+}
+
+.modal-buttons{
+    margin-top:20px;
+    display:flex;
+    justify-content:center;
+    gap:10px;
+}
+
+.modal-buttons button:first-child{
+    background:#2c3e50;
+    color:white;
+}
+
+.modal-buttons button:last-child{
+    background:#ddd;
+}
+
+#selectedCount{
+    font-weight:700;
+    color:#2c3e50;
+}
+
+.table-wrapper::-webkit-scrollbar{
+    width:8px;
+    height:8px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb{
+    background:#cfcfcf;
+    border-radius:20px;
+}
+
+.table-wrapper::-webkit-scrollbar-track{
+    background:#f5f5f5;
+}
+
+.empty-row{
+    height:120px;
+    text-align:center;
+    color:#999;
+    font-size:14px;
+}
+
+.grade-cell{
+    position:relative;
+    text-align:center;
+}
+
+.grade-text{
+    display:block;
+    cursor:pointer;
+    font-size:16px;
+    font-weight:400;
+    line-height:40px;
+}
+
+.grade-select{
+    display:none;
+    width:80px;
+    margin:auto;
+    font-size:16px;
+    text-align:center;
+}
+
+#bulkGrade{
+    width:180px;
+    height:48px;
+    font-size:18px;
+    font-weight:500;
+    text-align:center;
+    border:1px solid #d1d5db;
+    border-radius:10px;
+    background:#fff;
+    cursor:pointer;
+    margin:15px 0 25px 0;
+}
+
+.pagination{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:8px;
+    margin-top:20px;
+}
+
+.pagination a{
+    min-width:40px;
+    height:40px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid #ddd;
+    border-radius:10px;
+    background:white;
+    text-decoration:none;
+    color:#2c3e50;
+    font-weight:600;
+}
+
+.pagination a:hover{
+    background:#f5f7fa;
+}
+
+.pagination a.active{
+    background:#2c3e50;
+    color:white;
+    border-color:#2c3e50;
+}
+
+.filter-row{
+    display:flex;
+    gap:8px;
+    align-items:center;
+}
+
+.filter-row select{
+    min-width:140px;
+    height:44px;
+    padding:0 14px;
+    border:1px solid #ddd;
+    border-radius:10px;
+    background:white;
+    color:#333;
+    font-size:14px;
+    font-weight:500;
+    cursor:pointer;
+    transition:all .2s ease;
+}
+
+.filter-row select:hover{
+    border-color:#bbb;
+}
+
+.filter-row select:focus{
+    outline:none;
+    border-color:#2c3e50;
+    box-shadow:0 0 0 2px rgba(44,62,80,.12);
+}
+</style>
+
+<div class="page-header">
+    <h2 class="page-title">
+        가계상 재고 현황
+    </h2>
+
+    <form
+        method="get"
+        class="search-row">
+
+        <input
+            type="hidden"
+            name="category"
+            value="{{ current_category }}">
+
+        <input
+            type="text"
+            name="keyword"
+            value="{{ keyword }}"
+            placeholder="검색어를 입력하세요.">
+
+    </form>
+
+    <button
+        class="excel-download"
+        onclick="downloadExcel()"
+        title="엑셀 다운로드">
+
+        <i class="fa-solid fa-file-excel"></i>
+    </button>
+</div>
+
+<div class="category-tabs">
+    <button
+        class="tab-btn {% if current_category == '반제품' %}active{% endif %}"
+        onclick="location.href='/stock?category=반제품&keyword={{ keyword }}&page=1'">
+        반제품
+    </button>
+
+    <button
+        class="tab-btn {% if current_category == '제품' %}active{% endif %}"
+        onclick="location.href='/stock?category=제품&keyword={{ keyword }}&page=1'">
+        제품
+    </button>
+
+    <button
+        class="tab-btn {% if current_category == '원자재' %}active{% endif %}"
+        onclick="location.href='/stock?category=원자재&keyword={{ keyword }}&page=1'">
+        원자재
+    </button>
+</div>
+
+<div class="card bottom">
+    <h3 id="stockTitle">
+        📄 {{ current_category }} 재고 리스트
+    </h3>
+
+    <div class="toolbar">
+        <div class="left-group">
+            <button onclick="document.getElementById('excelFile').click()">
+                📂 엑셀 업로드
+            </button>
+
+            <input
+                type="file"
+                id="excelFile"
+                style="display:none"
+                accept=".xlsx,.xls">
+        </div>
+
+        <div class="right-group">
+            <div class="filter-row">
+                <select id="gradeFilter">
+                    <option value="">
+                        전체 등급
+                    </option>
+
+                    <option value="A">
+                        A
+                    </option>
+
+                    <option value="B">
+                        B
+                    </option>
+
+                    <option value="F">
+                        F
+                    </option>
+                </select>
+
+                <select id="revFilter">
+
+                    <option value="">
+                        전체 Rev
+                    </option>
+
+                    <option value="REV.0">
+                        REV.0
+                    </option>
+
+                    <option value="REV.1">
+                        REV.1
+                    </option>
+
+                    <option value="REV.2">
+                        REV.2
+                    </option>
+
+                    <option value="REV.2D">
+                        REV.2D
+                    </option>
+
+                    <option value="COMMON">
+                        COMMON
+                    </option>
+                </select>
+            </div>
+
+            <button
+                class="action-btn"
+                onclick="moveIn()"
+                disabled>
+                입고 이동
+            </button>
+
+            <button
+                class="action-btn"
+                onclick="moveOut()"
+                disabled>
+                출고 이동
+            </button>
+
+            <button
+                class="action-btn btn-delete"
+                onclick="deleteSelected()"
+                disabled>
+                선택 삭제
+            </button>
+
+            <button
+                id="bulkGradeBtn"
+                class="action-btn"
+                onclick="openGradeModal()"
+                disabled>
+                등급 일괄 적용
+            </button>
+
+            <button
+                id="bulkQtyBtn"
+                class="action-btn"
+                onclick="openQtyModal()"
+                disabled>
+                수량 일괄 적용
+            </button>
+        </div>
+
+        <div class="center-group">
+            <span>
+                선택됨:
+                <b id="selectedCount">0</b>
+            </span>
+        </div>
+
+        <div
+            id="gradeModal"
+            class="modal">
+
+            <div class="modal-content">
+                <h3>
+                    등급 일괄 수정
+                </h3>
+
+                <select id="bulkGrade">
+                    <option value="A">
+                        A
+                    </option>
+
+                    <option value="B">
+                        B
+                    </option>
+
+                    <option value="F">
+                        F
+                    </option>
+                </select>
+
+                <div class="modal-buttons">
+                    <button
+                        onclick="applyBulkGrade()">
+                        적용
+                    </button>
+
+                    <button
+                        onclick="closeGradeModal()">
+                        취소
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div
+            id="bulkQtyModal"
+            class="modal">
+
+            <div class="modal-content">
+                <h3>
+                    수량 일괄 수정
+                </h3>
+
+                <input
+                    type="number"
+                    id="bulkQtyValue">
+
+                <div class="modal-buttons">
+                    <button
+                        onclick="applyBulkQty()">
+                        적용
+                    </button>
+
+                    <button
+                        onclick="closeBulkQtyModal()">
+                        취소
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div
+            id="deleteModal"
+            class="modal">
+
+            <div class="modal-content">
+                <p>
+                    선택한 행을 삭제하시겠습니까?
+                </p>
+
+                <div class="modal-buttons">
+                    <button
+                        class="btn-primary"
+                        onclick="confirmDelete()">
+                        확인
+                    </button>
+
+                    <button
+                        class="btn-secondary"
+                        onclick="closeDeleteModal()">
+                        취소
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<div class="table-wrapper">
+    <table
+        class="inventory-table"
+        id="inventoryTable">
+
+        <thead>
+        <tr>
+            <th style="width:60px;">
+                <input
+                    type="checkbox"
+                    id="checkAll">
+            </th>
+            <th>품목코드</th>
+            <th>품명</th>
+            <th>등급</th>
+            <th>Rev</th>
+            <th>수량</th>
+        </tr>
+        </thead>
+        <tbody>
+
+        {% for item in items %}
+        <tr
+            data-category="{{ item.category }}"
+            data-grade="{{ item.grade or '' }}"
+            data-rev="{{ item.rev or '' }}">
+
+            <td>
+                <input
+                    type="checkbox"
+                    class="rowCheck"
+                    value="{{ item.id }}">
+            </td>
+
+            <td>{{ item.item_code }}</td>
+            <td>{{ item.item_name }}</td>
+            <td class="grade-cell">
+
+                <span
+                    class="grade-text"
+                    onclick="showGradeSelect(this)">
+
+                    {{ item.grade if item.grade else "-" }}
+                </span>
+
+                <select
+                    class="grade-select"
+                    data-id="{{ item.id }}"
+                    onchange="updateGrade(this)">
+
+                    <option value=""
+                        {% if not item.grade %}selected{% endif %}>
+                        -
+                    </option>
+
+                    <option value="A"
+                        {% if item.grade=="A" %}selected{% endif %}>
+                        A
+                    </option>
+
+                    <option value="B"
+                        {% if item.grade=="B" %}selected{% endif %}>
+                        B
+                    </option>
+
+                    <option value="F"
+                        {% if item.grade=="F" %}selected{% endif %}>
+                        F
+                    </option>
+                </select>
+            </td>
+
+            <td>{{ item.rev }}</td>
+
+            <td
+                class="qty-cell"
+                contenteditable="true"
+                data-id="{{ item.id }}">
+
+                {{ item.qty }}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="pagination">
+        {% if page > 1 %}
+
+        <a
+            href="?category={{ current_category }}&keyword={{ keyword }}&page={{ page - 1 }}">
+            이전
+        </a>
+
+        {% endif %}
+
+        {% for p in range(1, total_pages + 1) %}
+        <a
+            href="?category={{ current_category }}&keyword={{ keyword }}&page={{ p }}"
+            class="{% if p == page %}active{% endif %}">
+            {{ p }}
+        </a>
+
+        {% endfor %}
+
+        {% if page < total_pages %}
+        <a
+            href="?category={{ current_category }}&keyword={{ keyword }}&page={{ page + 1 }}">
+            다음
+        </a>
+
+        {% endif %}
+    </div>
+</div>
+
+<div
+    id="qtyModal"
+    class="modal">
+
+    <div class="modal-content">
+
+        <h3 id="modalTitle">
+            수량 입력
+        </h3>
+
+        <input
+            type="number"
+            id="qtyInput"
+            min="1"
+            value="1">
+
+        <textarea
+            id="remarkInput"
+            placeholder="비고를 입력하세요."
+            rows="3"
+            style="
+                width:100%;
+                margin-top:12px;
+                padding:10px;
+                border:1px solid #ddd;
+                border-radius:8px;
+                resize:none;
+                box-sizing:border-box;
+                font-family:inherit;
+                font-size:14px;
+            ">
+        </textarea>
+
+        <div class="modal-buttons">
+
+            <button onclick="confirmQty()">
+                확인
+            </button>
+
+            <button onclick="closeModal()">
+                취소
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<div
+    id="resultModal"
+    class="modal">
+
+    <div class="modal-content">
+
+        <h3>
+            처리 완료
+        </h3>
+
+        <p id="resultMessage"></p>
+
+        <div class="modal-buttons">
+
+            <button
+                onclick="closeResultModal()">
+
+                확인
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+let currentAction = "";
+
+document
+.getElementById("checkAll")
+.addEventListener("change", function(){
+    document
+    .querySelectorAll(".rowCheck")
+    .forEach(cb=>{
+        cb.checked = this.checked;
+    });
+    updateSelectedCount();
+});
+
+document.addEventListener("change", function(e){
+    if(e.target.classList.contains("rowCheck")){
+        updateSelectedCount();
+    }
+});
+
+function updateSelectedCount(){
+    const count =
+        document.querySelectorAll(
+            ".rowCheck:checked"
+        ).length;
+    document
+    .getElementById(
+        "selectedCount"
+    )
+    .innerText = count;
+    toggleButtons();
+}
+
+function openResultModal(message){
+
+    document
+    .getElementById(
+        "resultMessage"
+    )
+    .innerText = message;
+
+    document
+    .getElementById(
+        "resultModal"
+    )
+    .style.display = "flex";
+}
+
+function closeResultModal(){
+
+    location.reload();
+}
+
+function getSelectedIds(){
+    return Array.from(
+        document.querySelectorAll(
+            ".rowCheck:checked"
+        )
+    )
+    .filter(
+        cb =>
+        cb.closest("tr").style.display !== "none"
+    )
+    .map(
+        cb => cb.value
+    );
+}
+
+function moveIn(){
+    if(getSelectedIds().length===0){
+        alert("품목을 선택하세요.");
+        return;
+    }
+    currentAction = "in";
+
+    document.getElementById(
+        "modalTitle"
+    ).innerText = "입고 수량";
+
+    document.getElementById(
+        "qtyModal"
+    ).style.display="flex";
+}
+
+function moveOut(){
+    if(getSelectedIds().length===0){
+        alert("품목을 선택하세요.");
+        return;
+    }
+    currentAction = "out";
+
+    document.getElementById(
+        "modalTitle"
+    ).innerText = "출고 수량";
+
+    document.getElementById(
+        "qtyModal"
+    ).style.display="flex";
+}
+
+function confirmQty(){
+    const qty =
+        document.getElementById(
+            "qtyInput"
+        ).value;
+
+    const remark =
+        document.getElementById(
+            "remarkInput"
+        ).value.trim();
+
+    const ids =
+        getSelectedIds();
+
+    const url =
+        currentAction === "in"
+        ? "/stock/move-in"
+        : "/stock/move-out";
+
+    fetch(url,{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            ids:ids,
+            qty:qty,
+            remark:remark
+        })
+    })
+    .then(()=>{
+
+        document.getElementById(
+            "qtyInput"
+        ).value = 1;
+
+        document.getElementById(
+            "remarkInput"
+        ).value = "";
+
+        location.reload();
+    });
+}
+
+function deleteSelected(){
+    const ids =
+        getSelectedIds();
+
+    if(ids.length===0){
+        alert("품목을 선택하세요.");
+        return;
+    }
+
+    document
+    .getElementById(
+        "deleteModal"
+    )
+    .style.display = "flex";
+}
+
+function closeDeleteModal(){
+    document
+    .getElementById(
+        "deleteModal"
+    )
+    .style.display = "none";
+}
+
+async function confirmDelete(){
+    const ids =
+        getSelectedIds();
+    const response =
+        await fetch(
+            "/stock/delete-selected",
+            {
+                method:"POST",
+                headers:{
+                    "Content-Type":"application/json"
+                },
+                body:JSON.stringify({
+                    ids:ids
+                })
+            }
+        );
+    const result =
+        await response.json();
+
+    if(result.status==="success"){
+        location.reload();
+    }
+}
+
+function closeModal(){
+
+    document.getElementById(
+        "qtyModal"
+    ).style.display="none";
+
+    document.getElementById(
+        "qtyInput"
+    ).value = 1;
+
+    document.getElementById(
+        "remarkInput"
+    ).value = "";
+}
+
+function downloadExcel(){
+    window.location.href =
+        "/stock/download-excel";
+}
+
+function toggleButtons(){
+    const ids = getSelectedIds();
+    const hasSelection =
+        ids.length > 0;
+
+    document
+    .querySelectorAll(
+        ".action-btn"
+    )
+    .forEach(btn=>{
+        btn.disabled =
+            !hasSelection;
+    });
+
+    document
+    .getElementById(
+        "selectedCount"
+    )
+    .innerText =
+        ids.length;
+}
+
+document
+.getElementById("excelFile")
+.addEventListener("change", function(){
+    const file = this.files[0];
+
+    if(!file){
+        return;
+    }
+
+    const formData =
+        new FormData();
+
+    formData.append(
+        "file",
+        file
+    );
+
+    fetch(
+        "/stock/upload-excel",
+        {
+            method:"POST",
+            body:formData
+        }
+    )
+    .then(res=>res.json())
+    .then(data=>{
+
+        openResultModal(
+            data.message
+        );
+
+    })
+    .catch(err=>{
+
+        console.error(err);
+
+        openResultModal(
+            "업로드 실패"
+        );
+
+    });
+});
+
+document
+.querySelectorAll(".qty-cell")
+.forEach(cell => {
+    cell.addEventListener(
+        "blur",
+        async function(){
+            const qty =
+                this.innerText.trim();
+
+            if(
+                qty === "" ||
+                isNaN(qty)
+            ){
+                alert("숫자만 입력 가능합니다.");
+                location.reload();
+                return;
+            }
+
+            await fetch(
+                "/stock/update-qty",
+                {
+                    method:"POST",
+                    headers:{
+                        "Content-Type":"application/json"
+                    },
+                    body:JSON.stringify({
+                        id:this.dataset.id,
+                        qty:qty
+                    })
+                }
+            );
+
+        }
+    );
+
+});
+
+function showGradeSelect(span){
+    span.style.display = "none";
+
+    const select =
+        span.nextElementSibling;
+
+    select.style.display = "inline-block";
+    select.focus();
+}
+
+async function updateGrade(select){
+    await fetch(
+        "/stock/update-grade",
+        {
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json"
+            },
+            body:JSON.stringify({
+                id:select.dataset.id,
+                grade:select.value
+            })
+        }
+    );
+
+    const span =
+        select.previousElementSibling;
+
+    span.innerText =
+        select.value || "-";
+
+    select.style.display = "none";
+
+    span.style.display = "block";
+}
+
+function openGradeModal(){
+    document.getElementById(
+        "gradeModal"
+    ).style.display="flex";
+}
+
+function closeGradeModal(){
+    document
+    .getElementById(
+        "gradeModal"
+    )
+    .style.display = "none";
+}
+
+async function applyBulkGrade(){
+    const grade =
+        document
+        .getElementById(
+            "bulkGrade"
+        )
+        .value;
+
+    await fetch(
+        "/stock/bulk-update-grade",
+        {
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json"
+            },
+            body:JSON.stringify({
+                ids:getSelectedIds(),
+                grade:grade
+            })
+        }
+    );
+    location.reload();
+}
+
+function openQtyModal(){
+    document
+    .getElementById(
+        "bulkQtyModal"
+    )
+    .style.display = "flex";
+}
+
+function closeBulkQtyModal(){
+    document
+    .getElementById(
+        "bulkQtyModal"
+    )
+    .style.display = "none";
+}
+
+async function applyBulkQty(){
+    const qty =
+        document
+        .getElementById(
+            "bulkQtyValue"
+        )
+        .value;
+
+    await fetch(
+        "/stock/bulk-update-qty",
+        {
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json"
+            },
+            body:JSON.stringify({
+                ids:getSelectedIds(),
+                qty:qty
+            })
+        }
+    );
+    location.reload();
+}
+
+function applyGradeRevFilter(){
+    const grade =
+        document
+        .getElementById("gradeFilter")
+        .value;
+
+    const rev =
+        document
+        .getElementById("revFilter")
+        .value;
+
+    document
+    .querySelectorAll(
+        "#inventoryTable tbody tr"
+    )
+    .forEach(row=>{
+        const gradeMatch =
+            !grade ||
+            row.dataset.grade === grade;
+
+        const revMatch =
+            !rev ||
+            row.dataset.rev === rev;
+
+        row.style.display =
+            gradeMatch && revMatch
+            ? ""
+            : "none";
+    });
+}
+
+document
+.getElementById("gradeFilter")
+.addEventListener(
+    "change",
+    applyGradeRevFilter
+);
+
+document
+.getElementById("revFilter")
+.addEventListener(
+    "change",
+    applyGradeRevFilter
+);
+</script>
+{% endblock %}
