@@ -67,7 +67,10 @@ def inventory_dashboard(
 
     items = (
         query
-        .order_by(Stock.id.desc())
+        .order_by(
+            Stock.item_code,
+            Stock.grade
+        )
         .offset(
             (page - 1) * per_page
         )

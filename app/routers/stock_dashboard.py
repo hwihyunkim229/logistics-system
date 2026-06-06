@@ -6,7 +6,7 @@ from sqlalchemy import func
 from app.database import SessionLocal
 from app.models.stock import Stock
 from app.models.stock_movement import StockMovement
-from datetime import datetime
+from sqlalchemy import distinct
 
 router = APIRouter()
 
@@ -62,8 +62,12 @@ def stock_dashboard(
     # ==================================
 
     total_items = db.query(
-        Stock
-    ).count()
+        func.count(
+            distinct(
+                Stock.item_code
+            )
+        )
+    ).scalar()
 
     total_qty = db.query(
         func.sum(Stock.qty)
