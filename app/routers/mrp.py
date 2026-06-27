@@ -437,7 +437,7 @@ def build_mrp_summary(plans, rows, filtered_rows, inventory_count):
                 1
             )
             if total_required > 0
-            else None
+            else 0
         ),
         "calculated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
     }
