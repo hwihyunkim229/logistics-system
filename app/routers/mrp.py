@@ -316,17 +316,34 @@ def calculate_mrp(db, year=None, month=None, week=None):
         )
         product_names = sorted(row["products"].keys())
 
+        daily_required = defaultdict(float)
+
+        for detail in row["details"]:
+
+            daily_required[
+                detail["date"]
+            ] += detail["required_qty"]
+
+        remain_stock = stock_qty
+
         need_date = None
 
-        if row["details"]:
+        for day in sorted(daily_required.keys()):
 
-            need_date = min(
-                detail["date"]
-                for detail in row["details"]
-            )
+            remain_stock -= daily_required[day]
+
+            if remain_stock < 0:
+
+                need_date = day
+
+                break
+
+        if need_date is None and daily_required:
+
+            need_date = max(daily_required.keys())
 
         order_date = None
-
+        
         if need_date:
 
             order_date = (
