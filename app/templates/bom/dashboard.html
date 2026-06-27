@@ -28,9 +28,14 @@
 .dash-header{
     display:flex;
     justify-content:space-between;
-    align-items:flex-end;
-    gap:18px;
-    margin-bottom:14px;
+    align-items:flex-start;
+    gap:28px;
+    margin-bottom:24px;
+}
+.dash-title{
+    flex:1;
+    display:flex;
+    flex-direction:column;
 }
 .dash-title h2{
     margin:0;
@@ -38,18 +43,22 @@
     line-height:1.1;
     font-weight:700;
     letter-spacing:0;
+    margin-bottom:6px;
 }
 .dash-title p{
     margin-top:6px;
     color:var(--muted);
     font-size:12px;
     font-weight:700;
+    margin-bottom:18px;
 }
 .dash-actions{
     display:flex;
     gap:8px;
-    flex-wrap:wrap;
+    margin-top:98px;
     justify-content:flex-end;
+    flex-wrap:wrap;
+    flex-shrink:0;
 }
 .dash-actions a{
     display:inline-flex;
@@ -193,6 +202,7 @@
 .span-6{ grid-column:span 6; }
 .span-7{ grid-column:span 7; }
 .span-8{ grid-column:span 8; }
+.span-12{grid-column:span 12; }
 .panel-head{
     display:flex;
     justify-content:space-between;
@@ -329,6 +339,44 @@
     font-size:12px;
     font-weight:800;
 }
+.filter-bar{
+    margin-top:18px;
+}
+.filter-bar form{
+    display:flex;
+    justify-content:flex-start;
+    gap:12px;
+}
+.filter-bar select{
+    width:150px;
+    height:42px;
+    padding:0 14px;
+    border:1px solid #D7DEE8;
+    border-radius:10px;
+    background:#fff;
+    font-size:14px;
+    font-weight:600;
+    color:#334155;
+    transition:.2s;
+}
+.filter-bar select:hover{
+    border-color:#4A90E2;
+}
+.filter-bar select:focus{
+    outline:none;
+    border-color:#4A90E2;
+    box-shadow:0 0 0 3px rgba(74,144,226,.12);
+}
+.dash-actions{
+    display:flex;
+    gap:8px;
+    align-items:flex-start;
+    flex-wrap:wrap;
+}
+.chart-box.wide{
+    height:420px;
+    width:100%;
+}
 @media(max-width:1500px){
     .exec-grid{
         grid-template-columns:repeat(5, minmax(0, 1fr));
@@ -374,17 +422,80 @@
 </style>
 
 <div class="mrp-dashboard">
+
     <div class="dash-header">
+
         <div class="dash-title">
+
             <h2>MRP Dashboard</h2>
-            <p>생산 계획 달성 가능성, 자재 부족 수량, 공급사 리스크, 즉시 발주 대상을 한 화면에서 판단합니다 · {{ now }}</p>
+
+            <p>
+                생산 계획 달성 가능성, 자재 부족 수량, 공급사 리스크,
+                즉시 발주 대상을 한 화면에서 판단합니다 · {{ now }}
+            </p>
+
+            <div class="filter-bar">
+
+                <form method="get">
+
+                    <select
+                        name="year"
+                        onchange="this.form.submit()">
+
+                        {% for y in years %}
+
+                        <option
+                            value="{{ y }}"
+                            {% if y == selected_year %}selected{% endif %}>
+                            {{ y }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                    <select
+                        name="month"
+                        onchange="this.form.submit()">
+
+                        {% for m in months %}
+
+                        <option
+                            value="{{ m }}"
+                            {% if m == selected_month %}selected{% endif %}>
+                            {{ m }}월
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </form>
+
+            </div>
+
         </div>
+
         <div class="dash-actions">
-            <a class="primary" href="/mrp/result">MRP Result</a>
-            <a href="/mrp/production-plan">생산계획</a>
-            <a href="/mrp/inventory">재고</a>
-            <a href="/mrp/material-master">자재 기준정보</a>
+
+            <a class="primary" href="/mrp/result">
+                MRP Result
+            </a>
+
+            <a href="/mrp/production-plan">
+                생산계획
+            </a>
+
+            <a href="/mrp/inventory">
+                재고
+            </a>
+
+            <a href="/mrp/material-master">
+                자재 기준정보
+            </a>
+
         </div>
+
     </div>
 
     <div class="exec-grid">
@@ -449,12 +560,12 @@
             </div>
         </div>
 
-        <div class="panel span-6">
+        <div class="panel span-12">
             <div class="panel-head">
-                <h3>자재 수급 달성 구간</h3>
-                <span class="panel-note">품목별 달성률 분포</span>
+                <h3>생산 계획 대비 조달 가능 현황</h3>
+                <span class="panel-note">주차별 조달 가능 분포</span>
             </div>
-            <div class="chart-box compact">
+            <div class="chart-box wide">
                 <canvas id="coverageChart"></canvas>
             </div>
         </div>
@@ -560,60 +671,120 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script>
+Chart.register(ChartDataLabels);
 const colors = {
-    navy: "#183153",
-    blue: "#2f6fed",
-    blueSoft: "rgba(47, 111, 237, .14)",
-    sky: "#38a3d1",
-    teal: "#109e99",
-    tealSoft: "rgba(16, 158, 153, .14)",
-    green: "#31b77a",
-    amber: "#e4a11b",
-    amberSoft: "rgba(228, 161, 27, .18)",
-    violet: "#6f72d9",
-    slate: "#64748b"
+    primary: "#4A90E2",
+    primaryDark: "#356FC7",
+    primaryFill: "rgba(74,144,226,.18)",
+    secondary: "#EC6AA5",
+    secondaryDark: "#D94D8B",
+    secondaryFill: "rgba(236,106,165,.18)",
+    success: "#47B881",
+    successFill: "rgba(71,184,129,.18)",
+    warning: "#F5A623",
+    warningFill: "rgba(245,166,35,.18)",
+    info: "#63B3ED",
+    infoFill: "rgba(99,179,237,.18)",
+    text: "#475569",
+    title: "#1E293B",
+    grid: "rgba(148,163,184,.15)",
+    border: "#E2E8F0"
 };
 
 const baseOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: {
+        mode: "index",
+        intersect: false
+    },
     plugins: {
         legend: {
+            position: "top",
             labels: {
-                boxWidth: 11,
-                color: "#334155",
-                font: { size: 11, weight: "700" }
+                usePointStyle: true,
+                pointStyle: "circle",
+                padding: 18,
+                color: colors.text,
+                font: {
+                    size: 12,
+                    weight: "600"
+                }
             }
         },
+
         tooltip: {
-            backgroundColor: "#0f172a",
-            padding: 10,
-            titleFont: { weight: "800" },
-            bodyFont: { weight: "700" },
+            backgroundColor: "#1E293B",
+            titleColor: "#fff",
+            bodyColor: "#fff",
+            borderColor: "#334155",
+            borderWidth: 1,
+            padding: 12,
+            cornerRadius: 8,
+            displayColors: true,
             callbacks: {
-                label: context => {
+                label(context){
                     const label = context.dataset.label || "";
-                    const value = Number(context.raw || 0).toLocaleString();
-                    return label ? `${label}: ${value}` : value;
+                    const value = Number(
+                        context.raw || 0
+                    ).toLocaleString();
+                    return `${label} : ${value}`;
                 }
+            }
+        },
+
+        datalabels: {
+            color: colors.text,
+            backgroundColor: "rgba(255,255,255,.92)",
+            borderColor: colors.border,
+            borderWidth: 1,
+            borderRadius: 6,
+            padding: {
+                left:6,
+                right:6,
+                top:3,
+                bottom:3
+            },
+
+            font:{
+                size:11,
+                weight:"700"
             }
         }
     },
+
     scales: {
         x: {
-            grid: { color: "#edf2f7" },
+            grid: {
+                display:false
+            },
+
             ticks: {
-                color: "#64748b",
-                font: { size: 11, weight: "700" },
-                maxRotation: 0,
-                autoSkip: true
+                color: colors.text,
+                font:{
+                    size:11,
+                    weight:"600"
+                }
             }
         },
+
         y: {
-            beginAtZero: true,
-            grid: { color: "#edf2f7" },
-            ticks: { color: "#64748b", font: { size: 11, weight: "700" } }
+            beginAtZero:true,
+            grid:{
+                color: colors.grid
+            },
+            border:{
+                color: colors.border
+            },
+            ticks:{
+                color: colors.text,
+                font:{
+                    size:11,
+                    weight:"600"
+                }
+            }
         }
     }
 };
@@ -625,50 +796,139 @@ function drawChart(id, config){
     }
 }
 
+const gapCtx = document.getElementById("gapChart").getContext("2d");
+
+const gapGradient = gapCtx.createLinearGradient(0, 0, 0, 400);
+gapGradient.addColorStop(0, "rgba(74,144,226,.80)");
+gapGradient.addColorStop(1, "rgba(74,144,226,.18)");
+
 drawChart("gapChart", {
     type: "bar",
     data: {
         labels: {{ shortage_labels|tojson }},
         datasets: [{
-            label: "미확보 수량",
+            label: "부족 수량",
             data: {{ shortage_values|tojson }},
-            backgroundColor: colors.blue,
-            borderColor: colors.navy,
-            borderWidth: 0,
-            borderRadius: 5,
-            maxBarThickness: 42
+            backgroundColor: gapGradient,
+            borderColor: "#4A90E2",
+            borderWidth: 2,
+            borderRadius: 10,
+            borderSkipped: false,
+            maxBarThickness: 38,
+            datalabels: {
+                anchor: "end",
+                align: "top",
+                offset: 4,
+                color: "#356FC7",
+                backgroundColor: "white",
+                borderColor: "#D6E8FF",
+                borderWidth: 1,
+                borderRadius: 6,
+                padding: 5,
+                font: {
+                    size: 11,
+                    weight: "700"
+                },
+                formatter: value => value.toLocaleString()
+            }
         }]
     },
+
     options: {
         ...baseOptions,
         plugins: {
             ...baseOptions.plugins,
-            legend: { display: false }
+            legend: {
+                display: false
+            }
         }
     }
 });
+
+const fulfillCtx =
+document.getElementById("fulfillmentChart")
+.getContext("2d");
+
+const successGradient =
+fulfillCtx.createLinearGradient(0,0,700,0);
+
+successGradient.addColorStop(0,"#7CB7FF");
+successGradient.addColorStop(.5,"#4A90E2");
+successGradient.addColorStop(1,"#2F6FED");
+
+const shortageGradient =
+fulfillCtx.createLinearGradient(0,0,700,0);
+
+shortageGradient.addColorStop(0,"#E8EDF4");
+shortageGradient.addColorStop(.5,"#CBD5E1");
+shortageGradient.addColorStop(1,"#94A3B8");
 
 drawChart("fulfillmentChart", {
     type: "bar",
     data: {
         labels: ["생산계획"],
+        
         datasets: [
             {
-                label: "확보 수량",
+                label: "확보",
                 data: [{{ "%.2f"|format(summary.coverage_rate) }}],
-                backgroundColor: colors.teal,
-                borderRadius: 5,
-                maxBarThickness: 54
+                backgroundColor: successGradient,
+                borderColor: "#4A90E2",
+                borderWidth: 2,
+                borderRadius:{
+                    topLeft:14,
+                    bottomLeft:14,
+                    topRight:0,
+                    bottomRight:0
+                },
+                borderSkipped: false,
+                barThickness:46,
+                datalabels: {
+                    color: "#2E8B57",
+                    anchor:"center",
+                    align:"center",
+                    backgroundColor:"rgba(255,255,255,.95)",
+                    borderRadius:8,
+                    padding:6,
+                    font:{
+                        size:12,
+                        weight:"700"
+                    },
+                    formatter: value => value.toFixed(1) + "%"
+                }
             },
+
             {
-                label: "미확보 수량",
+                label: "미확보",
                 data: [{{ "%.2f"|format(100 - summary.coverage_rate) }}],
-                backgroundColor: colors.amber,
-                borderRadius: 5,
-                maxBarThickness: 54
+                backgroundColor: "rgba(236,106,165,.75)",
+                backgroundColor: shortageGradient,
+                borderColor: "#CBD5E1",
+                borderRadius:{
+                    topLeft:0,
+                    bottomLeft:0,
+                    topRight:14,
+                    bottomRight:14
+                },
+                borderSkipped: false,
+                barThickness:46,
+                datalabels: {
+                    color: "#C63D7A",
+                    anchor:"center",
+                    align:"center",
+                    backgroundColor:"rgba(255,255,255,.95)",
+                    borderRadius:8,
+                    padding:6,
+                    font:{
+                        size:12,
+                        weight:"700"
+                    },
+                    formatter: value => value.toFixed(1) + "%"
+                }
             }
         ]
     },
+
     options: {
         ...baseOptions,
         indexAxis: "y",
@@ -677,28 +937,44 @@ drawChart("fulfillmentChart", {
             legend: {
                 position: "bottom",
                 labels: {
-                    boxWidth: 11,
-                    color: "#334155",
-                    font: { size: 11, weight: "700" }
+                    usePointStyle: true,
+                    pointStyle: "circle",
+                    color: "#475569",
+                    font: {
+                        size: 12,
+                        weight: "600"
+                    }
                 }
             }
         },
+
         scales: {
             x: {
                 stacked: true,
                 min: 0,
                 max: 100,
-                grid: { color: "#edf2f7" },
+                grid: {
+                    color: "rgba(148,163,184,.15)"
+                },
+
                 ticks: {
-                    callback: value => `${value}%`,
-                    color: "#64748b",
-                    font: { size: 11, weight: "700" }
+                    callback: value => value + "%",
+                    color: "#64748B"
                 }
             },
+
             y: {
                 stacked: true,
-                grid: { display: false },
-                ticks: { color: "#64748b", font: { size: 11, weight: "700" } }
+                grid: {
+                    display: false
+                },
+
+                ticks: {
+                    color: "#475569",
+                    font: {
+                        weight: "600"
+                    }
+                }
             }
         }
     }
@@ -726,31 +1002,179 @@ drawChart("supplierChart", {
     }
 });
 
-drawChart("coverageChart", {
-    type: "bar",
-    data: {
-        labels: {{ coverage_labels|tojson }},
-        datasets: [{
-            label: "품목 수",
-            data: {{ coverage_values|tojson }},
-            backgroundColor: [
-                colors.amber,
-                colors.amber,
-                colors.sky,
-                colors.blue,
-                colors.teal
-            ],
-            borderRadius: 5,
-            maxBarThickness: 42
-        }]
-    },
-    options: {
-        ...baseOptions,
-        plugins: {
-            ...baseOptions.plugins,
-            legend: { display: false }
-        }
+const coverageCtx = document.getElementById("coverageChart").getContext("2d");
+
+const planGradient = coverageCtx.createLinearGradient(0, 0, 0, 420);
+planGradient.addColorStop(0, "rgba(116,185,255,0.75)");
+planGradient.addColorStop(1, "rgba(116,185,255,0.25)");
+
+const coverageChart = new Chart(
+    coverageCtx,
+    {
+        data: {
+            labels: {{ week_labels | tojson }},
+            datasets: [
+                {
+                    type: "bar",
+                    label: "생산계획",
+                    data: {{ week_plan_qty | tojson }},
+                    yAxisID: "y",
+                    backgroundColor: planGradient,
+                    borderColor: "#4A90E2",
+                    borderWidth: 1.5,
+                    borderRadius: 8,
+                    maxBarThickness: 42,
+                    order: 2,
+                    datalabels: {
+                        color: "#356FC7",
+                        anchor: "end",
+                        align: "top",
+                        offset: 6,
+                        backgroundColor: "white",
+                        borderColor: "#D6E8FF",
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        padding: 4,
+                        font: {
+                            size: 11,
+                            weight: "700"
+                        },
+                        formatter: value => value.toLocaleString()
+                    }
+                },
+
+                {
+                    type: "line",
+                    label: "조달율",
+                    data: {{ week_coverage | tojson }},
+                    yAxisID: "y1",
+                    borderColor: "#EC6AA5",
+                    backgroundColor: "rgba(236,106,165,.12)",
+                    fill: false,
+                    tension: .45,
+                    cubicInterpolationMode: "monotone",
+                    borderWidth: 3,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: "#EC6AA5",
+                    pointBorderColor: "#fff",
+                    pointBorderWidth: 2,
+                    order: 1,
+                    datalabels: {
+                        color: "#EC6AA5",
+                        anchor: "center",
+                        align: "middle",
+                        offset: 10,
+                        backgroundColor: "white",
+                        borderColor: "#F7D2E5",
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        padding: 4,
+                        font: {
+                            size: 11,
+                            weight: "700"
+                        },
+                        formatter: value => value + "%"
+                    }
+                }
+            ]
+        },
+
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: "index",
+                intersect: false
+            },
+
+            plugins: {
+                legend: {
+                    position: "top",
+                    labels: {
+                        usePointStyle: true,
+                        pointStyle: "circle",
+                        padding: 22,
+                        color: "#334155",
+                        font: {
+                            size: 12,
+                            weight: "700"
+                        }
+                    }
+                },
+
+                tooltip: {
+                    backgroundColor: "#1E293B",
+                    titleColor: "#fff",
+                    bodyColor: "#fff",
+                    padding: 12,
+                    cornerRadius: 8,
+                    callbacks: {
+                        label: function(context){
+                            if(context.dataset.label==="조달율"){
+                                return "조달율 : " + context.raw + "%";
+                            }
+                            return "생산계획 : " + context.raw.toLocaleString() + " EA";
+                        }
+                    }
+                }
+            },
+
+            scales: {
+                x: {
+                    grid: {
+                        display: false
+                    },
+
+                    ticks: {
+                        color:"#64748B",
+                        font:{
+                            size:11,
+                            weight:"700"
+                        }
+                    }
+                },
+
+                y: {
+                    position:"left",
+                    beginAtZero:true,
+                    title:{
+                        display:true,
+                        color:"#64748B"
+                    },
+
+                    grid:{
+                        color:"rgba(148,163,184,.15)"
+                    },
+
+                    ticks:{
+                        color:"#64748B"
+                    }
+                },
+
+                y1: {
+                    position:"right",
+                    beginAtZero:true,
+                    min:0,
+                    max:100,
+                    title:{
+                        display:true,
+                        color:"#64748B"
+                    },
+
+                    ticks:{
+                        callback:value=>value+"%",
+                        color:"#64748B"
+                    },
+
+                    grid:{
+                        drawOnChartArea:false
+                    }
+                }
+            }
+        },
+        plugins:[ChartDataLabels]
     }
-});
+);
 </script>
 {% endblock %}

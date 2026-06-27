@@ -26,6 +26,7 @@ from openpyxl.styles import (
 from openpyxl.utils import get_column_letter
 from app.models.material_master import MaterialMaster
 from app.models.material_note import MaterialNote
+from calendar import monthcalendar
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
@@ -154,10 +155,26 @@ def calculate_mrp(db, year=None, month=None, week=None):
 
     required_by_item = {}
 
+    week_summary = defaultdict(
+        lambda: {
+            "plan_qty": 0,
+            "required_qty": 0,
+            "stock_qty": 0,
+            "coverage": 0,
+        }
+    )
+
     for plan in plans:
+        week_no = (plan.plan_date.day - 1) // 7 + 1
+        week_label = f"{plan.plan_date.month}월 {week_no}주"
+
+        week_summary[week_label]["plan_qty"] += (
+            plan.plan_qty or 0
+        )
         for bom in bom_by_product.get(plan.product_name, []):
             item_code = bom.component_code
             required_qty = (plan.plan_qty or 0) * (bom.qty or 0)
+            week_summary[week_label]["required_qty"] += required_qty
 
             if item_code not in required_by_item:
                 required_by_item[item_code] = {
@@ -366,6 +383,44 @@ def calculate_mrp(db, year=None, month=None, week=None):
                 "has_note": has_note
             }
         )
+    
+    remaining_stock = sum(
+        row["stock_qty"]
+        for row in results
+    )
+
+    for label in sorted(
+        week_summary.keys(),
+        key=lambda x: (
+            int(x.split("월")[0]),
+            int(x.split(" ")[1].replace("주", ""))
+        )
+    ):
+
+        required = week_summary[label]["required_qty"]
+
+        supplied = min(
+            remaining_stock,
+            required
+        )
+
+        coverage = (
+            supplied / required * 100
+            if required
+            else 100
+        )
+
+        week_summary[label]["stock_qty"] = supplied
+
+        week_summary[label]["coverage"] = round(
+            coverage,
+            1
+        )
+
+        remaining_stock = max(
+            remaining_stock - required,
+            0
+        )
 
     results.sort(
         key=lambda row: (
@@ -380,7 +435,7 @@ def calculate_mrp(db, year=None, month=None, week=None):
         if row["shortage_qty"] > 0
     )
 
-    return plans, results, shortage_count
+    return plans, results, shortage_count, week_summary
 
 
 def filter_mrp_rows(rows, q="", shortage_only=False):
@@ -445,7 +500,7 @@ def build_mrp_summary(plans, rows, filtered_rows, inventory_count):
         "calculated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
     }
 
-def build_mrp_dashboard_context(db, plans, rows, shortage_count):
+def build_mrp_dashboard_context(db, plans, rows, shortage_count, week_summary):
     inventory_rows = db.query(Inventory).all()
     bom_rows = db.query(BOM).all()
     material_rows = db.query(MaterialMaster).all()
@@ -592,25 +647,28 @@ def build_mrp_dashboard_context(db, plans, rows, shortage_count):
         for product, count in bom_by_product.most_common(8)
     ]
 
-    coverage_buckets = {
-        "0%": 0,
-        "1-49%": 0,
-        "50-79%": 0,
-        "80-99%": 0,
-        "100%": 0,
-    }
-    for row in rows:
-        coverage = row["coverage_rate"]
-        if coverage <= 0:
-            coverage_buckets["0%"] += 1
-        elif coverage < 50:
-            coverage_buckets["1-49%"] += 1
-        elif coverage < 80:
-            coverage_buckets["50-79%"] += 1
-        elif coverage < 100:
-            coverage_buckets["80-99%"] += 1
-        else:
-            coverage_buckets["100%"] += 1
+    week_labels = []
+    week_plan_qty = []
+    week_coverage = []
+
+    for label in sorted(
+        week_summary.keys(),
+        key=lambda x: (
+            int(x.split("월")[0]),
+            int(x.split(" ")[1].replace("주", ""))
+        )
+    ):
+
+        plan_qty = week_summary[label]["plan_qty"]
+        required_qty = week_summary[label]["required_qty"]
+
+        coverage = week_summary[label]["coverage"]
+
+        week_labels.append(label)
+        week_plan_qty.append(plan_qty)
+        week_coverage.append(
+            round(coverage, 1)
+        )
 
     urgent_orders = sorted(
         shortage_rows,
@@ -700,8 +758,9 @@ def build_mrp_dashboard_context(db, plans, rows, shortage_count):
         "plan_counts": plan_counts,
         "inventory_labels": list(inventory_by_warehouse.keys()),
         "inventory_values": list(inventory_by_warehouse.values()),
-        "coverage_labels": list(coverage_buckets.keys()),
-        "coverage_values": list(coverage_buckets.values()),
+        "week_labels": week_labels,
+        "week_plan_qty": week_plan_qty,
+        "week_coverage": week_coverage,
         "bom_labels": [
             row["product"]
             for row in bom_top
@@ -737,15 +796,36 @@ def parse_moq(value):
 @router.get("/mrp")
 def mrp_dashboard(
     request: Request,
+    year: int | None = None,
+    month: int | None = None,
     db: Session = Depends(get_db),
 ):
-    plans, rows, shortage_count = calculate_mrp(db)
+    plans, rows, shortage_count, week_summary = calculate_mrp(
+        db,
+        year=year,
+        month=month,
+    )
     context = build_mrp_dashboard_context(
         db,
         plans,
         rows,
         shortage_count,
+        week_summary
     )
+
+    current = datetime.now()
+
+    context["selected_year"] = year or current.year
+    context["selected_month"] = month or current.month
+
+    context["years"] = list(
+        range(
+            current.year - 2,
+            current.year + 3
+        )
+    )
+
+    context["months"] = list(range(1, 13))
 
     return templates.TemplateResponse(
         request=request,
@@ -2146,7 +2226,7 @@ def mrp_result(
         == "true"
     )
 
-    plans, rows, shortage_count = calculate_mrp(
+    plans, rows, shortage_count, _ = calculate_mrp(
         db,
         year=year,
         month=month,
