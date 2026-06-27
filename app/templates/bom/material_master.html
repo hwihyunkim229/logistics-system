@@ -1,0 +1,591 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+.page-title{
+    font-size:22px;
+    font-weight:700;
+    color:#2c3e50;
+    padding-left:12px;
+    border-left:4px solid #2c3e50;
+    margin-bottom:24px;
+}
+
+.top-search{
+    width:500px !important;
+    margin-bottom:16px;
+}
+
+.card-action-bar{
+    margin-bottom:18px;
+}
+
+.card{
+    background:white;
+    border:1px solid #dbe2ea;
+    border-radius:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+    overflow:hidden;
+    margin-bottom:20px;
+}
+
+.card-header{
+    padding:22px;
+}
+
+.card-title{
+    margin:0;
+    font-size:22px;
+    font-weight:700;
+    color:#2c3e50;
+}
+
+.list-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:22px 24px;
+    border-bottom:1px solid #e5e7eb;
+}
+
+.list-title{
+    font-size:18px;
+    font-weight:700;
+    color:#2c3e50;
+}
+
+.list-count{
+    font-size:16px;
+    font-weight:700;
+    color:#2c3e50;
+}
+
+.toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:18px 22px;
+    border-bottom:1px solid #e5e7eb;
+}
+
+.left-group,
+.right-group{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+button,
+.action-btn{
+    height:42px;
+    padding:0 18px;
+    border-radius:10px;
+    border:1px solid #dbe2ea;
+    background:white;
+    cursor:pointer;
+    transition:.2s;
+    font-weight:600;
+}
+
+button:hover,
+.action-btn:hover{
+    background:#2c3e50;
+    color:white;
+}
+
+.form-grid{
+    display:grid;
+    grid-template-columns:
+        180px
+        1fr
+        180px
+        120px
+        120px
+        120px;
+    gap:12px;
+    padding:22px;
+}
+
+.form-grid input{
+    height:42px;
+    border:1px solid #dbe2ea;
+    border-radius:10px;
+    padding:0 12px;
+}
+
+.search-input{
+    width:280px;
+    height:42px;
+    border:1px solid #dbe2ea;
+    border-radius:10px;
+    padding:0 12px;
+}
+
+.table-wrap{
+    overflow:auto;
+    max-height:700px;
+    border-radius:14px;
+    border:1px solid #dbe2ea;
+    margin:0 18px 18px;
+}
+
+.inventory-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.inventory-table thead th{
+    position:sticky;
+    top:0;
+    z-index:20;
+
+    background:#2c3e50;
+    color:white;
+
+    padding:14px;
+    text-align:center;
+
+    border-right:
+        1px solid rgba(255,255,255,.18);
+}
+
+.inventory-table tbody td{
+    padding:12px;
+    text-align:center;
+    vertical-align:middle;
+    border-bottom:1px solid #e9eef5;
+    border-right:1px solid #eef2f7;
+}
+
+.inventory-table tbody tr:hover{
+    background:#f8fafc;
+}
+
+.inventory-table td:last-child,
+.inventory-table th:last-child{
+    border-right:none;
+}
+
+.inventory-table thead th:first-child{
+    border-top-left-radius:14px;
+}
+
+.inventory-table thead th:last-child{
+    border-top-right-radius:14px;
+}
+
+.excel-download{
+    position:absolute;
+    top:220px;
+    right:35px;
+    width:38px;
+    height:38px;
+
+    border-radius:10px;
+    border:1px solid #dbe2ea;
+
+    background:white;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    cursor:pointer;
+
+    color:#1D6F42;
+
+    transition:.2s;
+}
+
+.table-input{
+    width:100%;
+    border:none !important;
+    outline:none !important;
+    background:transparent !important;
+
+    text-align:center;
+    font-size:14px;
+    font-family:inherit;
+    color:#334155;
+
+    padding:0;
+    max-width:120px;
+    margin:0 auto;
+    display:block;
+    box-shadow:none !important;
+    appearance:none;
+    -webkit-appearance:none;
+    -moz-appearance:textfield;
+}
+
+.table-input::-webkit-outer-spin-button,
+.table-input::-webkit-inner-spin-button{
+    -webkit-appearance:none;
+    margin:0;
+}
+
+.excel-download:hover{
+    background:#1D6F42;
+    color:white;
+}
+
+.excel-download i{
+    font-size:18px;
+}
+
+@media (max-width:1200px){
+
+    .form-grid{
+        grid-template-columns:
+            repeat(
+                2,
+                minmax(180px,1fr)
+            );
+    }
+
+    .top-search{
+        width:100% !important;
+    }
+
+}
+
+</style>
+
+<h2 class="page-title">
+    자재 기준 정보
+</h2>
+
+<input
+    id="searchInput"
+    class="search-input top-search"
+    placeholder="검색어를 입력하세요."
+>
+
+<div class="card">
+
+    <div class="list-header">
+
+        <div class="list-title">
+            📦 자재 기준 정보
+        </div>
+
+        <div class="list-count">
+            {{ rows|length }} 건
+        </div>
+
+    </div>
+
+    <div class="toolbar">
+
+        <div class="left-group">
+
+            <button
+                type="button"
+                class="action-btn"
+                onclick="toggleRegisterPanel()"
+            >
+                ➕ 자재 등록
+            </button>
+
+            <form
+                action="/mrp/material-master/upload"
+                method="post"
+                enctype="multipart/form-data"
+            >
+
+                <button
+                    type="button"
+                    onclick="
+                    document
+                    .getElementById(
+                        'materialExcel'
+                    ).click()
+                    "
+                >
+                    📂 엑셀 업로드
+                </button>
+
+                <input
+                    id="materialExcel"
+                    type="file"
+                    name="file"
+                    accept=".xlsx,.xls"
+                    style="display:none;"
+                    onchange="this.form.submit();"
+                >
+
+            </form>
+
+        </div>
+
+        <button
+            class="excel-download"
+            onclick="
+            location.href=
+            '/mrp/material-master/download'
+            "
+            title="엑셀 다운로드"
+        >
+            <i class="fa-solid fa-file-excel"></i>
+        </button>
+
+    </div>
+
+    <div
+        id="registerPanel"
+        style="
+        display:none;
+        border-top:1px solid #e5e7eb;
+        border-bottom:1px solid #e5e7eb;
+        "
+    >
+
+        <form
+            action="/mrp/material-master/add"
+            method="post"
+        >
+
+            <div class="form-grid">
+
+                <input
+                    name="item_code"
+                    placeholder="품목코드"
+                    required
+                >
+
+                <input
+                    name="item_name"
+                    placeholder="품목명"
+                    required
+                >
+
+                <input
+                    name="supplier"
+                    placeholder="업체명"
+                >
+
+                <input
+                    type="number"
+                    name="lead_time_week"
+                    value="0"
+                    placeholder="LT(주)"
+                >
+
+                <input
+                    type="number"
+                    name="moq"
+                    value="0"
+                    placeholder="MOQ"
+                >
+
+                <button type="submit">
+                    추가
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+    <div class="table-wrap">
+
+        <table
+            id="materialTable"
+            class="inventory-table"
+        >
+
+            <thead>
+
+                <tr>
+
+                    <th>품목코드</th>
+                    <th>품목명</th>
+                    <th>업체명</th>
+                    <th>L/T(주)</th>
+                    <th>MOQ</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+            {% for row in rows %}
+
+            <tr>
+
+                <td>
+                    {{ row.item_code }}
+                </td>
+
+                <td>
+                    {{ row.item_name }}
+                </td>
+
+                <td>
+
+                    <input
+                        class="auto-save table-input"
+                        value="{{ row.supplier }}"
+                        data-id="{{ row.id }}"
+                        data-field="supplier"
+                    >
+
+                </td>
+
+                <td>
+
+                    <input
+                        type="text"
+                        class="auto-save table-input"
+                        value="{% if row.lead_time_week == 0 %}-{% else %}{{ row.lead_time_week }}{% endif %}"
+                        data-id="{{ row.id }}"
+                        data-field="lead_time_week"
+                    >
+
+                </td>
+
+                <td>
+
+                    <input
+                        type="text"
+                        class="auto-save table-input"
+                        value="{% if row.moq == 0 %}-{% else %}{{ row.moq }}{% endif %}"
+                        data-id="{{ row.id }}"
+                        data-field="moq"
+                    >
+
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<script>
+
+function toggleRegisterPanel(){
+
+    const panel =
+        document.getElementById(
+            "registerPanel"
+        );
+
+    panel.style.display =
+        panel.style.display === "none"
+        || panel.style.display === ""
+
+        ? "block"
+        : "none";
+
+}
+
+document
+.getElementById("searchInput")
+.addEventListener(
+"keyup",
+function(){
+
+    const keyword =
+        this.value.toLowerCase();
+
+    document
+    .querySelectorAll(
+        "#materialTable tbody tr"
+    )
+    .forEach(row => {
+
+        row.style.display =
+            row.innerText
+            .toLowerCase()
+            .includes(keyword)
+
+            ? ""
+            : "none";
+
+    });
+
+});
+
+document
+.querySelectorAll(".auto-save")
+.forEach(input => {
+
+    input.addEventListener(
+        "change",
+        async function(){
+
+            const formData =
+                new FormData();
+
+            formData.append(
+                "field",
+                this.dataset.field
+            );
+
+            formData.append(
+                "value",
+                this.value
+            );
+
+            await fetch(
+                `/mrp/material-master/update/${this.dataset.id}`,
+                {
+                    method:"POST",
+                    body:formData
+                }
+            );
+
+        }
+    );
+
+});
+
+function downloadExcel(){
+
+    window.location.href =
+        "/mrp/material-master/download";
+
+}
+
+document
+.querySelectorAll(".table-input")
+.forEach(input => {
+
+    input.addEventListener(
+        "focus",
+        function(){
+
+            if(this.value === "-"){
+                this.value = "";
+            }
+
+        }
+    );
+
+    input.addEventListener(
+        "blur",
+        function(){
+
+            if(this.value.trim() === ""){
+                this.value = "-";
+            }
+
+        }
+    );
+
+});
+
+</script>
+
+{% endblock %}

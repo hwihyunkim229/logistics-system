@@ -23,8 +23,15 @@ from app.models import (
     activity_log,
     stock,
     stock_movement,
-    item_master_history
+    item_master_history,
+    bom,
+    production_plan,
+    inventory,
+    material_note,
+    material_master,
+    item_master
 )
+from app.models.material_master import MaterialMaster
 from app.models.user import User
 from app.routers import (
     scan,
@@ -33,7 +40,8 @@ from app.routers import (
     dashboard,
     admin,
     stock,
-    stock_dashboard
+    stock_dashboard,
+    mrp
 )
 import time
 
@@ -111,6 +119,7 @@ app.include_router(dashboard.router)
 app.include_router(admin.router)
 app.include_router(stock.router)
 app.include_router(stock_dashboard.router)
+app.include_router(mrp.router)
 
 Base.metadata.create_all(
     bind=engine

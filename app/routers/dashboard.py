@@ -94,18 +94,9 @@ def dashboard_overview(
         datetime.max.time()
     )
 
-    # =========================
-    # KPI
-    # =========================
-
-    # 🔥 전체 누적 (기간 영향 X)
-
     total_out = db.query(Outbound).count()
 
     total_in = db.query(Inbound).count()
-
-
-    # 🔥 선택 기간 기준
 
     period_out = db.query(Outbound).filter(
         Outbound.created_at >= start_datetime,
@@ -117,9 +108,6 @@ def dashboard_overview(
         Inbound.created_at <= end_datetime
     ).count()
 
-
-    # 🔥 기간 내 미입력
-
     missing = db.query(Outbound).filter(
         Outbound.created_at >= start_datetime,
         Outbound.created_at <= end_datetime,
@@ -129,10 +117,6 @@ def dashboard_overview(
         )
     ).count()
 
-    # =========================
-    # TREND CHART
-    # =========================
-
     trend_labels = []
     trend_out = []
     trend_in = []
@@ -141,10 +125,6 @@ def dashboard_overview(
         start_date,
         end_date
     )
-
-    # =========================
-    # DAY
-    # =========================
 
     if group_mode == "day":
 
@@ -173,10 +153,6 @@ def dashboard_overview(
 
             current = next_day
 
-    # =========================
-    # WEEK
-    # =========================
-
     elif group_mode == "week":
 
         current = start_date
@@ -203,10 +179,6 @@ def dashboard_overview(
             trend_in.append(in_count)
 
             current = next_week
-
-    # =========================
-    # MONTH
-    # =========================
 
     else:
 
@@ -252,10 +224,6 @@ def dashboard_overview(
             trend_in.append(in_count)
 
             current = next_month
-
-    # =========================
-    # SIZE CHART
-    # =========================
 
     size_labels = ["7", "8", "9", "10", "11", "12", "13"]
 
@@ -324,10 +292,6 @@ def dashboard_trend(
         ZoneInfo("Asia/Seoul")
     ).date()
 
-    # =========================
-    # 날짜 처리
-    # =========================
-
     if not start:
 
         start_date = (
@@ -357,7 +321,6 @@ def dashboard_trend(
         end_date
     )
 
-    # KPI
     start_datetime = datetime.combine(
         start_date,
         datetime.min.time()
@@ -426,10 +389,6 @@ def dashboard_trend(
 
                 current = next_day
 
-        # =========================
-        # WEEK
-        # =========================
-
         elif group_mode == "week":
 
             current = start_date
@@ -471,10 +430,6 @@ def dashboard_trend(
                 in_counts.append(in_count)
 
                 current = next_week
-
-        # =========================
-        # MONTH
-        # =========================
 
         else:
             current = date(
@@ -595,14 +550,12 @@ def dashboard_size(request: Request):
             in_counts.append(in_count)
             out_counts.append(out_count)
 
-        # 🔥 TOP 사이즈 계산
         if max(out_counts) == 0:
             top_out_size = "-"
         else:
             top_out_index = out_counts.index(max(out_counts))
             top_out_size = labels[top_out_index]
 
-        # 🔥 입고 TOP
         if max(in_counts) == 0:
             top_in_size = "-"
         else:
@@ -642,10 +595,6 @@ def dashboard_activity(
 
     db = SessionLocal()
 
-    # =========================
-    # 날짜 범위 처리
-    # =========================
-
     today = datetime.now(
         ZoneInfo("Asia/Seoul")
     ).date()
@@ -676,20 +625,12 @@ def dashboard_activity(
         datetime.max.time()
     )
 
-    # =========================
-    # 최근 로그
-    # =========================
-
     records = db.query(Movement).filter(
         Movement.created_at >= start_datetime,
         Movement.created_at <= end_datetime
     ).order_by(
         Movement.created_at.asc()
     ).all()
-
-    # =========================
-    # KPI
-    # =========================
 
     total_logs = db.query(Movement).filter(
         Movement.created_at >= start_datetime,
@@ -726,10 +667,6 @@ def dashboard_activity(
         )
     ).count()
 
-    # =========================
-    # 서비스별 처리량
-    # =========================
-
     service_stats = []
 
     for service in SERVICES:
@@ -744,11 +681,6 @@ def dashboard_activity(
             "name": SERVICE_NAMES[service],
             "count": count
         })
-
-    # =========================
-    # 활동량 차트
-    # product별 데이터 분리
-    # =========================
 
     labels = []
 
@@ -778,7 +710,6 @@ def dashboard_activity(
 
         labels.append(current.strftime("%m-%d"))
 
-        # CART BP Pro
         cart_bp_pro_count = db.query(Movement).filter(
             Movement.product == "cart_bp_pro",
             Movement.created_at >= current_start,
@@ -789,7 +720,6 @@ def dashboard_activity(
             cart_bp_pro_count
         )
 
-        # CART BP
         cart_bp_count = db.query(Movement).filter(
             Movement.product == "cart_bp",
             Movement.created_at >= current_start,
@@ -800,7 +730,6 @@ def dashboard_activity(
             cart_bp_count
         )
 
-        # CART ON
         cart_on_count = db.query(Movement).filter(
             Movement.product == "cart_on",
             Movement.created_at >= current_start,
@@ -811,7 +740,6 @@ def dashboard_activity(
             cart_on_count
         )
 
-        # 한방 병원
         hanbang_count = db.query(Movement).filter(
             Movement.product == "hanbang",
             Movement.created_at >= current_start,

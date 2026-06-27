@@ -74,19 +74,12 @@ def global_search(
     outbound = db.query(Outbound)
     inbound = db.query(Inbound)
 
-    # =========================
-    # 상태 필터
-    # =========================
-
     if status == "outbound":
         inbound = inbound.filter(False)
 
     elif status == "inbound":
         outbound = outbound.filter(False)
 
-    # =========================
-    # 검색어 필터
-    # =========================
     search_product = q
 
     for product_key, product_name in SERVICE_NAMES.items():
@@ -120,10 +113,6 @@ def global_search(
                 cast(Inbound.size, String).contains(q)
             )
         )
-
-    # =========================
-    # 날짜 필터
-    # =========================
 
     if start_date:
 
@@ -161,10 +150,6 @@ def global_search(
             Inbound.created_at <= end
         )
 
-    # =========================
-    # 데이터 조회
-    # =========================
-
     outbound_data = outbound.order_by(
         Outbound.id.asc()
     ).all()
@@ -191,7 +176,6 @@ def global_search(
 
             "mode": "search_all",
 
-            # 🔥 Product 한글화용
             "SERVICE_NAMES": SERVICE_NAMES
         }
     )
@@ -233,10 +217,6 @@ def main_page(
 
     per_page = 50
 
-    # =========================
-    # OUTBOUND
-    # =========================
-
     if mode == "outbound":
 
         query = db.query(Outbound)\
@@ -267,10 +247,6 @@ def main_page(
             .offset((page - 1) * per_page)\
             .limit(per_page)\
             .all()
-
-    # =========================
-    # INBOUND
-    # =========================
 
     elif mode == "inbound":
 
@@ -535,10 +511,6 @@ async def delete_selected(
 
     user = request.session.get("user")
 
-    # =========================
-    # OUTBOUND 삭제
-    # =========================
-
     if mode == "outbound":
 
         items = db.query(Outbound).filter(
@@ -562,10 +534,6 @@ async def delete_selected(
 
             db.delete(item)
 
-    # =========================
-    # INBOUND 삭제
-    # =========================
-
     elif mode == "inbound":
 
         items = db.query(Inbound).filter(
@@ -588,10 +556,6 @@ async def delete_selected(
             db.add(log)
 
             db.delete(item)
-
-    # =========================
-    # activity 로그
-    # =========================
 
     preview = ", ".join(
         [item.serial for item in items[:5]]
@@ -791,7 +755,7 @@ async def move_to_inbound(request: Request, data: dict):
     service_name = ""
 
     for item in items:
-        # 🔥 중복 방지 (출고 기준)
+
         exists = db.query(Outbound).filter(
             Outbound.serial == item.serial,
             Outbound.product == item.product
@@ -800,7 +764,6 @@ async def move_to_inbound(request: Request, data: dict):
         if exists:
             continue
 
-        # 🔥 outbound 추가
         db.add(Outbound(
             serial=item.serial,
             size=item.size,
@@ -824,7 +787,6 @@ async def move_to_inbound(request: Request, data: dict):
             )
         ))
 
-        # 🔥 inbound 삭제
         db.delete(item)
 
         moved_count += 1
@@ -903,7 +865,6 @@ async def update_field(
 def get_inventory():
     db = SessionLocal()
 
-    # 🔥 stock 계산
     result = db.query(
         Movement.serial,
         Movement.product,
@@ -922,7 +883,7 @@ def get_inventory():
     inventory = []
 
     for r in result:
-        # 🔥 마지막 movement 조회 (핵심)
+
         latest = db.query(Movement)\
             .filter(Movement.serial == r.serial)\
             .order_by(Movement.created_at.desc())\
@@ -972,19 +933,11 @@ def movement_history(
         .order_by(Movement.created_at.asc())\
         .all()
 
-    # =========================
-    # 현재 상태
-    # =========================
-
     latest = records[-1] if records else None
 
     current_status = (
         latest.type if latest else "UNKNOWN"
     )
-
-    # =========================
-    # 서비스명
-    # =========================
 
     service_name = ""
 
@@ -1023,11 +976,8 @@ async def bulk_update(
         field = data.get("field")
         value = data.get("value")
         mode = data.get("mode")
-
-        # 🔥 테이블 선택
         Model = Outbound if mode == "outbound" else Inbound
 
-        # 🔥 한번에 조회
         items = (
             db.query(Model)
             .filter(Model.id.in_(ids))
@@ -1052,7 +1002,6 @@ async def bulk_update(
             elif field == "note":
                 item.note = value
 
-        # 🔥 먼저 commit
         db.commit()
 
         user = request.session.get(
@@ -1072,7 +1021,6 @@ async def bulk_update(
             if items else mode
         )
 
-        # 🔥 commit 끝난 뒤 로그 저장
         try:
             save_log(
                 user=user,
@@ -1109,10 +1057,6 @@ def download_excel(
 ):
     db = SessionLocal()
 
-    # =========================
-    # 데이터 조회
-    # =========================
-
     if mode == "outbound":
 
         data = db.query(Outbound)\
@@ -1124,10 +1068,6 @@ def download_excel(
         data = db.query(Inbound)\
             .filter(Inbound.product == product)\
             .all()
-
-    # =========================
-    # 엑셀 데이터 생성
-    # =========================
 
     rows = []
 
@@ -1157,10 +1097,6 @@ def download_excel(
 
     output.seek(0)
 
-    # =========================
-    # 로그 저장
-    # =========================
-
     user = request.session.get(
         "user",
         "unknown"
@@ -1180,10 +1116,6 @@ def download_excel(
     )
 
     db.close()
-
-    # =========================
-    # 파일 반환
-    # =========================
 
     return StreamingResponse(
         output,

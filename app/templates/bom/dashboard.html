@@ -1,0 +1,756 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root{
+    --ink:#0f172a;
+    --muted:#64748b;
+    --line:#d8e0ea;
+    --soft:#f7f9fc;
+    --navy:#183153;
+    --blue:#2f6fed;
+    --sky:#38a3d1;
+    --teal:#109e99;
+    --green:#31b77a;
+    --amber:#e4a11b;
+    --violet:#6f72d9;
+    --sand:#fff8e6;
+}
+.mrp-dashboard{
+    width:100%;
+    max-width:none;
+    margin:0;
+    color:var(--ink);
+    padding-bottom:8px;
+}
+.dash-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:18px;
+    margin-bottom:14px;
+}
+.dash-title h2{
+    margin:0;
+    font-size:26px;
+    line-height:1.1;
+    font-weight:700;
+    letter-spacing:0;
+}
+.dash-title p{
+    margin-top:6px;
+    color:var(--muted);
+    font-size:12px;
+    font-weight:700;
+}
+.dash-actions{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+}
+.dash-actions a{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    height:34px;
+    padding:0 12px;
+    border:1px solid #cbd5e1;
+    border-radius:6px;
+    background:#fff;
+    color:var(--navy);
+    text-decoration:none;
+    font-size:12px;
+    font-weight:900;
+    white-space:nowrap;
+}
+.dash-actions a.primary{
+    border-color:var(--navy);
+    background:var(--navy);
+    color:white;
+}
+.exec-grid{
+    display:grid;
+    grid-template-columns:1.35fr repeat(3, minmax(150px, .65fr));
+    gap:10px;
+    margin-bottom:12px;
+}
+.hero-card,
+.metric-card,
+.panel{
+    border:1px solid var(--line);
+    border-radius:8px;
+    background:#fff;
+    box-shadow:0 8px 18px rgba(15,23,42,.035);
+}
+.hero-card{
+    min-height:126px;
+    padding:16px;
+    display:grid;
+    grid-template-columns:minmax(180px, .75fr) 1.25fr;
+    gap:18px;
+    align-items:center;
+    background:
+        linear-gradient(135deg, #ffffff 0%, #f8fbff 58%, #f5fffc 100%);
+}
+.hero-label,
+.metric-label{
+    color:var(--muted);
+    font-size:12px;
+    font-weight:900;
+}
+.hero-value{
+    margin-top:8px;
+    color:var(--navy);
+    font-size:42px;
+    line-height:1;
+    font-weight:950;
+    font-variant-numeric:tabular-nums;
+}
+.hero-sub{
+    margin-top:8px;
+    color:var(--muted);
+    font-size:12px;
+    font-weight:700;
+}
+.fit-track{
+    height:18px;
+    overflow:hidden;
+    border-radius:999px;
+    background:#e8edf5;
+    display:flex;
+}
+.fit-covered{
+    width:var(--covered);
+    background:linear-gradient(90deg, var(--blue), var(--teal));
+}
+.fit-gap{
+    width:var(--gap);
+    background:linear-gradient(90deg, #ffd166, var(--amber));
+}
+.fit-scale{
+    display:flex;
+    justify-content:space-between;
+    margin-top:8px;
+    color:var(--muted);
+    font-size:11px;
+    font-weight:800;
+}
+.metric-card{
+    min-height:126px;
+    padding:14px;
+}
+.metric-value{
+    display:block;
+    margin-top:13px;
+    font-size:27px;
+    line-height:1;
+    font-weight:950;
+    font-variant-numeric:tabular-nums;
+}
+.metric-card small{
+    display:block;
+    margin-top:10px;
+    color:var(--muted);
+    font-size:11px;
+    line-height:1.35;
+    font-weight:750;
+}
+.metric-card.focus{
+    background:var(--sand);
+    border-color:#f4d27b;
+}
+.metric-card.focus .metric-value{
+    color:var(--amber);
+}
+.metric-card.good{
+    background:#f5fffb;
+    border-color:#a7f3d0;
+}
+.metric-card.good .metric-value{
+    color:var(--teal);
+}
+.metric-card.blue{
+    background:#f4f8ff;
+    border-color:#bfd3ff;
+}
+.metric-card.blue .metric-value{
+    color:var(--blue);
+}
+.board-grid{
+    display:grid;
+    grid-template-columns:repeat(12, minmax(0, 1fr));
+    gap:12px;
+}
+.panel{
+    min-width:0;
+    padding:15px;
+}
+.span-4{ grid-column:span 4; }
+.span-5{ grid-column:span 5; }
+.span-6{ grid-column:span 6; }
+.span-7{ grid-column:span 7; }
+.span-8{ grid-column:span 8; }
+.panel-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    margin-bottom:10px;
+}
+.panel h3{
+    margin:0;
+    font-size:15px;
+    font-weight:950;
+    color:var(--navy);
+}
+.panel-note{
+    color:var(--muted);
+    font-size:11px;
+    font-weight:900;
+    white-space:nowrap;
+}
+.chart-box{
+    position:relative;
+    height:260px;
+}
+.chart-box.compact{
+    height:238px;
+}
+.chart-box.tall{
+    height:318px;
+}
+.table-wrap{
+    overflow:auto;
+}
+.data-table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:fixed;
+    border:1px solid #d8e0ea;
+}
+.data-table th{
+    padding:10px;
+    background:#eef4fb;
+    color:#183153;
+    font-size:12px;
+    font-weight:800;
+    text-align:center;
+    border:1px solid #d8e0ea;
+}
+.data-table td{
+    padding:10px;
+    border:1px solid #d8e0ea;
+    color:#1e293b;
+    font-size:12px;
+    font-weight:600;
+    text-align:center;
+    vertical-align:middle;
+}
+.data-table tbody tr{
+    height:48px;
+}
+.data-table tr:last-child td{
+    border-bottom:0;
+}
+.data-table tbody tr:hover{
+    background:#f8fbff;
+}
+.truncate{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.item-code{
+    text-align:center !important;
+    font-weight:800;
+    color:#12315a;
+}
+.muted{
+    color:var(--muted);
+    font-weight:700;
+}
+.number{
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+}
+.emphasis{
+    color:var(--amber);
+    font-weight:950;
+}
+.status-pill{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-width:58px;
+    height:22px;
+    padding:0 7px;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:950;
+}
+.status-pill.critical{
+    background:#fff3c4;
+    color:#8a5a00;
+}
+.status-pill.short{
+    background:#e0f2fe;
+    color:#075985;
+}
+.status-pill.ready{
+    background:#dcfce7;
+    color:#166534;
+}
+.progress{
+    height:6px;
+    margin-top:5px;
+    overflow:hidden;
+    border-radius:999px;
+    background:#e2e8f0;
+}
+.progress-fill{
+    width:var(--value);
+    height:100%;
+    border-radius:999px;
+    background:var(--teal);
+}
+.progress-fill.low{
+    background:var(--amber);
+}
+.progress-fill.mid{
+    background:var(--sky);
+}
+.empty{
+    padding:24px 8px;
+    color:var(--muted);
+    text-align:center;
+    font-size:12px;
+    font-weight:800;
+}
+@media(max-width:1500px){
+    .exec-grid{
+        grid-template-columns:repeat(5, minmax(0, 1fr));
+    }
+    .hero-card{
+        grid-column:span 5;
+    }
+}
+@media(max-width:1250px){
+    .exec-grid{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+    }
+    .hero-card{
+        grid-column:span 2;
+    }
+    .span-4,
+    .span-5,
+    .span-6,
+    .span-7,
+    .span-8{
+        grid-column:span 12;
+    }
+}
+@media(max-width:760px){
+    .dash-header,
+    .hero-card{
+        grid-template-columns:1fr;
+        align-items:flex-start;
+        flex-direction:column;
+    }
+    .exec-grid{
+        grid-template-columns:1fr;
+    }
+    .hero-card{
+        grid-column:auto;
+    }
+    .chart-box,
+    .chart-box.compact,
+    .chart-box.tall{
+        height:240px;
+    }
+}
+</style>
+
+<div class="mrp-dashboard">
+    <div class="dash-header">
+        <div class="dash-title">
+            <h2>MRP Dashboard</h2>
+            <p>생산 계획 달성 가능성, 자재 부족 수량, 공급사 리스크, 즉시 발주 대상을 한 화면에서 판단합니다 · {{ now }}</p>
+        </div>
+        <div class="dash-actions">
+            <a class="primary" href="/mrp/result">MRP Result</a>
+            <a href="/mrp/production-plan">생산계획</a>
+            <a href="/mrp/inventory">재고</a>
+            <a href="/mrp/material-master">자재 기준정보</a>
+        </div>
+    </div>
+
+    <div class="exec-grid">
+        <div class="hero-card">
+            <div>
+                <div class="hero-label">생산계획 대비 자재 수급 달성률</div>
+                <div class="hero-value">{{ "%.1f"|format(summary.coverage_rate) }}%</div>
+                <div class="hero-sub">
+                    총 소요 {{ "{:,.0f}".format(total_required) }} · 확보 수량 {{ "{:,.0f}".format(total_stock) }} · 미확보 수량 {{ "{:,.0f}".format(total_shortage) }}
+                </div>
+            </div>
+            <div>
+                <div
+                    class="fit-track"
+                    style="--covered: {{ summary.coverage_rate }}%; --gap: {{ 100 - summary.coverage_rate }}%;"
+                >
+                    <div class="fit-covered"></div>
+                    <div class="fit-gap"></div>
+                </div>
+                <div class="fit-scale">
+                    <span>확보 수량 {{ "%.1f"|format(summary.coverage_rate) }}%</span>
+                    <span>미확보 수량 {{ "%.1f"|format(100 - summary.coverage_rate) }}%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="metric-card focus">
+            <span class="metric-label">부족 품목</span>
+            <strong class="metric-value">{{ shortage_count }}</strong>
+            <small>긴급 {{ critical_count }}개 · 전체 {{ summary.required_item_count }}개 품목</small>
+        </div>
+        <div class="metric-card focus">
+            <span class="metric-label">추천 발주 수량</span>
+            <strong class="metric-value">{{ "{:,.0f}".format(total_recommended_order) }}</strong>
+            <small>MOQ 반영 기준</small>
+        </div>
+        <div class="metric-card good">
+            <span class="metric-label">조달 가능 품목</span>
+            <strong class="metric-value">{{ ready_count }}</strong>
+            <small>즉시 생산 대응 가능</small>
+        </div>
+    </div>
+
+    <div class="board-grid">
+        <div class="panel span-6">
+            <div class="panel-head">
+                <h3>자재 부족 수량 상위 품목</h3>
+                <span class="panel-note">생산 차질 영향이 큰 품목</span>
+            </div>
+            <div class="chart-box tall">
+                <canvas id="gapChart"></canvas>
+            </div>
+        </div>
+
+        <div class="panel span-6">
+            <div class="panel-head">
+                <h3>생산계획 수급 달성</h3>
+                <span class="panel-note">확보 가능 vs 미확보</span>
+            </div>
+            <div class="chart-box tall">
+                <canvas id="fulfillmentChart"></canvas>
+            </div>
+        </div>
+
+        <div class="panel span-6">
+            <div class="panel-head">
+                <h3>자재 수급 달성 구간</h3>
+                <span class="panel-note">품목별 달성률 분포</span>
+            </div>
+            <div class="chart-box compact">
+                <canvas id="coverageChart"></canvas>
+            </div>
+        </div>
+
+        <div class="panel span-7">
+            <div class="panel-head">
+                <h3>즉시 조달 실행 리스트</h3>
+                <span class="panel-note">발주일 우선순위</span>
+            </div>
+            {% if urgent_orders %}
+            <div class="table-wrap">
+                <table class="data-table">
+                    <colgroup>
+                        <col style="width:26%;">
+                        <col style="width:21%;">
+                        <col style="width:17%;">
+                        <col style="width:18%;">
+                        <col style="width:18%;">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>품목</th>
+                            <th>공급사</th>
+                            <th class="number">추천 발주</th>
+                            <th>필요일</th>
+                            <th>발주일</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in urgent_orders %}
+                        <tr>
+                            <td>
+                                <div class="item-code truncate">{{ row.item_code }}</div>
+                                <div class="muted truncate">{{ row.item_name }}</div>
+                            </td>
+                            <td class="truncate">{{ row.supplier or "미지정" }}</td>
+                            <td class="number emphasis">{{ "{:,.0f}".format(row.recommended_order_qty) }}</td>
+                            <td>{{ row.need_date or "-" }}</td>
+                            <td class="emphasis">{{ row.order_date or "-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty">긴급 발주 대상이 없습니다.</div>
+            {% endif %}
+        </div>
+
+        <div class="panel span-5">
+            <div class="panel-head">
+                <h3>핵심 부족 자재 상세</h3>
+                <span class="panel-note">Top 8</span>
+            </div>
+            {% if top_shortages %}
+            <div class="table-wrap">
+                <table class="data-table">
+                    <colgroup>
+                        <col style="width:25%;">
+                        <col style="width:31%;">
+                        <col style="width:15%;">
+                        <col style="width:14%;">
+                        <col style="width:15%;">
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>품목코드</th>
+                            <th>품목명</th>
+                            <th class="number">부족 수량</th>
+                            <th>상태</th>
+                            <th>달성률</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in top_shortages[:8] %}
+                        <tr>
+                            <td class="item-code truncate">{{ row.item_code }}</td>
+                            <td class="truncate">{{ row.item_name }}</td>
+                            <td class="number emphasis">{{ "{:,.0f}".format(row.shortage_qty) }}</td>
+                            <td>
+                                <span class="status-pill {{ row.priority|lower }}">
+                                    {{ row.priority }}
+                                </span>
+                            </td>
+                            <td>
+                                {{ "%.1f"|format(row.coverage_rate) }}%
+                                <div class="progress">
+                                    <div
+                                        class="progress-fill {% if row.coverage_rate < 50 %}low{% elif row.coverage_rate < 80 %}mid{% endif %}"
+                                        style="--value: {{ row.coverage_rate }}%;"
+                                    ></div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty">현재 부족 품목이 없습니다.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+const colors = {
+    navy: "#183153",
+    blue: "#2f6fed",
+    blueSoft: "rgba(47, 111, 237, .14)",
+    sky: "#38a3d1",
+    teal: "#109e99",
+    tealSoft: "rgba(16, 158, 153, .14)",
+    green: "#31b77a",
+    amber: "#e4a11b",
+    amberSoft: "rgba(228, 161, 27, .18)",
+    violet: "#6f72d9",
+    slate: "#64748b"
+};
+
+const baseOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: {
+            labels: {
+                boxWidth: 11,
+                color: "#334155",
+                font: { size: 11, weight: "700" }
+            }
+        },
+        tooltip: {
+            backgroundColor: "#0f172a",
+            padding: 10,
+            titleFont: { weight: "800" },
+            bodyFont: { weight: "700" },
+            callbacks: {
+                label: context => {
+                    const label = context.dataset.label || "";
+                    const value = Number(context.raw || 0).toLocaleString();
+                    return label ? `${label}: ${value}` : value;
+                }
+            }
+        }
+    },
+    scales: {
+        x: {
+            grid: { color: "#edf2f7" },
+            ticks: {
+                color: "#64748b",
+                font: { size: 11, weight: "700" },
+                maxRotation: 0,
+                autoSkip: true
+            }
+        },
+        y: {
+            beginAtZero: true,
+            grid: { color: "#edf2f7" },
+            ticks: { color: "#64748b", font: { size: 11, weight: "700" } }
+        }
+    }
+};
+
+function drawChart(id, config){
+    const canvas = document.getElementById(id);
+    if(canvas){
+        new Chart(canvas, config);
+    }
+}
+
+drawChart("gapChart", {
+    type: "bar",
+    data: {
+        labels: {{ shortage_labels|tojson }},
+        datasets: [{
+            label: "미확보 수량",
+            data: {{ shortage_values|tojson }},
+            backgroundColor: colors.blue,
+            borderColor: colors.navy,
+            borderWidth: 0,
+            borderRadius: 5,
+            maxBarThickness: 42
+        }]
+    },
+    options: {
+        ...baseOptions,
+        plugins: {
+            ...baseOptions.plugins,
+            legend: { display: false }
+        }
+    }
+});
+
+drawChart("fulfillmentChart", {
+    type: "bar",
+    data: {
+        labels: ["생산계획"],
+        datasets: [
+            {
+                label: "확보 수량",
+                data: [{{ "%.2f"|format(summary.coverage_rate) }}],
+                backgroundColor: colors.teal,
+                borderRadius: 5,
+                maxBarThickness: 54
+            },
+            {
+                label: "미확보 수량",
+                data: [{{ "%.2f"|format(100 - summary.coverage_rate) }}],
+                backgroundColor: colors.amber,
+                borderRadius: 5,
+                maxBarThickness: 54
+            }
+        ]
+    },
+    options: {
+        ...baseOptions,
+        indexAxis: "y",
+        plugins: {
+            ...baseOptions.plugins,
+            legend: {
+                position: "bottom",
+                labels: {
+                    boxWidth: 11,
+                    color: "#334155",
+                    font: { size: 11, weight: "700" }
+                }
+            }
+        },
+        scales: {
+            x: {
+                stacked: true,
+                min: 0,
+                max: 100,
+                grid: { color: "#edf2f7" },
+                ticks: {
+                    callback: value => `${value}%`,
+                    color: "#64748b",
+                    font: { size: 11, weight: "700" }
+                }
+            },
+            y: {
+                stacked: true,
+                grid: { display: false },
+                ticks: { color: "#64748b", font: { size: 11, weight: "700" } }
+            }
+        }
+    }
+});
+
+drawChart("supplierChart", {
+    type: "bar",
+    data: {
+        labels: {{ supplier_labels|tojson }},
+        datasets: [{
+            label: "미확보 수량",
+            data: {{ supplier_values|tojson }},
+            backgroundColor: colors.sky,
+            borderRadius: 5,
+            maxBarThickness: 30
+        }]
+    },
+    options: {
+        ...baseOptions,
+        indexAxis: "y",
+        plugins: {
+            ...baseOptions.plugins,
+            legend: { display: false }
+        }
+    }
+});
+
+drawChart("coverageChart", {
+    type: "bar",
+    data: {
+        labels: {{ coverage_labels|tojson }},
+        datasets: [{
+            label: "품목 수",
+            data: {{ coverage_values|tojson }},
+            backgroundColor: [
+                colors.amber,
+                colors.amber,
+                colors.sky,
+                colors.blue,
+                colors.teal
+            ],
+            borderRadius: 5,
+            maxBarThickness: 42
+        }]
+    },
+    options: {
+        ...baseOptions,
+        plugins: {
+            ...baseOptions.plugins,
+            legend: { display: false }
+        }
+    }
+});
+</script>
+{% endblock %}

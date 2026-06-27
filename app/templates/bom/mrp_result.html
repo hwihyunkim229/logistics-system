@@ -1,0 +1,1232 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+.mrp-page{
+    color:#172033;
+}
+.page-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:16px;
+    margin-bottom:14px;
+}
+.page-head h2{
+    margin:0;
+    font-size:26px;
+}
+.page-subtitle{
+    margin-top:5px;
+    color:#64748b;
+    font-size:13px;
+}
+.head-actions{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+    margin-top:30px;
+}
+.panel{
+    background:white;
+    border:1px solid #dfe5ee;
+    border-radius:8px;
+    padding:18px;
+    margin-bottom:16px;
+    box-shadow:0 8px 20px rgba(15,23,42,0.04);
+}
+.filter-grid{
+    display:grid;
+    grid-template-columns:
+        140px
+        140px
+        180px
+        1fr
+        auto
+        auto
+        auto;
+    gap:10px;
+    align-items:end;
+}
+label{
+    display:block;
+    margin-bottom:6px;
+    color:#475569;
+    font-size:12px;
+    font-weight:800;
+}
+select, input{
+    width:100%;
+    height:38px;
+    padding:8px 10px;
+    border:1px solid #cbd5e1;
+    border-radius:6px;
+    background:white;
+}
+.toggle{
+    height:40px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:0 10px;
+    border:1px solid #cbd5e1;
+    border-radius:6px;
+    white-space:nowrap;
+    color:#334155;
+    font-weight:700;
+}
+.toggle input{
+    width:auto;
+    height:auto;
+}
+.btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    height:38px;
+    padding:0 13px;
+    border:0;
+    border-radius:6px;
+    background:#2563eb;
+    color:white;
+    font-weight:800;
+    text-decoration:none;
+    cursor:pointer;
+    white-space:nowrap;
+}
+.btn.secondary{
+    background:#eef2f7;
+    color:#1e293b;
+}
+.btn.success{
+    background:#0f766e;
+}
+.btn.ghost{
+    background:white;
+    color:#2563eb;
+    border:1px solid #bfdbfe;
+}
+.summary-grid{
+    display:grid;
+    grid-template-columns:repeat(5, minmax(150px, 1fr));
+    gap:12px;
+}
+.metric{
+    border:1px solid #e2e8f0;
+    border-radius:8px;
+    padding:14px;
+    background:#f8fafc;
+}
+.metric span{
+    display:block;
+    color:#64748b;
+    font-size:12px;
+    font-weight:800;
+}
+.metric strong{
+    display:block;
+    margin-top:7px;
+    font-size:26px;
+}
+.metric.danger{
+    background:#fff7f7;
+    border-color:#fecaca;
+}
+.metric.danger strong{
+    color:#b91c1c;
+}
+.metric.ready{
+    background:#f0fdf4;
+    border-color:#bbf7d0;
+}
+.metric.ready strong{
+    color:#166534;
+}
+.progress-track{
+    height:8px;
+    margin-top:10px;
+    border-radius:999px;
+    background:#e2e8f0;
+    overflow:hidden;
+}
+.progress-fill{
+    height:100%;
+    width:var(--value);
+    background:#2563eb;
+}
+.notice{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    border:1px solid #fde68a;
+    background:#fffbeb;
+    color:#92400e;
+    border-radius:8px;
+    padding:12px 14px;
+    margin-bottom:16px;
+    font-weight:700;
+}
+.table-wrap{
+    overflow:auto;
+    max-height:800px;
+    border-radius:14px;
+    border:1px solid #dbe2ea;
+}
+table{
+    width:100%;
+    border-collapse:separate;
+    border-spacing:0;
+
+}
+th{
+    position:sticky;
+    top:0;
+    z-index:20;
+    background:#f8fafc;
+    color:#334155;
+    font-size:13px;
+    font-weight:700;
+    text-align:center;
+    padding:12px 10px;
+
+    border-bottom:1px solid #dbe3ee;
+    border-right:1px solid #e2e8f0;
+}
+
+td{
+    padding:12px 10px;
+    vertical-align:middle;
+    font-size:14px;
+    text-align:center;
+    border-bottom:1px solid #edf2f7;
+    border-right:1px solid #e2e8f0;
+}
+.number{
+    text-align:center;
+    font-variant-numeric:tabular-nums;
+}
+.item-code{
+    font-weight:800;
+    color:#0f2f57;
+}
+.item-name{
+    max-width:360px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+}
+.pill{
+    display:inline-flex;
+    align-items:center;
+    height:24px;
+    padding:0 8px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:900;
+}
+.pill.critical{
+    background:#fee2e2;
+    color:#b91c1c;
+}
+.pill.short{
+    background:#ffedd5;
+    color:#c2410c;
+}
+.pill.ready{
+    background:#dcfce7;
+    color:#166534;
+}
+.coverage-cell{
+    min-width:140px;
+}
+.coverage-label{
+    display:flex;
+    justify-content:space-between;
+    gap:8px;
+    font-size:12px;
+    color:#475569;
+    margin-bottom:5px;
+}
+.coverage-fill{
+    height:7px;
+    width:var(--value);
+    border-radius:999px;
+    background:#16a34a;
+}
+.coverage-fill.low{
+    background:#dc2626;
+}
+.coverage-fill.mid{
+    background:#f59e0b;
+}
+.coverage-track{
+    height:7px;
+    border-radius:999px;
+    background:#e2e8f0;
+    overflow:hidden;
+}
+.shortage{
+    color:#b91c1c;
+    font-weight:900;
+}
+.detail-toggle{
+    height:30px;
+    border:1px solid #cbd5e1;
+    background:white;
+    color:#1e293b;
+    border-radius:6px;
+    padding:0 9px;
+    font-weight:800;
+    cursor:pointer;
+}
+.detail-row{
+    display:none;
+    background:#fbfdff;
+}
+.detail-row.open{
+    display:table-row;
+}
+.detail-box{
+    grid-template-columns:1.5fr 0.9fr;
+    align-items:start;
+    display:flex;
+    flex-direction:column;
+    gap:20px;
+    padding:16px;
+}
+
+.detail-bottom{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+}
+
+.detail-info{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.detail-info th{
+    width:140px;
+    background:#eff6ff;
+    text-align:center;
+    font-size:13px;
+    font-weight:700;
+    border:1px solid #e5e7eb;
+}
+
+.detail-info td{
+    text-align:center;
+    font-size:13px;
+    border:1px solid #e5e7eb;
+}
+
+.detail-title{
+    margin-bottom:10px;
+    font-size:15px;
+    font-weight:700;
+    color:#334155;
+}
+.detail-card{
+    background:#ffffff;
+    border:2px solid #d7e5ff;
+    border-radius:16px;
+    padding:20px;
+    box-shadow:
+        0 8px 24px rgba(37,99,235,0.08);
+    transition:.2s;
+}
+
+.detail-card-title{
+    font-size:16px;
+    font-weight:700;
+    color:#1e3a8a;
+    margin-bottom:12px;
+}
+.mini-table{
+    min-width:0;
+}
+.mini-table th,
+.mini-table td{
+    padding:8px;
+    font-size:12px;
+}
+.empty{
+    padding:34px;
+    text-align:center;
+    color:#64748b;
+}
+.item-name{
+    min-width:300px;
+}
+
+.supplier-col{
+    min-width:140px;
+}
+.date-col{
+    min-width:110px;
+}
+#mrpTable th{
+    text-align:center;
+}
+#mrpTable th,
+#mrpTable td{
+    white-space:nowrap;
+}
+.note-cell{
+    position:relative;
+    cursor:default;
+}
+.note-indicator{
+    position:absolute;
+    top:0;
+    right:0;
+    width:0;
+    height:0;
+    border-top:12px solid #dc2626;
+    border-left:12px solid transparent;
+}
+.note-modal{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(
+        0,
+        0,
+        0,
+        0.35
+    );
+    z-index:9999;
+    justify-content:center;
+    align-items:center;
+}
+.note-modal.show{
+    display:flex;
+}
+.note-modal-content{
+    width:600px;
+    max-width:90vw;
+    background:white;
+    border-radius:12px;
+    box-shadow:
+        0 10px 30px rgba(
+            0,
+            0,
+            0,
+            .2
+        );
+    overflow:hidden;
+}
+.note-modal-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:16px 20px;
+    border-bottom:
+        1px solid #e5e7eb;
+    background:#f8fafc;
+}
+.note-item-code{
+    margin:16px 20px 0;
+    padding:10px 14px;
+    background:#f8fafc;
+    border:1px solid #e2e8f0;
+    border-radius:8px;
+    color:#2563eb;
+    font-weight:700;
+    font-size:14px;
+}
+#noteText{
+    width:calc(100% - 40px);
+    height:220px;
+    margin:16px 20px;
+    resize:vertical;
+    padding:12px;
+    border:1px solid #dbe2ea;
+    border-radius:8px;
+    font-size:16px;
+    font-weight:500;
+    line-height:1.7;
+    color:#334155;
+    background:#ffffff;
+    border:1px solid #dbe2ea;
+    resize:vertical;
+    font-family:
+        "Pretendard",
+        "Noto Sans KR",
+        sans-serif;
+}
+.note-modal-footer{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    padding:16px 20px;
+    border-top:
+        1px solid #e5e7eb;
+}
+.note-tooltip{
+
+    position:absolute;
+
+    top:-4px;
+    left:100%;
+
+    margin-left:12px;
+
+    width:220px;
+
+    padding:12px 14px;
+
+    background:#ffffff;
+
+    border:1px solid #dbe2ea;
+
+    border-radius:10px;
+
+    box-shadow:
+        0 8px 24px rgba(15,23,42,.15);
+
+    z-index:9999;
+
+    opacity:0;
+    visibility:hidden;
+
+    transition:.15s ease;
+}
+.note-tooltip-title{
+    font-size:12px;
+    font-weight:700;
+    color:#2563eb;
+    margin-bottom:8px;
+    padding-bottom:6px;
+    border-bottom:1px solid #e5e7eb;
+}
+.note-tooltip-content{
+    font-size:13px;
+    line-height:1.5;
+    color:#334155;
+    white-space:pre-wrap;
+    word-break:break-word;
+}
+.note-cell:hover .note-tooltip{
+    opacity:1;
+    visibility:visible;
+}
+.note-modal-footer .btn{
+    min-width:90px;
+}
+
+.note-modal-footer .btn:not(.secondary){
+    background:#2563eb;
+}
+
+.note-modal-footer .btn:not(.secondary):hover{
+    background:#1d4ed8;
+}
+.note-modal-header button{
+    width:34px;
+    height:34px;
+    border:none;
+    border-radius:8px;
+    background:transparent;
+    cursor:pointer;
+    font-size:18px;
+}
+
+.note-modal-header button:hover{
+    background:#e2e8f0;
+}
+@media (max-width: 1200px){
+    .filter-grid{
+        grid-template-columns:repeat(2, minmax(170px, 1fr));
+    }
+    .summary-grid{
+        grid-template-columns:repeat(2, minmax(150px, 1fr));
+    }
+    .detail-box{
+        grid-template-columns:1fr;
+    }
+}
+</style>
+
+<div class="mrp-page">
+    <div class="page-head">
+        <div>
+            <h2>MRP Result</h2>
+            <div class="page-subtitle">
+                생산 계획, BOM, 재고 데이터를 기반으로 계산된 MRP 결과입니다.
+                최종 계산 일시 : {{ summary.calculated_at }}
+            </div>
+        </div>
+        <div class="head-actions">
+            <button class="btn ghost" type="button" onclick="copyShortageList()">Copy Shortage List</button>
+            <a
+                class="btn success"
+                href="/mrp/result/download?year={{ selected_year or '' }}&week={{ selected_week or '' }}&q={{ q|urlencode }}&shortage_only={{ 'true' if shortage_only else 'false' }}"
+            >
+                엑셀 다운로드
+            </a>
+        </div>
+    </div>
+
+    {% if summary.inventory_count == 0 %}
+    <div class="notice">
+        재고 정보가 등록되지 않았습니다.
+        현재 재고를 0으로 계산하므로 모든 자재가 부족으로 표시됩니다.
+    </div>
+    {% endif %}
+
+    <div class="panel">
+        <form action="/mrp/result" method="get">
+            <div class="filter-grid">
+                <div>
+                    <label>Year</label>
+
+                    <select name="year">
+
+                        <option value="">
+                            All Years
+                        </option>
+
+                        {% for year_item in years %}
+
+                        <option
+                            value="{{ year_item }}"
+                            {% if selected_year == year_item %}
+                            selected
+                            {% endif %}
+                        >
+                            {{ year_item }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+                </div>
+
+                <div>
+                    <label>Month</label>
+
+                    <select name="month">
+
+                        <option value="">
+                            All Months
+                        </option>
+
+                        {% for month in months %}
+
+                        <option
+                            value="{{ month }}"
+                            {% if selected_month == month %}
+                            selected
+                            {% endif %}
+                        >
+                            {{ month }}월
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+                </div>
+
+                <div>
+                    <label>Week</label>
+
+                    <select name="week">
+
+                        <option value="">
+                            All Weeks
+                        </option>
+
+                        {% for item in weeks %}
+
+                        <option
+                            value="{{ item[1] }}"
+                            {% if selected_week == item[1] %}
+                            selected
+                            {% endif %}
+                        >
+                            {{ item[0] }} - Week {{ item[1] }}
+                        </option>
+
+                        {% endfor %}
+
+                    </select>
+                </div>
+
+                <div>
+                    <label>Search</label>
+                    <input
+                        type="search"
+                        name="q"
+                        value="{{ q }}"
+                        placeholder="검색어를 입력하세요."
+                    >
+                </div>
+                <label class="toggle">
+                    <input
+                        type="checkbox"
+                        name="shortage_only"
+                        value="true"
+                        {% if shortage_only %}checked{% endif %}
+                    >
+                    부족 품목만 보기
+                </label>
+                <button class="btn" type="submit">MRP 계산</button>
+                <a class="btn secondary" href="/mrp/result">초기화</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="summary-grid">
+        <div class="metric">
+            <span>생산 계획</span>
+            <strong>{{ summary.plan_count }}</strong>
+        </div>
+        <div class="metric">
+            <span>소요 자재 수</span>
+            <strong>{{ summary.required_item_count }}</strong>
+        </div>
+        <div class="metric danger">
+            <span>부족 자재 수</span>
+            <strong>{{ summary.shortage_count }}</strong>
+        </div>
+        <div class="metric ready">
+            <span>조달 가능 자재</span>
+            <strong>{{ summary.ready_count }}</strong>
+        </div>
+        <div class="metric">
+
+            <span>재고 충족율</span>
+
+            <strong>
+                {% if summary.coverage_rate is not none %}
+                    {{ "%.2f"|format(summary.coverage_rate) }}%
+                {% else %}
+                    -
+                {% endif %}
+            </strong>
+
+            {% if summary.coverage_rate is not none %}
+            <div class="progress-track">
+                <div
+                    class="progress-fill"
+                    style="--value: {{ summary.coverage_rate }}%;"
+                ></div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <div class="panel" style="margin-top:16px;">
+        <div class="page-head">
+            <div>
+                <h2 style="font-size:20px;">MRP 현황</h2>
+                <div class="page-subtitle">
+                    총 {{ summary.filtered_item_count }}건 조회
+                    총 부족 수량 : {{ "%.2f"|format(summary.total_shortage) }}
+                </div>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table id="mrpTable">
+                <thead>
+                    <tr>
+                        <th>우선 순위</th>
+                        <th>품목코드</th>
+                        <th>품목명</th>
+                        <th>적용 모델</th>
+                        <th class="number">소요 수량</th>
+                        <th class="number">재고 수량</th>
+                        <th class="number">부족 수량</th>
+                        <th>부족발생일</th>
+                        <th>발주필요일</th>
+                        <th>충족율</th>
+                        <th>최소발주수량</th>
+                        <th>상세</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr
+                        data-shortage="{{ row.shortage_qty }}"
+                        data-code="{{ row.item_code }}"
+                        data-name="{{ row.item_name }}"
+                    >
+                        <td>
+                            <span class="pill {{ row.priority|lower }}">
+                                {{ row.priority }}
+                            </span>
+                        </td>
+                        <td
+                            class="item-code note-cell"
+                            title="{{ row.note }}"
+                            data-item-code="{{ row.item_code }}"
+                            data-note="{{ row.note or '' }}"
+                            ondblclick="openNoteModal(this)"
+                        >
+
+                            {{ row.item_code }}
+
+                            {% if row.has_note %}
+                                <span class="note-indicator"></span>
+                            {% endif %}
+
+                        </td>
+                        <td class="item-name" title="{{ row.item_name }}">{{ row.item_name }}</td>
+                        <td>
+                            {{ row.product_summary }}
+                        </td>
+                        <td class="number">{{ "%.2f"|format(row.required_qty) }}</td>
+                        <td class="number">{{ "%.2f"|format(row.stock_qty) }}</td>
+                        <td class="number {% if row.shortage_qty > 0 %}shortage{% endif %}">
+                            {{ "%.2f"|format(row.shortage_qty) }}
+                        </td>
+                        <td class="date-col">
+                        {% if row.need_date %}
+                        {{ row.need_date.strftime("%Y-%m-%d") if row.need_date else "-" }}
+                        {% else %}
+                        -
+                        {% endif %}
+                        </td>
+                        <td class="date-col">
+                        {% if row.order_date %}
+                        {{ row.order_date.strftime("%Y-%m-%d") if row.order_date else "-" }}
+                        {% else %}
+                        -
+                        {% endif %}
+                        </td>
+                        <td class="coverage-cell">
+                            <div class="coverage-label">
+                                <span>{{ "%.1f"|format(row.coverage_rate) }}%</span>
+                            </div>
+                            <div class="coverage-track">
+                                <div
+                                    class="coverage-fill {% if row.coverage_rate < 50 %}low{% elif row.coverage_rate < 100 %}mid{% endif %}"
+                                    style="--value: {{ row.coverage_rate }}%;"
+                                ></div>
+                            </div>
+                        </td>
+                        <td> {% if row.shortage_qty > 0 %}
+                            {{ "{:,.0f}".format( row.recommended_order_qty ) }} 
+                            EA 
+                            {% else %} 
+                            자재 수급 완료 
+                            {% endif %} 
+                        </td>
+                        <td>
+                            <button
+                                type="button"
+                                class="detail-toggle"
+                                onclick="toggleDetail('detail-{{ loop.index }}', this)"
+                            >
+                                보기
+                            </button>
+                        </td>
+                    </tr>
+                    <tr id="detail-{{ loop.index }}" class="detail-row">
+                        <td colspan="12">
+                            <div class="detail-box">
+
+                                <div
+                                    class="detail-card"
+                                    style="
+                                        width:100%;
+                                        box-sizing:border-box;
+                                    "
+                                >
+
+                                    <div class="detail-card-title">
+                                        📦 수요 상세내역
+                                    </div>
+
+                                    <table
+                                        class="mini-table"
+                                        style="
+                                            width:100%;
+                                            table-layout:fixed;
+                                        "
+                                    >
+
+                                        <thead>
+                                            <tr>
+                                                <th>Year</th>
+                                                <th>Week</th>
+                                                <th>Product</th>
+                                                <th>생산 계획</th>
+                                                <th>BOM 소요량</th>
+                                                <th>필요 수량</th>
+                                            </tr>
+                                        </thead>
+
+                                        <tbody>
+
+                                            {% for detail in row.details %}
+
+                                            <tr>
+                                                <td>{{ detail.year }}</td>
+                                                <td>{{ detail.week }}</td>
+                                                <td>{{ detail.product_name }}</td>
+
+                                                <td>
+                                                    {{ "%.2f"|format(detail.plan_qty) }}
+                                                </td>
+
+                                                <td>
+                                                    {{ "%.2f"|format(detail.bom_qty) }}
+                                                </td>
+
+                                                <td>
+                                                    {{ "%.2f"|format(detail.required_qty) }}
+                                                </td>
+                                            </tr>
+
+                                            {% endfor %}
+
+                                        </tbody>
+
+                                    </table>
+
+                                </div>
+
+                                <!-- 발주정보 + 재고현황 -->
+
+                                <div
+                                    class="detail-bottom"
+                                    style="
+                                        display:flex;
+                                        gap:16px;
+                                        margin-top:16px;
+                                        width:100%;
+                                    "
+                                >
+
+                                    <!-- 발주 정보 -->
+
+                                    <div
+                                        class="detail-card"
+                                        style="
+                                            flex:1 1 50%;
+                                            width:100%;
+                                            margin:0;
+                                            box-sizing:border-box;
+                                        "
+                                    >
+
+                                        <div class="detail-card-title">
+                                            🚚 발주 정보
+                                        </div>
+
+                                        <table class="mini-table detail-info">
+
+                                            <tbody>
+
+                                                <tr>
+                                                    <th>업체명</th>
+                                                    <td>{{ row.supplier or "-" }}</td>
+                                                </tr>
+
+                                                <tr>
+                                                    <th>Lead Time</th>
+                                                    <td>{{ row.lead_time_week }}주</td>
+                                                </tr>
+
+                                                <tr>
+                                                    <th>MOQ</th>
+                                                    <td>
+                                                        {{ "{:,.0f}".format(row.moq) if row.moq else "-" }}
+                                                    </td>
+                                                </tr>
+
+                                                <tr>
+                                                    <th>부족발생일</th>
+                                                    <td>
+                                                        {% if row.need_date %}
+                                                            {{ row.need_date.strftime("%Y-%m-%d") }}
+                                                        {% else %}
+                                                            -
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+
+                                                <tr>
+                                                    <th>발주필요일</th>
+                                                    <td>
+                                                        {% if row.order_date %}
+                                                            {{ row.order_date.strftime("%Y-%m-%d") }}
+                                                        {% else %}
+                                                            -
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+
+                                                <tr>
+                                                    <th>최소발주수량</th>
+                                                    <td>
+                                                        {% if row.shortage_qty > 0 %}
+                                                            <strong style="color:#dc2626;">
+                                                                {{ "{:,.0f}".format(row.recommended_order_qty) }}
+                                                                EA
+                                                            </strong>
+                                                        {% else %}
+                                                            -
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+
+                                            </tbody>
+
+                                        </table>
+
+                                    </div>
+
+                                    <!-- 재고 현황 -->
+
+                                    <div
+                                        class="detail-card"
+                                        style="
+                                            flex:1 1 50%;
+                                            width:100%;
+                                            margin:0;
+                                            box-sizing:border-box;
+                                        "
+                                    >
+
+                                        <div class="detail-card-title">
+                                            📊 재고 현황
+                                        </div>
+
+                                        <table class="mini-table detail-info">
+
+                                            <tbody>
+
+                                                <tr>
+                                                    <th>단품 창고</th>
+                                                    <td>
+                                                        {{ "%.2f"|format(row.warehouse_single) }}
+                                                    </td>
+                                                </tr>
+
+                                                <tr>
+                                                    <th>반제품 창고</th>
+                                                    <td>
+                                                        {{ "%.2f"|format(row.warehouse_semi) }}
+                                                    </td>
+                                                </tr>
+
+                                                <tr>
+                                                    <th>협력사 재고</th>
+                                                    <td>
+                                                        {{ "%.2f"|format(row.supplier_stock) }}
+                                                    </td>
+                                                </tr>
+
+                                                <tr>
+                                                    <th>외주업체 재고</th>
+                                                    <td>
+                                                        {{ "%.2f"|format(row.subcontract_stock) }}
+                                                    </td>
+                                                </tr>
+
+                                            </tbody>
+
+                                        </table>
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="12">
+                            <div class="empty">조회 조건에 해당하는 MRP 결과가 없습니다.</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div
+    id="noteModal"
+    class="note-modal"
+>
+
+    <div class="note-modal-content">
+
+        <div class="note-modal-header">
+
+            <h3>
+                📝 메모
+            </h3>
+
+            <button
+                type="button"
+                onclick="closeNoteModal()"
+            >
+                ✕
+            </button>
+
+        </div>
+
+        <div
+            id="noteItemCode"
+            class="note-item-code"
+        >
+        </div>
+
+        <textarea
+            id="noteText"
+            placeholder="메모를 입력하세요."
+        ></textarea>
+
+        <div class="note-modal-footer">
+
+            <button
+                type="button"
+                class="btn secondary"
+                onclick="closeNoteModal()"
+            >
+                취소
+            </button>
+
+            <button
+                type="button"
+                class="btn"
+                onclick="saveNote()"
+            >
+                저장
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+function toggleDetail(id, button){
+    const row = document.getElementById(id);
+    const isOpen = row.classList.toggle("open");
+    button.textContent = isOpen ? "닫기" : "보기";
+}
+
+function copyShortageList(){
+    const rows = Array.from(
+        document.querySelectorAll("#mrpTable tbody tr[data-shortage]")
+    );
+
+    const shortageRows = rows
+        .filter(row => Number(row.dataset.shortage) > 0)
+        .map(row => {
+            return [
+                row.dataset.code,
+                row.dataset.name,
+                Number(row.dataset.shortage).toFixed(2)
+            ].join("\t");
+        });
+
+    const text = ["자재코드\t자재명\t부족수량"]
+        .concat(shortageRows)
+        .join("\n");
+
+    navigator.clipboard.writeText(text).then(() => {
+        alert("부족자재 목록이 복사되었습니다.");
+    });
+}
+
+let currentItemCode = "";
+
+async function openNoteModal(cell){
+
+    currentItemCode =
+        cell.dataset.itemCode;
+
+    document
+        .getElementById(
+            "noteItemCode"
+        )
+        .innerText =
+        currentItemCode;
+
+    const res = await fetch(
+        `/mrp/material-note/${currentItemCode}`
+    );
+
+    const data =
+        await res.json();
+
+    document
+        .getElementById(
+            "noteText"
+        )
+        .value =
+        data.note || "";
+
+    document
+        .getElementById(
+            "noteModal"
+        )
+        .classList.add(
+            "show"
+        );
+}
+
+function closeNoteModal(){
+
+    document
+        .getElementById(
+            "noteModal"
+        )
+        .classList.remove(
+            "show"
+        );
+}
+
+async function saveNote(){
+
+    const note =
+        document
+        .getElementById(
+            "noteText"
+        )
+        .value;
+
+    await fetch(
+        "/mrp/material-note/save",
+        {
+            method:"POST",
+
+            headers:{
+                "Content-Type":
+                "application/json"
+            },
+
+            body:JSON.stringify({
+
+                item_code:
+                    currentItemCode,
+
+                note:
+                    note
+
+            })
+        }
+    );
+
+    closeNoteModal();
+
+    location.reload();
+}
+</script>
+
+{% endblock %}

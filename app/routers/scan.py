@@ -45,7 +45,6 @@ async def scan(request: Request, data: dict):
 
     db = SessionLocal()
 
-    # 🔥 출고
     if mode == "outbound":
         exists = db.query(Outbound)\
             .filter(Outbound.serial == serial)\
@@ -78,7 +77,6 @@ async def scan(request: Request, data: dict):
             user=username
         ))
 
-    # 🔥 입고
     elif mode == "inbound":
         exists = db.query(Inbound)\
             .filter(Inbound.serial == serial)\

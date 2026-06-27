@@ -22,6 +22,10 @@ from fastapi import UploadFile, File
 import tempfile
 from math import ceil
 from sqlalchemy import or_
+from app.models.bom import BOM
+from app.models.inventory import Inventory
+from app.models.material_master import MaterialMaster
+from app.models.material_note import MaterialNote
 
 router = APIRouter()
 
@@ -452,7 +456,6 @@ async def upload_stock_excel(
             .first()
         )
 
-        # 품목마스터에 없는 코드
         if not master:
 
             skipped += 1
@@ -794,6 +797,57 @@ def update_item(
         for movement in movements:
             movement.item_code = new_code
             movement.item_name = new_name
+        
+        boms = (
+            db.query(BOM)
+            .filter(
+                BOM.component_code == old_code
+            )
+            .all()
+        )
+
+        for bom in boms:
+
+            bom.component_code = new_code
+            bom.component_name = new_name
+
+        inventories = (
+            db.query(Inventory)
+            .filter(
+                Inventory.item_code == old_code
+            )
+            .all()
+        )
+
+        for inv in inventories:
+
+            inv.item_code = new_code
+            inv.item_name = new_name
+
+        materials = (
+            db.query(MaterialMaster)
+            .filter(
+                MaterialMaster.item_code == old_code
+            )
+            .all()
+        )
+
+        for material in materials:
+
+            material.item_code = new_code
+            material.item_name = new_name
+
+        notes = (
+            db.query(MaterialNote)
+            .filter(
+                MaterialNote.item_code == old_code
+            )
+            .all()
+        )
+
+        for note in notes:
+
+            note.item_code = new_code
 
         db.add(
             ItemMasterHistory(

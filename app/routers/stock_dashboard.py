@@ -57,10 +57,6 @@ def stock_dashboard(
 
     today = datetime.today().date()
 
-    # ==================================
-    # KPI
-    # ==================================
-
     total_items = db.query(
         func.count(
             distinct(
@@ -85,10 +81,6 @@ def stock_dashboard(
         StockMovement.movement_type == "OUT"
     ).scalar() or 0
 
-    # ==================================
-    # 카테고리 비율
-    # ==================================
-
     category_labels = []
     category_qtys = []
 
@@ -106,10 +98,6 @@ def stock_dashboard(
 
         category_labels.append(category)
         category_qtys.append(qty)
-
-    # ==================================
-    # 반제품
-    # ==================================
 
     raw_items = db.query(
         Stock
@@ -137,10 +125,6 @@ def stock_dashboard(
         if sub in semi_data:
             semi_data[sub] += item.qty
 
-    # ==================================
-    # 원자재
-    # ==================================
-
     raw_data = {
         "INNER":0,
         "OUTER":0,
@@ -153,10 +137,6 @@ def stock_dashboard(
 
         name = item_name.upper()
 
-        # ====================
-        # PBA
-        # ====================
-
         if (
             "PBA" in name
             and "RING" in name
@@ -167,29 +147,17 @@ def stock_dashboard(
         ):
             return "PBA"
 
-        # ====================
-        # INNER
-        # ====================
-
         elif (
             "INNER" in name
             and "CRADLE" not in name
         ):
             return "INNER"
 
-        # ====================
-        # OUTER
-        # ====================
-
         elif (
             "OUTER" in name
             and "CRADLE" not in name
         ):
             return "OUTER"
-
-        # ====================
-        # TOP COVER
-        # ====================
 
         elif (
             (

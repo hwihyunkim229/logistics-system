@@ -5,220 +5,161 @@
 <title>Logistics Hub</title>
 
 <style>
-
 *{
     margin:0;
     padding:0;
     box-sizing:border-box;
 }
-
 html, body{
     min-height:100%;
 }
-
 body{
     font-family:'Segoe UI', sans-serif;
     background:#f5f6fa;
     color:#2c3e50;
 }
-
-/* =========================
-🔥 Sidebar
-========================= */
-
 .sidebar{
-
     position:fixed;
-
     top:0;
     left:0;
-
     width:260px;
     height:100vh;
-
     padding:25px 15px;
-
     background:linear-gradient(
         180deg,
         #1f2d3d,
         #17222f
     );
-
     overflow-y:auto;
-
     z-index:1000;
-
+    transition:all .3s ease;
     box-sizing:border-box;
 }
-
-/* 스크롤바 */
-
 .sidebar::-webkit-scrollbar{
     width:6px;
 }
-
 .sidebar::-webkit-scrollbar-thumb{
     background:rgba(255,255,255,0.15);
     border-radius:10px;
 }
-
-/* =========================
-🔥 Logo
-========================= */
-
 .sidebar h3{
     margin-bottom:28px;
-
     font-size:20px;
     font-weight:700;
-
     color:white;
-
     opacity:0.95;
 }
-
-/* =========================
-🔥 Main Layout
-========================= */
-
+.sidebar.collapsed{
+    width:80px;
+}
+.sidebar.collapsed h3{
+    display:none;
+}
+.sidebar.collapsed .menu-title{
+    display:none;
+}
+.sidebar.collapsed .menu-parent::after{
+    display:none;
+}
+.sidebar.collapsed .child-menu{
+    display:none !important;
+}
+.sidebar.collapsed .submenu{
+    max-height:none;
+    display:none !important;
+    opacity:1;
+}
+.sidebar-toggle{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    width:38px;
+    height:38px;
+    margin-bottom:20px;
+    border-radius:10px;
+    color:white;
+    cursor:pointer;
+    transition:.2s;
+}
+.sidebar-toggle:hover{
+    background:rgba(255,255,255,.08);
+}
 .main{
     margin-left:260px;
-
     min-height:100vh;
-
     padding:20px;
-
     position:relative;
-
+    transition:all .3s ease;
     overflow-x:hidden;
 }
-
-/* =========================
-🔥 Menu Group
-========================= */
-
+body.sidebar-collapsed .main{
+    margin-left:80px;
+}
 .menu-group{
-
     margin-bottom:18px;
-
     padding:12px;
-
     border-radius:18px;
-
     background:linear-gradient(
         145deg,
         rgba(255,255,255,0.04),
         rgba(255,255,255,0.015)
     );
-
     border:1px solid rgba(255,255,255,0.08);
-
     box-shadow:
         0 4px 14px rgba(0,0,0,0.22);
-
     transition:all 0.25s ease;
 }
-
 .menu-group:hover{
-
     transform:translateY(-2px);
-
     border-color:rgba(255,255,255,0.16);
-
     box-shadow:
         0 8px 20px rgba(0,0,0,0.28);
 }
-
-/* =========================
-🔥 Menu Title
-========================= */
-
 .menu-title{
-
     font-size:15px;
-
     font-weight:700;
-
     color:#8fb3ff;
-
     padding:10px;
-
     padding-left:6px;
-
     border-radius:10px;
-
     cursor:pointer;
-
     transition:0.2s ease;
-
     letter-spacing:0.3px;
-
     margin-bottom:8px;
 }
-
 .menu-title:hover{
     background:rgba(255,255,255,0.05);
 }
-
-/* =========================
-🔥 Links
-========================= */
-
 .sidebar a{
-
     display:flex;
     align-items:center;
-
     gap:10px;
-
     text-decoration:none;
-
     color:white;
-
     padding:12px 14px;
-
     border-radius:10px;
-
     margin-bottom:8px;
-
     background:transparent;
-
     border:1px solid rgba(255,255,255,0.10);
-
     transition:all 0.2s ease;
-
     font-size:14px;
 }
-
 .sidebar a:hover{
-
     background:#2a3b4d;
-
     border-color:#2a3b4d;
 }
-
 .sidebar a.active{
-
     background:linear-gradient(
         135deg,
         #4f6d8a,
         #3b82f6
     );
-
     border:none;
-
     color:white;
-
     font-weight:600;
-
     box-shadow:
         0 4px 10px rgba(59,130,246,0.35);
 }
-
-/* =========================
-🔥 Submenu
-========================= */
-
 .submenu{
     display:flex;
     flex-direction:column;
@@ -231,49 +172,10 @@ body{
         max-height 0.3s ease,
         opacity 0.2s ease;
 }
-
 .menu-group.open .submenu{
      max-height:700px;
     opacity:1;
 }
-
-.submenu a{
-    position:relative;
-    display:flex;
-    align-items:center;
-    gap:12px;
-    padding:14px 16px;
-    border-radius:16px;
-    text-decoration:none;
-    color:rgba(255,255,255,0.88);
-    font-size:15px;
-    font-weight:700;
-    background:
-        linear-gradient(
-            135deg,
-            rgba(255,255,255,0.03),
-            rgba(255,255,255,0.01)
-        );
-    border:
-        1px solid rgba(255,255,255,0.05);
-    transition:0.22s ease;
-    overflow:hidden;
-}
-
-.submenu a:hover{
-    transform:translateX(4px);
-    background:
-        linear-gradient(
-            135deg,
-            rgba(59,130,246,0.18),
-            rgba(37,99,235,0.10)
-        );
-    border:
-        1px solid rgba(96,165,250,0.22);
-    box-shadow:
-        0 8px 18px rgba(37,99,235,0.12);
-}
-
 .submenu a.active{
     background:
         linear-gradient(
@@ -285,8 +187,85 @@ body{
     box-shadow:
         0 10px 24px rgba(37,99,235,0.25);
 }
-
-.submenu a::before{
+.top-bar{
+    position:absolute;
+    top:15px;
+    right:30px;
+    display:flex;
+    align-items:center;
+    gap:15px;
+    z-index:2000;
+}
+.user-menu{
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:16px;
+    font-weight:600;
+    color:#2c3e50;
+}
+.user-menu::before{
+    content:"👤";
+    font-size:16px;
+}
+.user-trigger{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    cursor:pointer;
+}
+.arrow{
+    font-size:10px;
+}
+.dropdown{
+    display:none;
+    position:absolute;
+    top:32px;
+    right:0;
+    min-width:140px;
+    background:white;
+    border-radius:12px;
+    overflow:hidden;
+    box-shadow:
+        0 10px 24px rgba(0,0,0,0.12);
+}
+.dropdown-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:12px 15px;
+    text-decoration:none;
+    color:#2c3e50;
+    font-size:14px;
+    transition:0.2s ease;
+}
+.dropdown-item:hover{
+    background:#f5f6fa;
+}
+.menu-parent{
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:14px 16px;
+    margin-bottom:8px;
+    border-radius:14px;
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255,255,255,.04),
+            rgba(255,255,255,.02)
+        );
+    border:
+        1px solid rgba(255,255,255,.08);
+    color:white;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+    transition:.2s;
+}
+.menu-parent::before{
     content:"";
     width:8px;
     height:8px;
@@ -294,111 +273,102 @@ body{
     background:#60a5fa;
     flex-shrink:0;
 }
-
-/* =========================
-🔥 Top Bar
-========================= */
-
-.top-bar{
-
-    position:absolute;
-
-    top:15px;
-    right:30px;
-
-    display:flex;
-    align-items:center;
-
-    gap:15px;
-
-    z-index:2000;
+.menu-parent::after{
+    content:"›";
+    margin-left:auto;
+    color:#94a3b8;
+    font-size:18px;
+    transition:.2s;
 }
-
-/* =========================
-🔥 User Menu
-========================= */
-
-.user-menu{
-
-    position:relative;
-
-    display:flex;
-    align-items:center;
-
-    gap:6px;
-
-    font-size:16px;
-    font-weight:600;
-
-    color:#2c3e50;
+.menu-parent.open::after{
+    transform:rotate(90deg);
 }
-
-.user-menu::before{
-
-    content:"👤";
-
-    font-size:16px;
+.menu-parent:hover{
+    background:
+        linear-gradient(
+            135deg,
+            rgba(59,130,246,.18),
+            rgba(59,130,246,.08)
+        );
+    border-color:
+        rgba(96,165,250,.25);
 }
-
-.user-trigger{
-
-    display:flex;
-    align-items:center;
-
-    gap:5px;
-
-    cursor:pointer;
-}
-
-.arrow{
-    font-size:10px;
-}
-
-/* =========================
-🔥 Dropdown
-========================= */
-
-.dropdown{
-
+.child-menu{
     display:none;
-
-    position:absolute;
-
-    top:32px;
-    right:0;
-
-    min-width:140px;
-
-    background:white;
-
-    border-radius:12px;
-
-    overflow:hidden;
-
-    box-shadow:
-        0 10px 24px rgba(0,0,0,0.12);
+    margin-left:18px;
+    padding-left:12px;
+    border-left:
+        1px solid rgba(255,255,255,.08);
+    margin-bottom:12px;
 }
-
-.dropdown-item{
-
+.child-menu.open{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+}
+.child-menu a{
     display:flex;
     align-items:center;
-
     gap:8px;
-
-    padding:12px 15px;
-
-    text-decoration:none;
-
-    color:#2c3e50;
-
-    font-size:14px;
-
-    transition:0.2s ease;
+    padding:8px 12px;
+    border:none !important;
+    background:none !important;
+    color:#cbd5e1 !important;
+    font-size:13px !important;
+    font-weight:500 !important;
+    border-radius:8px;
+    margin:0 !important;
+    transition:.2s;
 }
-
-.dropdown-item:hover{
-    background:#f5f6fa;
+.child-menu a::before{
+    content:"•";
+    color:#60a5fa;
+    font-size:16px;
+    margin-right:4px;
+}
+.child-menu a:hover{
+    background:
+        rgba(59,130,246,.08) !important;
+    color:white !important;
+    transform:none;
+}
+.menu-single{
+    position:relative !important;
+    display:flex !important;
+    align-items:center !important;
+    gap:12px !important;
+    padding:14px 16px !important;
+    margin-bottom:8px !important;
+    border-radius:14px !important;
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255,255,255,.04),
+            rgba(255,255,255,.02)
+        ) !important;
+    border:
+        1px solid rgba(255,255,255,.08) !important;
+    color:white !important;
+    font-size:14px !important;
+    font-weight:700 !important;
+}
+.menu-single::before{
+    content:"";
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:#60a5fa;
+    flex-shrink:0;
+}
+.menu-single:hover{
+    background:
+        linear-gradient(
+            135deg,
+            rgba(59,130,246,.18),
+            rgba(59,130,246,.08)
+        ) !important;
+    border-color:
+        rgba(96,165,250,.25) !important;
 }
 </style>
 
@@ -408,192 +378,184 @@ body{
 <body>
 
 <div class="sidebar">
+
+    <div class="sidebar-toggle"
+         onclick="toggleSidebar()">
+        ☰
+    </div>
+
     <h3>📦 Logistics</h3>
 
-    <div class="menu-group" data-menu="search">
+    <div class="menu-group" data-menu="logistics">
+
         <div class="menu-title" onclick="toggleMenu(this)">
-            통합 검색
+            제품 물류
         </div>
 
         <div class="submenu">
-            <a href="/search" class="{% if mode == 'search_all' %}active{% endif %}">
+
+            <!-- 전체 조회 -->
+
+            <a href="/search" class="menu-single">
                 전체 조회
             </a>
-        </div>
-    </div>
 
-    <div class="menu-group" data-menu="outbound">
-
-        <div class="menu-title" onclick="toggleMenu(this)">
-            출고 관리
-        </div>
-
-        <div class="submenu">
+            <!-- 출고 관리 -->
 
             <a
-                href="/product/cart_bp_pro/outbound"
-                class="{% if product == 'cart_bp_pro' and mode == 'outbound' %}active{% endif %}"
+                href="javascript:void(0)"
+                class="menu-parent"
+                onclick="toggleSubmenu(this)"
             >
-                CART BP pro
+                출고 관리
             </a>
+
+            <div class="child-menu">
+
+                <a href="/product/cart_bp_pro/outbound">CART BP pro</a>
+                <a href="/product/cart_bp/outbound">CART BP</a>
+                <a href="/product/cart_on/outbound">CART ON</a>
+                <a href="/product/cart_platform/outbound">CART PLATFORM</a>
+                <a href="/product/cart_ring/outbound">CART RING</a>
+                <a href="/product/cart_o2/outbound">CART O2</a>
+                <a href="/product/hanbang/outbound">한방 병원</a>
+
+            </div>
 
             <a
-                href="/product/cart_bp/outbound"
-                class="{% if product == 'cart_bp' and mode == 'outbound' %}active{% endif %}"
+                href="javascript:void(0)"
+                class="menu-parent"
+                onclick="toggleSubmenu(this)"
             >
-                CART BP
+                입고 관리
             </a>
+
+            <div class="child-menu">
+
+                <a href="/product/cart_bp_pro/inbound">CART BP pro</a>
+                <a href="/product/cart_bp/inbound">CART BP</a>
+                <a href="/product/cart_on/inbound">CART ON</a>
+                <a href="/product/cart_platform/inbound">CART PLATFORM</a>
+                <a href="/product/cart_ring/inbound">CART RING</a>
+                <a href="/product/cart_o2/inbound">CART O2</a>
+                <a href="/product/hanbang/inbound">한방 병원</a>
+
+            </div>
 
             <a
-                href="/product/cart_on/outbound"
-                class="{% if product == 'cart_on' and mode == 'outbound' %}active{% endif %}"
+                href="javascript:void(0)"
+                class="menu-parent"
+                onclick="toggleSubmenu(this)"
             >
-                CART ON
+                Dashboard
             </a>
 
-            <a
-                href="/product/cart_platform/outbound"
-                class="{% if product == 'cart_platform' and mode == 'outbound' %}active{% endif %}"
-            >
-                CART PLATFORM
-            </a>
+            <div class="child-menu">
 
-            <a
-                href="/product/cart_ring/outbound"
-                class="{% if product == 'cart_ring' and mode == 'outbound' %}active{% endif %}"
-            >
-                CART RING
-            </a>
+                <a href="/dashboard/overview">
+                    전체 현황
+                </a>
 
-            <a
-                href="/product/cart_o2/outbound"
-                class="{% if product == 'cart_o2' and mode == 'outbound' %}active{% endif %}"
-            >
-                CART O2
-            </a>
+                <a href="/dashboard/trend">
+                    입출고 추이
+                </a>
 
-            <a
-                href="/product/hanbang/outbound"
-                class="{% if product == 'hanbang' and mode == 'outbound' %}active{% endif %}"
-            >
-                한방 병원
-            </a>
+                <a href="/dashboard/size">
+                    사이즈별 분포
+                </a>
 
-        </div>
+                <a href="/dashboard/activity">
+                    최근 활동
+                </a>
 
-    </div>
-
-    <div class="menu-group" data-menu="inbound">
-
-        <div class="menu-title" onclick="toggleMenu(this)">
-            입고 관리
-        </div>
-
-        <div class="submenu">
-
-            <a
-                href="/product/cart_bp_pro/inbound"
-                class="{% if product == 'cart_bp_pro' and mode == 'inbound' %}active{% endif %}"
-            >
-                CART BP pro
-            </a>
-
-            <a
-                href="/product/cart_bp/inbound"
-                class="{% if product == 'cart_bp' and mode == 'inbound' %}active{% endif %}"
-            >
-                CART BP
-            </a>
-
-            <a
-                href="/product/cart_on/inbound"
-                class="{% if product == 'cart_on' and mode == 'inbound' %}active{% endif %}"
-            >
-                CART ON
-            </a>
-
-            <a
-                href="/product/cart_platform/inbound"
-                class="{% if product == 'cart_platform' and mode == 'inbound' %}active{% endif %}"
-            >
-                CART PLATFORM
-            </a>
-
-            <a
-                href="/product/cart_ring/inbound"
-                class="{% if product == 'cart_ring' and mode == 'inbound' %}active{% endif %}"
-            >
-                CART RING
-            </a>
-
-            <a
-                href="/product/cart_o2/inbound"
-                class="{% if product == 'cart_o2' and mode == 'inbound' %}active{% endif %}"
-            >
-                CART O2
-            </a>
-
-            <a
-                href="/product/hanbang/inbound"
-                class="{% if product == 'hanbang' and mode == 'inbound' %}active{% endif %}"
-            >
-                한방 병원
-            </a>
+            </div>
 
         </div>
-
-    </div>
-
-    <div class="menu-group" data-menu="dashboard">
-
-        <div class="menu-title" onclick="toggleMenu(this)">
-            Dashboard
-        </div>
-
-        <div class="submenu">
-
-            <a href="/dashboard/overview">
-                전체 현황
-            </a>
-
-            <a href="/dashboard/trend">
-                입출고 추이
-            </a>
-
-            <a href="/dashboard/size">
-                사이즈별 분포
-            </a>
-
-            <a href="/dashboard/activity">
-                최근 활동
-            </a>
-
-        </div>
-
     </div>
 
     <div class="menu-group" data-menu="stock">
 
-        <div class="menu-title" onclick="toggleMenu(this)">
+        <div
+            class="menu-title"
+            onclick="toggleMenu(this)"
+        >
             가계상 재고
         </div>
 
         <div class="submenu">
 
-            <a href="/stock">
+            <a href="/stock" class="menu-single">
                 재고 현황
             </a>
 
-            <a href="/stock/history">
+            <a href="/stock/history" class="menu-single">
                 입/출고 현황
             </a>
 
-            <a href="/stock/item-master/manage">
-                품목 관리
+            <a href="/stock/dashboard" class="menu-single">
+                Dashboard
             </a>
 
-            <a href="/stock/dashboard">
+        </div>
+
+    </div>
+
+    <!-- MRP -->
+
+    <div class="menu-group" data-menu="mrp">
+
+        <div
+            class="menu-title"
+            onclick="toggleMenu(this)"
+        >
+            MRP
+        </div>
+
+        <div class="submenu">
+
+            <a href="/mrp/result" class="menu-single">
+                MRP Result
+            </a>
+
+            <a href="/mrp/bom" class="menu-single">
+                BOM
+            </a>
+
+            <a href="/mrp/production-plan" class="menu-single">
+                생산 계획
+            </a>
+
+            <a href="/mrp/inventory" class="menu-single">
+                재고 현황
+            </a>
+
+            <a href="/mrp/material-master" class="menu-single">
+                자재 기준 정보
+            </a>
+
+            <a href="/mrp" class="menu-single">
                 Dashboard
+            </a>
+
+        </div>
+
+    </div>
+
+    <!-- 기준 정보 -->
+
+    <div class="menu-group" data-menu="master">
+
+        <div
+            class="menu-title"
+            onclick="toggleMenu(this)"
+        >
+            기준 정보
+        </div>
+
+        <div class="submenu">
+
+            <a href="/stock/item-master/manage" class="menu-single">
+                품목 관리
             </a>
 
         </div>
@@ -604,17 +566,29 @@ body{
 
     <div class="menu-group" data-menu="admin">
 
-        <div class="menu-title" onclick="toggleMenu(this)">
+        <div
+            class="menu-title"
+            onclick="toggleMenu(this)"
+        >
             관리자
         </div>
 
         <div class="submenu">
-            <a href="/admin/users">계정 관리</a>
-            <a href="/admin/activity">활동 로그</a>
+
+            <a href="/admin/users" class="menu-single">
+                계정 관리
+            </a>
+
+            <a href="/admin/activity" class="menu-single">
+                활동 로그
+            </a>
+
         </div>
+
     </div>
 
     {% endif %}
+
 </div>
 
 <div class="top-bar">
@@ -642,43 +616,184 @@ body{
 
 <script>
 const STORAGE_KEY = "sidebar_open_menus";
+const SUBMENU_KEY = "sidebar_open_submenus";
 
-// 🔥 클릭 시
 function toggleMenu(el){
+
     const group = el.parentElement;
     const key = group.dataset.menu;
 
-    let openMenus = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    let openMenus =
+        JSON.parse(
+            localStorage.getItem(STORAGE_KEY)
+        ) || [];
 
     if(group.classList.contains("open")){
+
         group.classList.remove("open");
-        openMenus = openMenus.filter(m => m !== key);
-    } else {
+
+        openMenus =
+            openMenus.filter(
+                m => m !== key
+            );
+
+    }else{
+
         group.classList.add("open");
+
         if(!openMenus.includes(key)){
             openMenus.push(key);
         }
     }
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(openMenus));
+    localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(openMenus)
+    );
 }
 
-// 🔥 페이지 로드 시 복원
-window.addEventListener("DOMContentLoaded", () => {
-    const openMenus = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+function toggleSubmenu(el){
 
-    document.querySelectorAll(".menu-group").forEach(group => {
-        const key = group.dataset.menu;
+    el.classList.toggle("open");
 
-        if(openMenus.includes(key)){
-            group.classList.add("open");
+    const child =
+        el.nextElementSibling;
+
+    child.classList.toggle("open");
+
+    let openSubmenus =
+        JSON.parse(
+            localStorage.getItem(SUBMENU_KEY)
+        ) || [];
+
+    const menuName =
+        el.textContent.trim();
+
+    if(el.classList.contains("open")){
+
+        if(!openSubmenus.includes(menuName)){
+            openSubmenus.push(menuName);
         }
-    });
-});
 
-// 🔥 유저 메뉴
+    }else{
+
+        openSubmenus =
+            openSubmenus.filter(
+                x => x !== menuName
+            );
+    }
+
+    localStorage.setItem(
+        SUBMENU_KEY,
+        JSON.stringify(openSubmenus)
+    );
+}
+
+window.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        const collapsed =
+            localStorage.getItem(
+                SIDEBAR_KEY
+            ) === "true";
+
+        if(collapsed){
+
+            document.body.classList.add(
+                "sidebar-collapsed"
+            );
+
+            document
+                .querySelector(".sidebar")
+                .classList.add(
+                    "collapsed"
+                );
+        }
+
+        const openMenus =
+            JSON.parse(
+                localStorage.getItem(STORAGE_KEY)
+            ) || [];
+
+        document
+            .querySelectorAll(".menu-group")
+            .forEach(group => {
+
+                const key =
+                    group.dataset.menu;
+
+                if(
+                    openMenus.includes(key)
+                ){
+                    group.classList.add("open");
+                }
+            });
+
+        const openSubmenus =
+            JSON.parse(
+                localStorage.getItem(SUBMENU_KEY)
+            ) || [];
+
+        document
+            .querySelectorAll(".menu-parent")
+            .forEach(el => {
+
+                const menuName =
+                    el.textContent.trim();
+
+                if(
+                    openSubmenus.includes(menuName)
+                ){
+
+                    el.classList.add("open");
+
+                    const child =
+                        el.nextElementSibling;
+
+                    if(child){
+                        child.classList.add("open");
+                    }
+                }
+            });
+    }
+);
+
 function toggleUserMenu(){
-    const d = document.getElementById("dropdown");
-    d.style.display = d.style.display === "block" ? "none" : "block";
+
+    const d =
+        document.getElementById(
+            "dropdown"
+        );
+
+    d.style.display =
+        d.style.display === "block"
+        ? "none"
+        : "block";
+}
+const SIDEBAR_KEY = "sidebar_collapsed";
+
+function toggleSidebar(){
+
+    const sidebar = document.querySelector(".sidebar");
+
+    if(!sidebar.classList.contains("collapsed")){
+
+        document
+            .querySelectorAll(".child-menu")
+            .forEach(el=>el.classList.remove("open"));
+
+        document
+            .querySelectorAll(".menu-parent")
+            .forEach(el=>el.classList.remove("open"));
+    }
+
+    document.body.classList.toggle("sidebar-collapsed");
+    sidebar.classList.toggle("collapsed");
+
+    localStorage.setItem(
+        SIDEBAR_KEY,
+        sidebar.classList.contains("collapsed")
+    );
 }
 </script>

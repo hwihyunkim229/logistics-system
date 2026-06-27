@@ -1,0 +1,678 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+.page-title{
+    font-size:22px;
+    font-weight:700;
+    color:#2c3e50;
+    padding-left:12px;
+    border-left:4px solid #2c3e50;
+    margin-bottom:28px;
+}
+
+.card{
+    background:white;
+    border:1px solid #dbe2ea;
+    border-radius:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+    overflow:hidden;
+    margin-bottom:22px;
+}
+
+.card-header{
+    padding:24px 22px;
+}
+
+.card-title{
+    margin:0;
+    font-size:19px;
+    font-weight:700;
+    color:#2c3e50;
+}
+
+.inventory-search-row{
+    margin-bottom:14px;
+}
+
+.inventory-search-row .search-input{
+    width:500px;
+    max-width:100%;
+}
+
+.inventory-category-tabs{
+    display:flex;
+    gap:12px;
+    margin-bottom:18px;
+}
+
+.tab-btn{
+    height:42px;
+    padding:0 18px;
+    border:1px solid #dbe2ea;
+    border-radius:12px;
+    background:white;
+    color:#2c3e50;
+    font-weight:700;
+    cursor:pointer;
+    transition:.2s;
+}
+
+.tab-btn.active{
+    background:#2c3e50;
+    color:white;
+    border-color:#2c3e50;
+}
+
+.toolbar{
+    padding:18px 22px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-top:1px solid #e5e7eb;
+}
+
+.left-group,
+.right-group{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+button{
+    height:42px;
+    padding:0 18px;
+    border-radius:10px;
+    border:1px solid #dbe2ea;
+    background:white;
+    cursor:pointer;
+    transition:.2s;
+    font-weight:600;
+}
+
+button:hover{
+    background:#2c3e50;
+    color:white;
+}
+
+.form-grid{
+    display:grid;
+    grid-template-columns:
+        180px
+        1fr
+        180px
+        120px
+        120px;
+    gap:12px;
+    padding:22px;
+}
+
+.form-grid input,
+.form-grid select{
+    height:42px;
+    border:1px solid #dbe2ea;
+    border-radius:10px;
+    padding:0 12px;
+}
+
+.inventory-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:22px;
+    border-bottom:1px solid #e5e7eb;
+}
+
+.table-wrap{
+    overflow:auto;
+    max-height:700px;
+    border-radius:14px;
+    border:1px solid #dbe2ea;
+    margin:0 18px 18px;
+}
+
+.inventory-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.inventory-table thead th{
+    position:sticky;
+    top:0;
+    z-index:20;
+
+    background:#2c3e50;
+    color:white;
+
+    padding:14px;
+    text-align:center;
+
+    border-right:
+        1px solid rgba(255,255,255,.18);
+}
+
+.inventory-table tbody td{
+    padding:12px;
+    text-align:center;
+    vertical-align:middle;
+    border-bottom:1px solid #e9eef5;
+    border-right:1px solid #eef2f7;
+}
+
+.inventory-table tbody tr:hover{
+    background:#f8fafc;
+}
+
+.inventory-table td:last-child,
+.inventory-table th:last-child{
+    border-right:none;
+}
+
+.inventory-table thead th:first-child{
+    border-top-left-radius:14px;
+}
+
+.inventory-table thead th:last-child{
+    border-top-right-radius:14px;
+}
+
+.search-input{
+    width:260px;
+    height:42px;
+    padding:0 12px;
+    border:1px solid #dbe2ea;
+    border-radius:10px;
+}
+
+.count-badge{
+    font-size:16px;
+    font-weight:800;
+    color:#334155;
+}
+
+.qty-input{
+    width:100%;
+    border:none;
+    background:transparent;
+    text-align:center;
+    font-weight:400;
+    font-size:15px;
+    outline:none;
+    box-shadow:none;
+    color:#334155;
+}
+
+.qty-input:focus{
+    outline:none;
+    border-color:#3b82f6;
+    box-shadow:
+        0 0 0 3px
+        rgba(59,130,246,.15);
+}
+
+.excel-download{
+    position:absolute;
+    top:285px;
+    right:35px;
+
+    width:38px;
+    height:38px;
+
+    border-radius:10px;
+    border:1px solid #dbe2ea;
+
+    background:white;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    cursor:pointer;
+
+    color:#1D6F42;
+
+    transition:.2s;
+}
+
+.excel-download:hover{
+    background:#1D6F42;
+    color:white;
+}
+
+.excel-download i{
+    font-size:18px;
+}
+</style>
+
+<h2 class="page-title">
+    재고 현황
+</h2>
+
+<div class="inventory-search-row">
+
+    <input
+        id="searchInput"
+        class="search-input"
+        placeholder="검색어를 입력하세요."
+    >
+
+</div>
+
+<div class="inventory-category-tabs">
+
+    <button
+        class="tab-btn active"
+        data-tab="창고재고(단품)"
+    >
+        창고재고(단품)
+    </button>
+
+    <button
+        class="tab-btn"
+        data-tab="창고재고(반제품)"
+    >
+        창고재고(반제품)
+    </button>
+
+    <button
+        class="tab-btn"
+        data-tab="제공재고"
+    >
+        제공재고
+    </button>
+
+    <button
+        class="tab-btn"
+        data-tab="외주재고"
+    >
+        외주재고
+    </button>
+
+</div>
+
+<div class="card">
+
+    <div class="inventory-header">
+
+        <div>
+
+            <h3
+                id="inventoryTitle"
+                class="card-title"
+            >
+                📦 창고재고(단품) 리스트
+            </h3>
+
+        </div>
+
+        <span class="count-badge">
+
+            {{ rows|length }}
+            건
+
+        </span>
+
+    </div>
+
+    <div class="toolbar">
+
+        <div class="left-group">
+
+            <button
+                type="button"
+                onclick="toggleRegister()"
+            >
+                ➕ 재고 등록
+            </button>
+
+            <form
+                action="/mrp/inventory/upload"
+                method="post"
+                enctype="multipart/form-data"
+            >
+
+                <button
+                    type="button"
+                    onclick="
+                    document
+                    .getElementById(
+                    'inventoryExcel'
+                    ).click()
+                    "
+                >
+                    📂 엑셀 업로드
+                </button>
+
+                <input
+                    id="inventoryExcel"
+                    type="file"
+                    name="file"
+                    accept=".xlsx,.xls"
+                    style="display:none;"
+                    onchange="this.form.submit();"
+                >
+
+            </form>
+
+            <button
+                class="excel-download"
+                onclick="
+                location.href=
+                '/mrp/inventory/download'
+                "
+                title="엑셀 다운로드"
+            >
+                <i class="fa-solid fa-file-excel"></i>
+            </button>
+
+        </div>
+
+    </div>
+
+    <div
+        id="registerPanel"
+        style="
+        display:none;
+        border-top:1px solid #e5e7eb;
+        "
+    >
+
+        <form
+            action="/mrp/inventory/add"
+            method="post"
+        >
+
+            <div class="form-grid">
+
+                <input
+                    name="item_code"
+                    placeholder="품목코드"
+                    required
+                >
+
+                <input
+                    name="item_name"
+                    placeholder="품목명"
+                    required
+                >
+
+                <select
+                    name="warehouse_type"
+                    required
+                >
+                    <option value="">
+                        창고 선택
+                    </option>
+
+                    <option>
+                        창고재고(단품)
+                    </option>
+
+                    <option>
+                        창고재고(반제품)
+                    </option>
+
+                    <option>
+                        제공재고
+                    </option>
+
+                    <option>
+                        외주재고
+                    </option>
+
+                </select>
+
+                <input
+                    type="number"
+                    name="qty"
+                    value="0"
+                >
+
+                <button type="submit">
+                    추가
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+    <div class="table-wrap">
+
+        <table
+            id="inventoryTable"
+            class="inventory-table"
+        >
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        품목코드
+                    </th>
+
+                    <th>
+                        품목명
+                    </th>
+
+                    <th>
+                        수량
+                    </th>
+
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+            {% for row in rows %}
+
+            <tr
+                class="inventory-row"
+                data-type="{{ row.warehouse_type }}"
+            >
+
+                <td>
+                    {{ row.item_code }}
+                </td>
+
+                <td>
+                    {{ row.item_name }}
+                </td>
+
+                <td>
+
+                    <input
+                        type="number"
+                        class="qty-input auto-save"
+                        value="{{ row.qty }}"
+                        data-id="{{ row.id }}"
+                    >
+
+                </td>
+
+            </tr>
+
+            {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+<script>
+
+document
+.getElementById("searchInput")
+.addEventListener(
+"keyup",
+function(){
+
+    const keyword =
+        this.value
+        .toLowerCase();
+
+    document
+    .querySelectorAll(
+        "#inventoryTable tbody tr"
+    )
+    .forEach(row => {
+
+        const text =
+            row.innerText
+            .toLowerCase();
+
+        row.style.display =
+            text.includes(keyword)
+            ? ""
+            : "none";
+
+    });
+
+});
+
+const tabs =
+    document.querySelectorAll(
+        ".tab-btn"
+    );
+
+const rows =
+    document.querySelectorAll(
+        ".inventory-row"
+    );
+
+const title =
+    document.getElementById(
+        "inventoryTitle"
+    );
+
+function filterTab(type){
+
+    rows.forEach(row => {
+
+        row.style.display =
+            row.dataset.type === type
+            ? ""
+            : "none";
+
+    });
+
+}
+
+tabs.forEach(tab => {
+
+    tab.addEventListener(
+        "click",
+        function(){
+
+            tabs.forEach(
+                t => t.classList.remove(
+                    "active"
+                )
+            );
+
+            this.classList.add(
+                "active"
+            );
+
+            title.innerText =
+                "📦 " +
+                this.dataset.tab +
+                " 리스트";
+
+            filterTab(
+                this.dataset.tab
+            );
+
+        }
+    );
+
+});
+
+filterTab(
+    "창고재고(단품)"
+);
+
+document
+.querySelectorAll(
+    ".auto-save"
+)
+.forEach(input => {
+
+    input.addEventListener(
+        "blur",
+        async function(){
+
+            const formData =
+                new FormData();
+
+            formData.append(
+                "qty",
+                this.value
+            );
+
+            await fetch(
+
+                `/mrp/inventory/update/${this.dataset.id}`,
+
+                {
+                    method:"POST",
+                    body:formData
+                }
+
+            );
+
+            this.style.background =
+                "#dcfce7";
+
+            setTimeout(() => {
+
+                this.style.background =
+                    "";
+
+            }, 1000);
+
+        }
+    );
+
+});
+
+function toggleRegister(){
+
+    const panel =
+        document.getElementById(
+            "registerPanel"
+        );
+
+    if(
+        panel.style.display === "none"
+        ||
+        panel.style.display === ""
+    ){
+
+        panel.style.display = "block";
+
+    }else{
+
+        panel.style.display = "none";
+
+    }
+
+}
+
+function downloadExcel(){
+
+    window.location.href =
+        "/mrp/inventory/download";
+
+}
+</script>
+
+{% endblock %}

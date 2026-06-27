@@ -26,11 +26,6 @@ pwd_context = CryptContext(
     deprecated="auto"
 )
 
-
-# =========================
-# 계정 관리 페이지
-# =========================
-
 @router.get(
     "/admin/users",
     response_class=HTMLResponse
@@ -58,11 +53,6 @@ def admin_users(request: Request):
             "current_user": request.session.get("user")
         }
     )
-
-
-# =========================
-# 계정 생성
-# =========================
 
 @router.post("/admin/create-user")
 def create_user(
@@ -94,8 +84,6 @@ def create_user(
             status_code=303
         )
 
-
-    # 🔐 비밀번호 암호화
     hashed_password = pwd_context.hash(
         password
     )
@@ -231,10 +219,6 @@ def admin_activity(
 
     query = db.query(ActivityLog)
 
-    # =========================
-    # 날짜 필터
-    # =========================
-
     start_date = request.query_params.get(
         "start_date"
     )
@@ -271,10 +255,6 @@ def admin_activity(
             ActivityLog.created_at <= end_dt
         )
 
-    # =========================
-    # 검색 파라미터
-    # =========================
-
     user = request.query_params.get("user")
 
     action = request.query_params.get(
@@ -285,10 +265,6 @@ def admin_activity(
         "serial"
     )
 
-    # =========================
-    # 페이지
-    # =========================
-
     page = int(
         request.query_params.get(
             "page",
@@ -298,19 +274,11 @@ def admin_activity(
 
     per_page = 30
 
-    # =========================
-    # 사용자 검색
-    # =========================
-
     if user:
 
         query = query.filter(
             ActivityLog.user.contains(user)
         )
-
-    # =========================
-    # 작업 검색
-    # =========================
 
     if action:
 
@@ -318,29 +286,17 @@ def admin_activity(
             ActivityLog.action == action
         )
 
-    # =========================
-    # serial 검색
-    # =========================
-
     if serial:
 
         query = query.filter(
             ActivityLog.serial.contains(serial)
         )
 
-    # =========================
-    # 전체 개수
-    # =========================
-
     total_count = query.count()
 
     total_pages = (
         total_count + per_page - 1
     ) // per_page
-
-    # =========================
-    # 최신순 + 페이징
-    # =========================
 
     logs = (
         query
@@ -376,23 +332,14 @@ def admin_activity(
         request=request,
         name="admin/activity.html",
         context={
-
             "logs": logs,
-
             "actions": ACTIONS,
-
             "selected_action": action,
-
             "search_user": user,
-
             "search_serial": serial,
-
             "page": page,
-
             "total_pages": total_pages,
-
             "start_date": start_date,
-
             "end_date": end_date
         }
     )

@@ -28,11 +28,6 @@ def get_db():
     finally:
         db.close()
 
-
-# =========================
-# 로그인 페이지
-# =========================
-
 @router.get("/login")
 def login_page(request: Request):
 
@@ -50,11 +45,6 @@ def login_page(request: Request):
             "registered": registered
         }
     )
-
-
-# =========================
-# 로그인 처리
-# =========================
 
 @router.post("/login")
 def login(
@@ -104,10 +94,6 @@ def login(
         "force_change": False
     })
 
-# =========================
-# 로그아웃
-# =========================
-
 @router.get("/logout")
 def logout(request: Request):
 
@@ -129,10 +115,6 @@ def logout(request: Request):
         status_code=302
     )
 
-# =========================
-# 회원가입 비활성화
-# =========================
-
 @router.get("/register")
 def register_page():
 
@@ -144,11 +126,6 @@ def register():
 
     return RedirectResponse("/login")
 
-
-# =========================
-# 비밀번호 변경 페이지
-# =========================
-
 @router.get("/change-password")
 def change_password_page(request: Request):
 
@@ -159,11 +136,6 @@ def change_password_page(request: Request):
             "error": None
         }
     )
-
-
-# =========================
-# 비밀번호 변경 처리
-# =========================
 
 @router.post("/change-password")
 def change_password(
@@ -184,8 +156,6 @@ def change_password(
 
         return RedirectResponse("/login")
 
-
-    # 현재 비밀번호 검증
     if not pwd_context.verify(
         current_password,
         user.password
@@ -199,8 +169,6 @@ def change_password(
             }
         )
 
-
-    # 새 비밀번호 확인
     if new_password != confirm_password:
 
         return templates.TemplateResponse(
@@ -211,8 +179,6 @@ def change_password(
             }
         )
 
-
-    # 비밀번호 암호화 저장
     user.password = pwd_context.hash(
         new_password
     )

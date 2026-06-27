@@ -1,0 +1,1348 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+:root{
+    --primary:#2c3e50;
+    --primary-hover:#1f2937;
+    --border:#dbe2ea;
+    --text:#1e293b;
+    --muted:#64748b;
+    --bg:#f5f7fa;
+    --card:#ffffff;
+}
+
+.page-container{
+    display:flex;
+    flex-direction:column;
+    gap:28px;
+}
+
+.page-header{
+    margin-bottom:6px;
+}
+
+.page-title{
+    margin:0;
+    padding-left:12px;
+    border-left:4px solid #2c3e50;
+    font-size:22px;
+    font-weight:700;
+    color:#2c3e50;
+}
+
+.card{
+    background:#fff;
+    border:1px solid #dbe2ea;
+    border-radius:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+
+.search-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:24px;
+    flex-wrap:wrap;
+}
+
+.search-row input[type="text"]{
+    width:240px;
+    height:42px;
+    padding:0 14px;
+    border:1px solid #dbe2ea;
+    border-radius:10px;
+    font-size:14px;
+    background:#fff;
+}
+
+.search-row input[type="date"]{
+    width:160px;
+    height:42px;
+    padding:0 12px;
+    border:1px solid #dbe2ea;
+    border-radius:10px;
+    font-size:14px;
+    font-weight:600;
+    background:#fff;
+    color:#334155;
+}
+
+.search-row input:focus{
+    outline:none;
+    border-color:#2c3e50;
+    box-shadow:0 0 0 3px rgba(44,62,80,.08);
+}
+
+.search-row button,
+.reset-btn{
+    height:42px;
+    min-width:72px;
+    padding:0 18px;
+    border:none;
+    border-radius:10px;
+    background:#2c3e50;
+    color:#fff;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:.2s;
+}
+
+.search-row button:hover{
+    background:#1f2937;
+}
+
+.search-row button[type="submit"]{
+    background:#2c3e50;
+    color:white;
+}
+
+.reset-btn{
+    background:#f1f5f9;
+    color:#475569;
+    border:1px solid #dbe2ea;
+}
+
+.reset-btn:hover{
+    background:#e2e8f0;
+}
+
+.week-panel{
+    padding:22px;
+}
+
+.week-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.week-header-toggle{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    cursor:pointer;
+    font-size:18px;
+    font-weight:700;
+    color:#2c3e50;
+}
+
+.week-summary{
+    font-size:15px;
+    font-weight:600;
+    color:#64748b;
+}
+
+.week-tabs{
+    margin-top:22px;
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(74px,1fr));
+    gap:10px;
+}
+
+.week-tab{
+    height:54px;
+    border:1px solid #dbe2ea;
+    border-radius:10px;
+    background:#fff;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-decoration:none;
+    color:#334155;
+    transition:.2s;
+}
+
+.week-tab:hover{
+    transform:translateY(-2px);
+    border-color:#2c3e50;
+}
+
+.week-tab.active{
+    background:#2c3e50;
+    border-color:#2c3e50;
+    color:#fff;
+}
+
+.week-number{
+    font-size:15px;
+    font-weight:700;
+}
+
+.week-current{
+    font-size:10px;
+}
+
+.week-section{
+    margin-top:20px;
+}
+
+.week-label{
+    margin-bottom:10px;
+    font-size:14px;
+    font-weight:700;
+    color:#64748b;
+}
+
+.table-card{
+    overflow:hidden;
+    position:relative;
+}
+
+.card-header{
+    padding:22px 22px 16px;
+    border-bottom:none;
+}
+
+.table-main-title{
+    margin:0;
+    font-size:19px;
+    font-weight:700;
+    color:#2c3e50;
+}
+
+.toolbar{
+    padding:18px 22px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:none;
+}
+
+.left-group,
+.right-group{
+    display:flex;
+    align-items:center;
+}
+
+.right-group{
+    gap:20px;
+}
+
+.upload-btn{
+    height:42px;
+    padding:0 18px;
+    border:1px solid #dbe2ea;
+    border-radius:10px;
+    background:#fff;
+    cursor:pointer;
+}
+
+.upload-btn:hover{
+    background:#2c3e50;
+    color:#fff;
+}
+
+.group-count-summary{
+    font-size:15px;
+    font-weight:700;
+    color:#64748b;
+}
+
+.inventory-table thead th{
+    position:sticky;
+    top:0;
+    z-index:20;
+    background:#2c3e50;
+    color:#fff;
+    padding:14px;
+    font-size:15px;
+    font-weight:700;
+    border-right:1px solid rgba(255,255,255,.12);
+}
+
+.inventory-table thead .product-col{
+    background:#2c3e50;
+    z-index:30;
+}
+
+.inventory-table tbody td{
+    height:56px;
+    text-align:center;
+    border-bottom:1px solid #e9eef5;
+    border-right:1px solid #eef2f7;
+}
+
+.date-header{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+}
+
+.date-day{
+    font-size:15px;
+    font-weight:700;
+}
+
+.date-weekday{
+    font-size:11px;
+}
+
+.saturday{
+    background:#34495e !important;
+}
+
+.sunday{
+    background:#42566b !important;
+}
+
+.group-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.group-left{
+    display:flex;
+    align-items:center;
+}
+
+.group-row.expanded .group-arrow{
+    transform:rotate(90deg);
+    background:#dbeafe;
+    color:#2563eb;
+}
+
+.group-name{
+    font-size:17px;
+    font-weight:700;
+    color:#0f172a;
+}
+
+.group-count{
+    margin-left:10px;
+    font-size:13px;
+    color:#64748b;
+    font-weight:600;
+}
+
+.group-total{
+    font-size:16px;
+    font-weight:700;
+    color:#2563eb;
+}
+
+.group-total.zero{
+    color:#94a3b8;
+}
+
+.child-row .product-col{
+    padding-left:38px;
+    font-size:15px;
+    font-weight:600;
+}
+
+.toggle-box{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:14px;
+    color:#475569;
+}
+
+.toggle-box input{
+    transform:scale(1.15);
+}
+
+/* =========================================================
+   Buttons
+========================================================= */
+
+button{
+    height:42px;
+
+    padding:0 18px;
+
+    border-radius:10px;
+    border:1px solid #ddd;
+
+    background:white;
+
+    color:#333;
+
+    font-size:14px;
+    font-weight:500;
+
+    cursor:pointer;
+
+    transition:.2s;
+}
+
+button:hover{
+    background:#2c3e50;
+    color:white;
+    border-color:#2c3e50;
+}
+
+/* =========================================================
+   Table
+========================================================= */
+
+.table-wrap{
+    overflow:auto;
+    max-height:780px;
+}
+
+.inventory-table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:fixed;
+}
+
+.inventory-table thead th{
+    position:sticky;
+    top:0;
+    z-index:20;
+
+    background:#2c3e50;
+    color:white;
+
+    padding:14px 12px;
+
+    font-size:15px;
+    font-weight:700;
+
+    border-right:
+        1px solid rgba(255,255,255,.12);
+}
+
+.inventory-table thead th:last-child{
+    border-right:none;
+}
+
+.inventory-table tbody td{
+    height:54px;
+
+    text-align:center;
+
+    border-bottom:
+        1px solid #e9eef5;
+
+    border-right:
+        1px solid #eef2f7;
+}
+
+.inventory-table tbody td:last-child{
+    border-right:none;
+}
+
+.inventory-table tbody tr:hover{
+    background:#f8fafc;
+}
+
+/* =========================================================
+   Sticky Product Column
+========================================================= */
+
+.product-col{
+    position:sticky;
+    left:0;
+    z-index:10;
+    width: 340px;
+    min-width:340px;
+
+    background:white;
+
+    font-weight:600;
+}
+
+.inventory-table thead .product-col{
+    background:#2c3e50;
+    z-index:30;
+}
+
+/* =========================================================
+   Date Header
+========================================================= */
+
+.date-header{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    align-items:center;
+}
+
+.date-day{
+    font-size:15px;
+    font-weight:700;
+}
+
+.date-weekday{
+    font-size:11px;
+    opacity:.85;
+}
+
+.saturday{
+    background:#34495e !important;
+}
+
+.sunday{
+    background:#42566b !important;
+}
+
+/* =========================================================
+   Group Row
+========================================================= */
+
+.group-row{
+    cursor:pointer;
+}
+
+.group-row td{
+    height:62px;
+
+    padding:0 18px;
+
+    background:#fafbfc !important;
+
+    border-top:
+        1px solid #dde5ee;
+}
+
+.group-row:hover td{
+    background:#f5f8fb !important;
+}
+
+.group-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.group-left{
+    display:flex;
+    align-items:center;
+}
+
+.group-name{
+    font-size:18px;
+    font-weight:700;
+    color:#0f172a;
+    white-space:nowrap;
+}
+
+.group-count{
+    margin-left:10px;
+
+    font-size:13px;
+    font-weight:600;
+
+    color:#64748b;
+}
+
+.group-total{
+    font-size:16px;
+    font-weight:700;
+    color:#2563eb;
+}
+
+.group-total.zero{
+    color:#94a3b8;
+}
+
+/* =========================================================
+   Group Toggle Icon
+========================================================= */
+
+.group-arrow{
+    display:inline-flex;
+
+    width:22px;
+    height:22px;
+
+    margin-right:10px;
+
+    justify-content:center;
+    align-items:center;
+
+    border-radius:50%;
+
+    background:#e2e8f0;
+
+    font-size:11px;
+
+    transition:.2s;
+}
+
+.group-row.expanded .group-arrow{
+    transform:rotate(90deg);
+    background:#dbeafe;
+    color:#2563eb;
+}
+
+/* =========================================================
+   Child Row
+========================================================= */
+
+.child-row td{
+    height:56px;
+}
+
+.child-row .product-col{
+    padding-left:36px;
+    font-size:15px;
+    font-weight:600;
+}
+
+/* =========================================================
+   Quantity
+========================================================= */
+
+.qty{
+    font-weight:600;
+}
+
+.qty.zero{
+    color:#cbd5e1;
+}
+
+.qty.low{
+    background:#eff6ff;
+}
+
+.qty.mid{
+    background:#dbeafe;
+}
+
+.qty.high{
+    background:#2563eb;
+    color:white;
+}
+
+.qty-badge{
+    display:inline-flex;
+
+    align-items:center;
+    justify-content:center;
+
+    min-width:44px;
+    height:28px;
+
+    padding:0 10px;
+
+    border-radius:999px;
+
+    font-size:12px;
+    font-weight:700;
+}
+
+/* =========================================================
+   Scrollbar
+========================================================= */
+
+.table-wrap::-webkit-scrollbar{
+    width:8px;
+    height:8px;
+}
+
+.table-wrap::-webkit-scrollbar-thumb{
+    background:#cbd5e1;
+    border-radius:20px;
+}
+
+.table-wrap::-webkit-scrollbar-track{
+    background:#f8fafc;
+}
+
+/* =========================================================
+   Responsive
+========================================================= */
+
+@media(max-width:1200px){
+
+    .week-header{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:12px;
+    }
+
+    .toolbar{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:12px;
+    }
+
+    .search-row input,
+    #searchInput{
+        width:100%;
+    }
+}
+
+.table-inner-card{
+    margin:20px;
+    border:1px solid #dbe2ea;
+    border-radius:12px;
+    overflow:hidden;
+    background:white;
+}
+
+.excel-download{
+     position:absolute;
+      top:20px; 
+      right:20px; 
+      width:36px; 
+      height:36px; 
+      border-radius:10px; 
+      border:1px solid #ddd; 
+      background:white; 
+      cursor:pointer; 
+      display:flex; 
+      align-items:center; 
+      justify-content:center; 
+      color:#1D6F42; 
+      transition:all .2s ease; 
+    } 
+    
+.excel-download:hover{ 
+    background:#1D6F42; 
+    color:white; 
+} 
+
+.excel-download i{ 
+    font-size:18px; 
+}
+</style>
+
+<div class="page-container">
+
+    <div class="page-header">
+
+        <h2 class="page-title">
+            생산 계획
+        </h2>
+
+    </div>
+
+    <div class="card week-panel">
+
+        <div class="week-header">
+
+            <div
+                class="week-header-toggle"
+                onclick="toggleWeekPanel()"
+            >
+
+                <span id="weekArrow">
+                    🗓️
+                </span>
+
+                <span>
+                    일자 선택
+                </span>
+
+            </div>
+
+            <div class="week-summary">
+
+                {% if is_search_mode %}
+
+                검색 결과 |
+
+                {{ display_start.strftime("%Y-%m-%d") }}
+
+                ~
+
+                {{ display_end.strftime("%Y-%m-%d") }}
+
+                {% else %}
+
+                {{ selected_year }}년
+
+                W{{ selected_week }}
+
+                |
+
+                {{ display_start.strftime("%m/%d") }}
+
+                ~
+
+                {{ display_end.strftime("%m/%d") }}
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+        <div
+            id="weekPanelBody"
+            style="display:none;"
+        >
+
+            <div class="week-section">
+
+                <div class="week-label">
+
+                    Year
+
+                </div>
+
+                <div class="week-tabs">
+
+                    {% for year in year_columns %}
+
+                    <a
+                        href="/mrp/production-plan?year={{ year }}&month={{ selected_month }}"
+                        class="week-tab {% if year == selected_year %}active{% endif %}"
+                    >
+                        {{ year }}
+                    </a>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+            <div class="week-section">
+
+                <div class="week-label">
+
+                    Month
+
+                </div>
+
+                <div class="week-tabs">
+
+                    {% for month in month_columns %}
+
+                    <a
+                        href="/mrp/production-plan?year={{ selected_year }}&month={{ month }}"
+                        class="week-tab {% if month == selected_month %}active{% endif %}"
+                    >
+                        {{ month }}월
+                    </a>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+            <div class="week-section">
+
+                <div class="week-label">
+
+                    Week
+
+                </div>
+
+                <div class="week-tabs">
+
+                    {% for iso_year, week in week_columns %}
+
+                    <a
+                        href="/mrp/production-plan?year={{ selected_year }}&month={{ selected_month }}&iso_year={{ iso_year }}&week={{ week }}"
+                        class="week-tab {% if week == selected_week and iso_year == selected_iso_year %}active{% endif %}"
+                    >
+                        W{{ week }}
+                    </a>
+
+                    {% endfor %}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="card table-card">
+
+        <button
+            class="excel-download"
+            onclick="
+            window.location.href=
+            '/mrp/production-plan/download?year={{ selected_year }}&month={{ selected_month }}'
+            "
+        >
+            <i class="fa-solid fa-file-excel"></i>
+        </button>
+
+        <div class="card-header">
+
+            <h3 class="table-main-title">
+                📄 생산 계획 리스트
+            </h3>
+
+        </div>
+
+        <div class="toolbar">
+
+            <div class="left-group">
+
+                <form
+                    action="/mrp/production-plan/upload"
+                    method="post"
+                    enctype="multipart/form-data"
+                    class="upload-section"
+                >
+
+                    <button
+                        type="button"
+                        class="upload-btn"
+                        onclick="
+                        document
+                        .getElementById(
+                        'planExcel'
+                        ).click()
+                        "
+                    >
+                        📂 엑셀 업로드
+                    </button>
+
+                    <input
+                        type="file"
+                        id="planExcel"
+                        name="file"
+                        accept=".xlsx,.xls"
+                        style="display:none;"
+                        onchange="this.form.submit();"
+                    >
+
+                </form>
+
+            </div>
+
+            <div class="right-group">
+
+                <label class="toggle-box">
+
+                    <input
+                        type="checkbox"
+                        id="hideEmpty"
+                    >
+
+                    생산계획 없는 제품 숨기기
+
+                </label>
+
+                <span class="group-count-summary">
+
+                    {{ grouped_rows|length }}
+                    개 제품군
+
+                </span>
+
+            </div>
+
+        </div>
+
+        <div class="table-inner-card">
+
+            <div class="table-wrap">
+
+                <table
+                    id="planTable"
+                    class="inventory-table"
+                >
+
+                    <thead>
+
+                        <tr>
+
+                            <th class="product-col">
+                                제품명
+                            </th>
+
+                            {% for date in date_columns %}
+
+                            <th
+                                class="
+                                {% if date.weekday() == 5 %}
+                                saturday
+                                {% elif date.weekday() == 6 %}
+                                sunday
+                                {% endif %}
+                                "
+                            >
+
+                                <div class="date-header">
+
+                                    <div class="date-day">
+                                        {{ date.strftime("%m/%d") }}
+                                    </div>
+
+                                    <div class="date-weekday">
+                                        {{ ["월","화","수","목","금","토","일"][date.weekday()] }}
+                                    </div>
+
+                                </div>
+
+                            </th>
+
+                            {% endfor %}
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                    {% for group_name, group in grouped_rows.items() %}
+
+                    {% set items = group.rows %}
+                    {% set group_id = loop.index %}
+
+                    <tr
+                        class="group-row"
+                        data-group="{{ group_id }}"
+                        data-total="{{ group.total_qty }}"
+                        onclick="toggleGroup('{{ group_id }}', this)"
+                    >
+
+                        <td
+                            colspan="{{ date_columns|length + 1 }}"
+                        >
+
+                            <div class="group-header">
+
+                                <div class="group-left">
+
+                                    <span class="group-arrow">
+                                        ▶
+                                    </span>
+
+                                    <span class="group-name">
+                                        {{ group_name }}
+                                    </span>
+
+                                    <span class="group-count">
+
+                                        {{ items|length }}
+                                        개 품목 ·
+
+                                        {{ "{:,}".format(group.total_qty) }}
+                                        EA
+
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                    {% for row in items %}
+
+                    <tr
+                        class="
+                            child-row
+                            group-{{ group_id }}
+                        "
+                        data-total="{{ row.weekly_total }}"
+                        style="display:none;"
+                    >
+
+                        <td class="product-col">
+
+                            {{ row.display_name }}
+
+                        </td>
+
+                        {% for date in date_columns %}
+
+                        {% set qty = row[date] %}
+
+                        <td
+                            class="
+                            qty
+
+                            {% if qty >= 100 %}
+                            high
+
+                            {% elif qty >= 50 %}
+                            mid
+
+                            {% elif qty > 0 %}
+                            low
+
+                            {% else %}
+                            zero
+                            {% endif %}
+                            "
+                        >
+
+                            {% if qty > 0 %}
+
+                                <span class="qty-badge">
+
+                                    {{ qty }}
+
+                                </span>
+
+                            {% else %}
+
+                                -
+
+                            {% endif %}
+
+                        </td>
+
+                        {% endfor %}
+
+                    </tr>
+
+                    {% endfor %}
+
+                    {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+
+function toggleGroup(
+    id,
+    row
+){
+
+    const rows =
+        document.querySelectorAll(
+            ".group-" + id
+        );
+
+    const expanded =
+        row.classList.contains(
+            "expanded"
+        );
+
+    if(expanded){
+
+        rows.forEach(r => {
+
+            r.style.display =
+                "none";
+
+        });
+
+        row.classList.remove(
+            "expanded"
+        );
+
+    }else{
+
+        rows.forEach(r => {
+
+            const hideEmpty =
+                document
+                .getElementById(
+                    "hideEmpty"
+                )
+                .checked;
+
+            const total =
+                parseInt(
+                    r.dataset.total || 0
+                );
+
+            if(
+                hideEmpty &&
+                total === 0
+            ){
+                return;
+            }
+
+            r.style.display = "";
+
+        });
+
+        row.classList.add(
+            "expanded"
+        );
+
+    }
+
+}
+
+// ==============================
+// 생산계획 없는 품목 숨기기
+// ==============================
+
+document
+.getElementById("hideEmpty")
+.addEventListener(
+"change",
+function(){
+
+    const checked =
+        this.checked;
+
+    document
+    .querySelectorAll(
+        ".child-row"
+    )
+    .forEach(row => {
+
+        const total =
+            parseInt(
+                row.dataset.total || 0
+            );
+
+        if(
+            checked &&
+            total === 0
+        ){
+
+            row.style.display =
+                "none";
+
+        }else{
+
+            const groupRow =
+                row.previousElementSibling;
+
+            row.style.display =
+                "";
+
+        }
+
+    });
+
+    document
+    .querySelectorAll(
+        ".group-row"
+    )
+    .forEach(group => {
+
+        const groupTotal =
+            parseInt(
+                group.dataset.total || 0
+            );
+
+        if(
+            checked &&
+            groupTotal === 0
+        ){
+
+            group.style.display =
+                "none";
+
+        }else{
+
+            group.style.display =
+                "";
+
+        }
+
+    });
+
+});
+
+// ==============================
+// 주차 패널 토글
+// ==============================
+
+function toggleWeekPanel(){
+
+    const panel =
+        document.getElementById(
+            "weekPanelBody"
+        );
+
+    const arrow =
+        document.getElementById(
+            "weekArrow"
+        );
+
+    const opened =
+        panel.style.display ===
+        "block";
+
+    if(opened){
+
+        panel.style.display =
+            "none";
+
+        arrow.innerHTML =
+            "🗓️";
+
+        localStorage.setItem(
+            "weekPanelOpen",
+            "false"
+        );
+
+    }else{
+
+        panel.style.display =
+            "block";
+
+        arrow.innerHTML =
+            "🗓️";
+
+        localStorage.setItem(
+            "weekPanelOpen",
+            "true"
+        );
+
+    }
+
+}
+
+// ==============================
+// 초기화
+// ==============================
+
+document.addEventListener(
+"DOMContentLoaded",
+function(){
+
+    const panel =
+        document.getElementById(
+            "weekPanelBody"
+        );
+
+    const arrow =
+        document.getElementById(
+            "weekArrow"
+        );
+
+    const opened =
+        localStorage.getItem(
+            "weekPanelOpen"
+        );
+
+    if(opened === "true"){
+
+        panel.style.display =
+            "block";
+
+        arrow.innerHTML =
+            "🗓️";
+
+    }else{
+
+        panel.style.display =
+            "none";
+
+        arrow.innerHTML =
+            "🗓️";
+
+    }
+
+});
+
+function downloadExcel(){
+
+    window.location.href =
+        "/mrp/production-plan/download";
+
+}
+
+</script>
+
+{% endblock %}
