@@ -110,6 +110,14 @@ def get_bom_rows(db):
         .all()
     )
 
+def get_week_label(dt):
+    cal = calendar.monthcalendar(dt.year, dt.month)
+
+    for idx, week in enumerate(cal, start=1):
+        if dt.day in week:
+            return f"{dt.month}월 {idx}주"
+
+    return f"{dt.month}월 1주"
 
 def calculate_mrp(db, year=None, month=None, week=None):
 
@@ -140,7 +148,11 @@ def calculate_mrp(db, year=None, month=None, week=None):
             if p.plan_date.isocalendar().week == week
         ]
 
-    products = {plan.product_name for plan in plans}
+    products = {
+        plan.product_name
+        for plan in plans
+    }
+
     bom_rows = (
         db.query(BOM)
         .filter(BOM.product_name.in_(products))
@@ -150,76 +162,84 @@ def calculate_mrp(db, year=None, month=None, week=None):
     )
 
     bom_by_product = defaultdict(list)
+
     for bom in bom_rows:
         bom_by_product[bom.product_name].append(bom)
 
     required_by_item = {}
 
-    week_summary = defaultdict(
-        lambda: {
-            "plan_qty": 0,
-            "required_qty": 0,
-            "stock_qty": 0,
-            "coverage": 0,
-        }
-    )
-
     for plan in plans:
-        week_no = (plan.plan_date.day - 1) // 7 + 1
-        week_label = f"{plan.plan_date.month}월 {week_no}주"
 
-        week_summary[week_label]["plan_qty"] += (
-            plan.plan_qty or 0
+        bom_list = bom_by_product.get(
+            plan.product_name,
+            []
         )
-        for bom in bom_by_product.get(plan.product_name, []):
+
+        if not bom_list:
+            continue
+
+        for bom in bom_list:
+
             item_code = bom.component_code
-            required_qty = (plan.plan_qty or 0) * (bom.qty or 0)
-            week_summary[week_label]["required_qty"] += required_qty
+
+            required_qty = (
+                (plan.plan_qty or 0)
+                *
+                (bom.qty or 0)
+            )
 
             if item_code not in required_by_item:
+
                 required_by_item[item_code] = {
+
                     "item_code": bom.component_code,
+
                     "item_name": bom.component_name,
+
                     "required_qty": 0,
+
                     "products": defaultdict(float),
-                    "details": [],
+
+                    "details": []
+
                 }
 
             required_by_item[item_code]["required_qty"] += required_qty
-            required_by_item[item_code]["products"][plan.product_name] += (
-                required_qty
-            )
+
+            required_by_item[item_code]["products"][
+                plan.product_name
+            ] += required_qty
+
             required_by_item[item_code]["details"].append(
-            {
-                "date": plan.plan_date,
-                "year": plan.plan_date.year,
-                "week": plan.plan_date.isocalendar().week,
-                "product_name": plan.product_name,
-                "plan_qty": plan.plan_qty or 0,
-                "bom_qty": bom.qty or 0,
-                "required_qty": required_qty,
-            }
+                {
+
+                    "date": plan.plan_date,
+
+                    "year": plan.plan_date.year,
+
+                    "week": plan.plan_date.isocalendar().week,
+
+                    "product_name": plan.product_name,
+
+                    "plan_qty": plan.plan_qty or 0,
+
+                    "bom_qty": bom.qty or 0,
+
+                    "required_qty": required_qty
+
+                }
             )
 
-    inventory_rows = (
-        db.query(Inventory)
-        .all()
-    )
+    inventory_rows = db.query(Inventory).all()
 
-    material_rows = (
-        db.query(MaterialMaster)
-        .all()
-    )
+    material_rows = db.query(MaterialMaster).all()
+
+    note_rows = db.query(MaterialNote).all()
 
     material_map = {
         row.item_code: row
         for row in material_rows
     }
-
-    note_rows = (
-        db.query(MaterialNote)
-        .all()
-    )
 
     note_map = {
         row.item_code: row
@@ -228,15 +248,16 @@ def calculate_mrp(db, year=None, month=None, week=None):
 
     inventory_by_code = defaultdict(list)
 
-    for row in inventory_rows:
+    for inv in inventory_rows:
 
         inventory_by_code[
-            row.item_code
-        ].append(row)
+            inv.item_code
+        ].append(inv)
 
     results = []
 
     for item_code, row in required_by_item.items():
+
         inventory_list = inventory_by_code.get(
             item_code,
             []
@@ -257,7 +278,7 @@ def calculate_mrp(db, year=None, month=None, week=None):
         )
 
         has_note = bool(
-            note and note.strip()
+            note.strip()
         )
 
         supplier = (
@@ -289,17 +310,19 @@ def calculate_mrp(db, year=None, month=None, week=None):
 
             inventory_detail[
                 inv.warehouse_type
-            ] += (
-                inv.qty or 0
-            )
+            ] += (inv.qty or 0)
 
         stock_qty = sum(
-            x.qty or 0
-            for x in inventory_list
+            inv.qty or 0
+            for inv in inventory_list
         )
+
         required_qty = row["required_qty"]
-        shortage_qty = max(required_qty - stock_qty, 0)
-        recommended_order_qty = shortage_qty
+
+        shortage_qty = max(
+            required_qty - stock_qty,
+            0
+        )
 
         if shortage_qty > 0 and moq > 0:
 
@@ -309,12 +332,25 @@ def calculate_mrp(db, year=None, month=None, week=None):
                 ) * moq
             )
 
+        else:
+
+            recommended_order_qty = shortage_qty
+
         coverage_rate = (
-            min(stock_qty / required_qty * 100, 100)
-            if required_qty
+            round(
+                min(
+                    stock_qty / required_qty * 100,
+                    100
+                ),
+                1
+            )
+            if required_qty > 0
             else 100
         )
-        product_names = sorted(row["products"].keys())
+
+        product_names = sorted(
+            row["products"].keys()
+        )
 
         daily_required = defaultdict(float)
 
@@ -328,7 +364,9 @@ def calculate_mrp(db, year=None, month=None, week=None):
 
         need_date = None
 
-        for day in sorted(daily_required.keys()):
+        for day in sorted(
+            daily_required.keys()
+        ):
 
             remain_stock -= daily_required[day]
 
@@ -338,12 +376,17 @@ def calculate_mrp(db, year=None, month=None, week=None):
 
                 break
 
-        if need_date is None and daily_required:
+        if (
+            need_date is None
+            and daily_required
+        ):
 
-            need_date = max(daily_required.keys())
+            need_date = max(
+                daily_required.keys()
+            )
 
         order_date = None
-        
+
         if need_date:
 
             order_date = (
@@ -353,24 +396,34 @@ def calculate_mrp(db, year=None, month=None, week=None):
                 )
             )
 
-        if shortage_qty > 0 and stock_qty == 0:
-            priority = "Critical"
-        elif shortage_qty > 0:
-            priority = "Short"
+        if shortage_qty > 0:
+
+            priority = (
+                "Critical"
+                if stock_qty == 0
+                else "Short"
+            )
+
         else:
+
             priority = "Ready"
 
         results.append(
             {
                 "item_code": item_code,
+
                 "item_name": row["item_name"],
+
                 "product_count": len(product_names),
+
                 "product_names": product_names,
+
                 "product_summary": (
                     product_names[0]
                     if len(product_names) == 1
                     else f"{len(product_names)} products"
                 ),
+
                 "warehouse_single":
                     inventory_detail["창고재고(단품)"],
 
@@ -382,77 +435,177 @@ def calculate_mrp(db, year=None, month=None, week=None):
 
                 "subcontract_stock":
                     inventory_detail["외주재고"],
-                "details": row["details"],
+
+                "details": sorted(
+                    row["details"],
+                    key=lambda x: x["date"]
+                ),
+
                 "required_qty": required_qty,
+
                 "stock_qty": stock_qty,
+
                 "shortage_qty": shortage_qty,
+
                 "coverage_rate": coverage_rate,
+
                 "priority": priority,
-                "status": "SHORT" if shortage_qty > 0 else "OK",
+
+                "status": (
+                    "SHORT"
+                    if shortage_qty > 0
+                    else "OK"
+                ),
+
                 "supplier": supplier,
+
                 "lead_time_week": lead_time_week,
+
                 "moq": moq,
+
                 "need_date": need_date,
+
                 "order_date": order_date,
+
                 "recommended_order_qty":
                     recommended_order_qty,
+
                 "note": note,
+
                 "has_note": has_note
             }
         )
     
-    remaining_stock = sum(
-        row["stock_qty"]
-        for row in results
+    selected_year = year or datetime.now().year
+    selected_month = month or datetime.now().month
+
+    week_summary = defaultdict(
+        lambda: {
+            "plan_qty": 0,
+            "required_qty": 0,
+            "stock_qty": 0,
+            "coverage": 0,
+        }
     )
 
-    for label in sorted(
-        week_summary.keys(),
-        key=lambda x: (
-            int(x.split("월")[0]),
-            int(x.split(" ")[1].replace("주", ""))
-        )
-    ):
+    last_day = calendar.monthrange(
+        selected_year,
+        selected_month
+    )[1]
 
-        required = week_summary[label]["required_qty"]
+    cal = calendar.monthcalendar(
+        selected_year,
+        selected_month
+    )
 
-        supplied = min(
-            remaining_stock,
-            required
-        )
+    week_count = len(cal)
 
-        coverage = (
-            supplied / required * 100
-            if required
-            else 100
-        )
+    for w in range(1, week_count + 1):
 
-        week_summary[label]["stock_qty"] = supplied
+        label = f"{selected_month}월 {w}주"
 
-        week_summary[label]["coverage"] = round(
-            coverage,
-            1
-        )
+        week_summary[label]
 
-        remaining_stock = max(
-            remaining_stock - required,
-            0
-        )
+    for plan in plans:
+
+        week_no = (
+            plan.plan_date.day - 1
+        ) // 7 + 1
+
+        label = get_week_label(plan.plan_date)
+
+        if label in week_summary:
+
+            week_summary[label]["plan_qty"] += (
+                plan.plan_qty or 0
+            )
+
+    for row in results:
+
+        remain_stock = row["stock_qty"]
+
+        weekly_required = defaultdict(float)
+
+        for detail in sorted(
+            row["details"],
+            key=lambda x: x["date"]
+        ):
+
+            week_no = (
+                detail["date"].day - 1
+            ) // 7 + 1
+
+            label = get_week_label(detail["date"])
+
+            weekly_required[label] += (
+                detail["required_qty"]
+            )
+
+        for label in sorted(
+            weekly_required.keys()
+        ):
+
+            required = weekly_required[label]
+
+            supplied = min(
+                remain_stock,
+                required
+            )
+
+            week_summary[label]["required_qty"] += (
+                required
+            )
+
+            week_summary[label]["stock_qty"] += (
+                supplied
+            )
+
+            remain_stock = max(
+                remain_stock - required,
+                0
+            )
+
+    for label, data in week_summary.items():
+
+        required = data["required_qty"]
+
+        supplied = data["stock_qty"]
+
+        if required > 0:
+
+            data["coverage"] = round(
+                min(
+                    supplied / required * 100,
+                    100
+                ),
+                1
+            )
+
+        else:
+
+            data["coverage"] = 0
 
     results.sort(
         key=lambda row: (
-            row["shortage_qty"] <= 0,
-            row["coverage_rate"],
-            row["item_code"],
+            row["priority"] != "Critical",
+            row["priority"] != "Short",
+            row["need_date"] or date.max,
+            row["item_code"]
         )
     )
 
     shortage_count = sum(
-        1 for row in results
+        1
+        for row in results
         if row["shortage_qty"] > 0
     )
 
-    return plans, results, shortage_count, week_summary
+    return (
+        plans,
+        results,
+        shortage_count,
+        week_summary
+    )
 
 
 def filter_mrp_rows(rows, q="", shortage_only=False):
@@ -1732,9 +1885,12 @@ def download_production_plan(
 
     }
 
+    selected_year = year or datetime.now().year
+    selected_month = month or datetime.now().month
+
     last_day = calendar.monthrange(
-        year,
-        month
+        selected_year,
+        selected_month
     )[1]
 
     date_list = [
