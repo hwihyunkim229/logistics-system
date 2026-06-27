@@ -506,13 +506,7 @@
                         </strong>
 
                         <span>
-                            {{
-                            "%.1f"|format(
-                            category_qtys[0]
-                            / total_qty
-                            * 100
-                            )
-                            }}%
+                            {{ "%.1f"|format((category_qtys[0] / total_qty * 100) if total_qty else 0) }}%
                         </span>
 
                     </div>
@@ -536,13 +530,7 @@
                         </strong>
 
                         <span>
-                            {{
-                            "%.1f"|format(
-                            category_qtys[1]
-                            / total_qty
-                            * 100
-                            )
-                            }}%
+                            {{ "%.1f"|format((category_qtys[1] / total_qty * 100) if total_qty else 0) }}%
                         </span>
 
                     </div>
@@ -566,13 +554,7 @@
                         </strong>
 
                         <span>
-                            {{
-                            "%.1f"|format(
-                            category_qtys[2]
-                            / total_qty
-                            * 100
-                            )
-                            }}%
+                            {{ "%.1f"|format((category_qtys[2] / total_qty * 100) if total_qty else 0) }}%
                         </span>
 
                     </div>
