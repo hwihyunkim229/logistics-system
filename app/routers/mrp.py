@@ -417,7 +417,10 @@ def build_mrp_summary(plans, rows, filtered_rows, inventory_count):
     total_shortage = sum(row["shortage_qty"] for row in rows)
 
     return {
-        "plan_count": len(plans),
+        "plan_count": sum(
+            plan.plan_qty or 0
+            for plan in plans
+        ),
         "required_item_count": len(rows),
         "filtered_item_count": len(filtered_rows),
         "shortage_count": len(shortage_rows),
