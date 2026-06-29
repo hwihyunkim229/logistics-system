@@ -82,7 +82,7 @@
 }
 .exec-grid{
     display:grid;
-    grid-template-columns:1.35fr repeat(3, minmax(150px, .65fr));
+    grid-template-columns:repeat(5, minmax(0, 1fr));
     gap:10px;
     margin-bottom:12px;
 }
@@ -150,6 +150,20 @@
 .metric-card{
     min-height:126px;
     padding:14px;
+}
+.metric-card.plan{
+    background:#f8fbff;
+    border-color:#cfe0ff;
+}
+.metric-card.plan .metric-value{
+    color:#1d4ed8;
+}
+.metric-card.material{
+    background:#f7fffb;
+    border-color:#bbf7d0;
+}
+.metric-card.material .metric-value{
+    color:#0f766e;
 }
 .metric-value{
     display:block;
@@ -367,6 +381,26 @@
     border-color:#4A90E2;
     box-shadow:0 0 0 3px rgba(74,144,226,.12);
 }
+.filter-reset{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    height:42px;
+    padding:0 14px;
+    border:1px solid #cbd5e1;
+    border-radius:10px;
+    background:#fff;
+    color:#334155;
+    text-decoration:none;
+    font-size:13px;
+    font-weight:900;
+    white-space:nowrap;
+}
+.filter-reset:hover{
+    border-color:#4A90E2;
+    color:#1d4ed8;
+    background:#f8fbff;
+}
 .dash-actions{
     display:flex;
     gap:8px;
@@ -377,20 +411,226 @@
     height:420px;
     width:100%;
 }
+.board-grid > .panel:nth-child(3){
+    background:
+        linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+.board-grid > .panel:nth-child(3) .panel-head{
+    margin-bottom:14px;
+}
+.board-grid > .panel:nth-child(3) .panel-note{
+    display:inline-flex;
+    align-items:center;
+    height:26px;
+    padding:0 10px;
+    border:1px solid #dbeafe;
+    border-radius:999px;
+    background:#eff6ff;
+    color:#1d4ed8;
+}
+.coverage-chart-shell{
+    height:420px;
+    padding:12px 10px 4px;
+    border:1px solid #edf2f7;
+    border-radius:8px;
+    background:
+        linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,251,255,.96));
+}
+.coverage-chart-shell canvas{
+    width:100%;
+    height:100%;
+}
+.board-grid > .panel:first-child{
+    display:none;
+}
+.board-grid > .panel:nth-child(2){
+    grid-column:span 12;
+    padding:0;
+    overflow:hidden;
+}
+.board-grid > .panel:nth-child(2) .panel-head{
+    align-items:flex-start;
+    margin:0;
+    padding:22px 22px 0;
+}
+.board-grid > .panel:nth-child(2) .panel-head h3{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    font-size:0;
+}
+.board-grid > .panel:nth-child(2) .panel-head h3::before{
+    content:"생산 계획 대비 자재 수급 달성률";
+    color:#10233f;
+    font-size:15px;
+    font-weight:950;
+}
+
+.board-grid > .panel:nth-child(2) .panel-note{
+    display:inline-flex;
+    align-items:center;
+    height:26px;
+    padding:0 10px;
+    border:1px solid #dbeafe;
+    border-radius:999px;
+    background:#eff6ff;
+    color:#1d4ed8;
+}
+.board-grid > .panel:nth-child(2) .panel-note::before{
+    font-size:13px;
+}
+.gauge-layout{
+    display:grid;
+    grid-template-columns:minmax(360px, .95fr) minmax(540px, 1.05fr);
+    gap:18px;
+    align-items:center;
+    padding:8px 22px 22px;
+}
+.gauge-area{
+    position:relative;
+    min-height:320px;
+}
+.gauge-tooltip{
+    position:absolute;
+    z-index:5;
+    display:none;
+    min-width:190px;
+    padding:10px 12px;
+    border:1px solid #cbd5e1;
+    border-radius:8px;
+    background:#0f172a;
+    color:#fff;
+    box-shadow:0 12px 30px rgba(15,23,42,.18);
+    pointer-events:none;
+    font-size:12px;
+    line-height:1.45;
+}
+.gauge-tooltip strong,
+.gauge-tooltip span{
+    display:block;
+}
+.gauge-tooltip strong{
+    margin-bottom:4px;
+    font-size:12px;
+    font-weight:900;
+}
+.gauge-tooltip span{
+    color:#bfdbfe;
+    font-weight:800;
+}
+#fulfillmentChart{
+    display:block;
+    width:100%;
+    height:320px;
+}
+.gauge-summary{
+    display:grid;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
+    gap:12px;
+}
+.summary-card{
+    display:grid;
+    grid-template-columns:minmax(0, 1fr);
+    gap:6px;
+    align-items:end;
+    min-height:86px;
+    padding:16px;
+    border:1px solid #dfe7f2;
+    border-radius:8px;
+    background:#fff;
+}
+.summary-title{
+    grid-column:1 / -1;
+    color:#44546f;
+    font-size:13px;
+    font-weight:900;
+}
+.summary-title{
+    font-size:0;
+}
+.summary-card:nth-child(1) .summary-title::before{
+    content:"확보 자재 수량";
+    font-size:13px;
+}
+.summary-card:nth-child(2) .summary-title::before{
+    content:"부족 자재 수량";
+    font-size:13px;
+}
+.summary-card:nth-child(3) .summary-title::before{
+    content:"총 소요 자재 수량";
+    font-size:13px;
+}
+.summary-card strong{
+    color:#1267f1;
+    font-size:26px;
+    line-height:1;
+    font-weight:950;
+    font-variant-numeric:tabular-nums;
+}
+.summary-card small{
+    margin-top:-4px;
+    color:#5b667a;
+    font-size:14px;
+    font-weight:950;
+}
+.summary-card.danger strong{
+    color:#ef3d68;
+}
+.gauge-summary .summary-card:nth-child(3) strong{
+    color:#5b56f0;
+}
+.gauge-footer{
+    display:flex;
+    align-items:center;
+    gap:5px;
+    margin:0 22px 16px;
+    min-height:54px;
+    padding:0 22px;
+    border:1px solid #bfdbfe;
+    border-radius:8px;
+    background:#f8fbff;
+    color:#1267f1;
+    font-size:0;
+    font-weight:850;
+}
+.gauge-footer::before{
+    content:"i";
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:22px;
+    height:22px;
+    margin-right:8px;
+    flex:0 0 22px;
+    border-radius:50%;
+    background:#1d75f0;
+    color:white;
+    font-size:13px;
+    font-weight:950;
+}
+.gauge-footer b{
+    font-size:14px;
+}
+.gauge-footer b::before{
+    content:"현재 자재 확보량으로 총 소요 자재 대비 ";
+    color:#1267f1;
+    font-size:14px;
+    font-weight:850;
+}
+.gauge-footer b::after{
+    content:"의 생산이 가능합니다.";
+    color:#1267f1;
+    font-size:14px;
+    font-weight:850;
+}
 @media(max-width:1500px){
     .exec-grid{
         grid-template-columns:repeat(5, minmax(0, 1fr));
-    }
-    .hero-card{
-        grid-column:span 5;
     }
 }
 @media(max-width:1250px){
     .exec-grid{
         grid-template-columns:repeat(2, minmax(0, 1fr));
-    }
-    .hero-card{
-        grid-column:span 2;
     }
     .span-4,
     .span-5,
@@ -401,8 +641,7 @@
     }
 }
 @media(max-width:760px){
-    .dash-header,
-    .hero-card{
+    .dash-header{
         grid-template-columns:1fr;
         align-items:flex-start;
         flex-direction:column;
@@ -410,13 +649,28 @@
     .exec-grid{
         grid-template-columns:1fr;
     }
-    .hero-card{
-        grid-column:auto;
-    }
     .chart-box,
     .chart-box.compact,
     .chart-box.tall{
         height:240px;
+    }
+    .gauge-layout{
+        grid-template-columns:1fr;
+        padding-left:16px;
+        padding-right:16px;
+    }
+    .gauge-summary{
+        grid-template-columns:1fr;
+    }
+    .gauge-area,
+    #fulfillmentChart{
+        min-height:250px;
+        height:250px;
+    }
+    .gauge-footer{
+        margin-left:16px;
+        margin-right:16px;
+        padding:12px 14px;
     }
 }
 </style>
@@ -442,6 +696,12 @@
                         name="year"
                         onchange="this.form.submit()">
 
+                        <option
+                            value=""
+                            {% if not selected_year %}selected{% endif %}>
+                            연도
+                        </option>
+
                         {% for y in years %}
 
                         <option
@@ -458,6 +718,12 @@
                         name="month"
                         onchange="this.form.submit()">
 
+                        <option
+                            value=""
+                            {% if not selected_month %}selected{% endif %}>
+                            월
+                        </option>
+
                         {% for m in months %}
 
                         <option
@@ -469,6 +735,10 @@
                         {% endfor %}
 
                     </select>
+
+                    <a class="filter-reset" href="/mrp">
+                        필터 초기화
+                    </a>
 
                 </form>
 
@@ -499,29 +769,16 @@
     </div>
 
     <div class="exec-grid">
-        <div class="hero-card">
-            <div>
-                <div class="hero-label">생산계획 대비 자재 수급 달성률</div>
-                <div class="hero-value">{{ "%.1f"|format(summary.coverage_rate) }}%</div>
-                <div class="hero-sub">
-                    총 소요 {{ "{:,.0f}".format(total_required) }} · 확보 수량 {{ "{:,.0f}".format(total_stock) }} · 미확보 수량 {{ "{:,.0f}".format(total_shortage) }}
-                </div>
-            </div>
-            <div>
-                <div
-                    class="fit-track"
-                    style="--covered: {{ summary.coverage_rate }}%; --gap: {{ 100 - summary.coverage_rate }}%;"
-                >
-                    <div class="fit-covered"></div>
-                    <div class="fit-gap"></div>
-                </div>
-                <div class="fit-scale">
-                    <span>확보 수량 {{ "%.1f"|format(summary.coverage_rate) }}%</span>
-                    <span>미확보 수량 {{ "%.1f"|format(100 - summary.coverage_rate) }}%</span>
-                </div>
-            </div>
+        <div class="metric-card plan">
+            <span class="metric-label">생산 계획 수량</span>
+            <strong class="metric-value">{{ "{:,.0f}".format(summary.plan_count) }}</strong>
+            <small>등록된 생산 계획 합계</small>
         </div>
-
+        <div class="metric-card material">
+            <span class="metric-label">필요 자재 수량</span>
+            <strong class="metric-value">{{ "{:,.0f}".format(total_required) }}</strong>
+            <small>BOM 기준 총 소요 자재</small>
+        </div>
         <div class="metric-card focus">
             <span class="metric-label">부족 품목</span>
             <strong class="metric-value">{{ shortage_count }}</strong>
@@ -552,11 +809,48 @@
 
         <div class="panel span-6">
             <div class="panel-head">
-                <h3>생산계획 수급 달성</h3>
-                <span class="panel-note">확보 가능 vs 미확보</span>
+
+                <h3>
+                    생산계획 대비 자재 수급 달성률
+                </h3>
+
+                <span class="panel-note">
+                    총 소요 자재 대비 확보 자재 비율
+                </span>
+
             </div>
-            <div class="chart-box tall">
-                <canvas id="fulfillmentChart"></canvas>
+            <div class="gauge-layout">
+                <div class="gauge-area">
+                    <canvas id="fulfillmentChart"></canvas>
+                    <div class="gauge-tooltip" id="fulfillmentTooltip">
+                        <strong>자재 수급 달성률</strong>
+                        <span>{{ "%.1f"|format(summary.coverage_rate) }}%</span>
+                        확보 자재 {{ "{:,.0f}".format(total_stock) }} EA /
+                        총 소요 자재 {{ "{:,.0f}".format(total_required) }} EA
+                    </div>
+                </div>
+
+                <div class="gauge-summary">
+                    <div class="summary-card">
+                        <span class="summary-title">확보 자재 수량</span>
+                        <strong>{{ "{:,.0f}".format(total_stock) }}</strong>
+                        <small>EA</small>
+                    </div>
+                    <div class="summary-card danger">
+                        <span class="summary-title">부족 자재 수량</span>
+                        <strong>{{ "{:,.0f}".format(total_shortage) }}</strong>
+                        <small>EA</small>
+                    </div>
+                    <div class="summary-card">
+                        <span class="summary-title">총 소요 자재 수량</span>
+                        <strong>{{ "{:,.0f}".format(total_required) }}</strong>
+                        <small>EA</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="gauge-footer">
+                <b>{{ "%.1f"|format(summary.coverage_rate) }}%</b>
             </div>
         </div>
 
@@ -565,7 +859,7 @@
                 <h3>생산 계획 대비 조달 가능 현황</h3>
                 <span class="panel-note">주차별 조달 가능 분포</span>
             </div>
-            <div class="chart-box wide">
+            <div class="coverage-chart-shell">
                 <canvas id="coverageChart"></canvas>
             </div>
         </div>
@@ -845,6 +1139,7 @@ drawChart("gapChart", {
     }
 });
 
+/*
 const fulfillCtx =
 document.getElementById("fulfillmentChart")
 .getContext("2d");
@@ -985,6 +1280,139 @@ drawChart("fulfillmentChart", {
         }
     }
 });
+*/
+
+function drawFulfillmentGauge(){
+    const canvas = document.getElementById("fulfillmentChart");
+    if(!canvas){
+        return;
+    }
+
+    const ratio = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    const width = rect.width || 640;
+    const height = rect.height || 320;
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
+
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+
+    const value = Math.max(
+        0,
+        Math.min(100, Number({{ summary.coverage_rate|round(1) }}))
+    );
+    const valueLabel = Number.isInteger(value)
+        ? `${value.toFixed(0)}%`
+        : `${value.toFixed(1)}%`;
+    const centerX = width / 2;
+    const centerY = height * .88;
+    const radius = Math.min(width * .42, height * .72);
+    const thickness = Math.max(34, radius * .16);
+    const startAngle = Math.PI;
+    const endAngle = Math.PI * 2;
+    const valueAngle = startAngle + (endAngle - startAngle) * value / 100;
+
+    ctx.save();
+    ctx.lineWidth = thickness;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "#e3e8ef";
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+    ctx.stroke();
+
+    const gradient = ctx.createLinearGradient(
+        centerX - radius,
+        0,
+        centerX + radius,
+        0
+    );
+    gradient.addColorStop(0, "#79b3ff");
+    gradient.addColorStop(.48, "#2d7dff");
+    gradient.addColorStop(1, "#1267f1");
+
+    ctx.shadowColor = "rgba(18,103,241,.24)";
+    ctx.shadowBlur = 22;
+    ctx.shadowOffsetY = 8;
+    ctx.strokeStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, startAngle, valueAngle);
+    ctx.stroke();
+    ctx.restore();
+
+    const markerX = centerX + radius * Math.cos(valueAngle);
+    const markerY = centerY + radius * Math.sin(valueAngle);
+
+    ctx.save();
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(markerX, markerY + thickness * .3);
+    ctx.lineTo(markerX, centerY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = "#1267f1";
+    ctx.beginPath();
+    ctx.arc(markerX, markerY, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#0d54d8";
+    ctx.font = "950 64px Pretendard, Arial, sans-serif";
+    ctx.fillText(valueLabel, centerX, centerY - radius * .36);
+
+    ctx.fillStyle = "#243348";
+    ctx.font = "800 16px Pretendard, Arial, sans-serif";
+    ctx.fillText("확보 가능", centerX, centerY - radius * .17);
+
+    ctx.fillStyle = "#1267f1";
+    ctx.font = "950 24px Pretendard, Arial, sans-serif";
+    ctx.fillText(
+        "{{ '{:,.0f}'.format(total_stock) }}",
+        centerX - 18,
+        centerY - radius * .03
+    );
+    ctx.fillStyle = "#5b667a";
+    ctx.font = "900 16px Pretendard, Arial, sans-serif";
+    ctx.fillText("EA", centerX + 74, centerY - radius * .03);
+
+    ctx.fillStyle = "#52627c";
+    ctx.font = "800 13px Pretendard, Arial, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("0%", centerX - radius - 34, centerY - 2);
+    ctx.textAlign = "center";
+    ctx.fillText("50%", centerX, centerY - radius - thickness * .65);
+    ctx.textAlign = "right";
+    ctx.fillText("100%", centerX + radius + 34, centerY - 2);
+
+    ctx.fillStyle = "#1267f1";
+    ctx.font = "900 13px Pretendard, Arial, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(valueLabel, markerX, markerY + 38);
+    ctx.restore();
+}
+
+drawFulfillmentGauge();
+window.addEventListener("resize", drawFulfillmentGauge);
+
+const fulfillmentCanvas = document.getElementById("fulfillmentChart");
+const fulfillmentTooltip = document.getElementById("fulfillmentTooltip");
+
+if(fulfillmentCanvas && fulfillmentTooltip){
+    fulfillmentCanvas.addEventListener("mousemove", event => {
+        const area = fulfillmentCanvas.parentElement.getBoundingClientRect();
+        fulfillmentTooltip.style.display = "block";
+        fulfillmentTooltip.style.left = `${event.clientX - area.left + 14}px`;
+        fulfillmentTooltip.style.top = `${event.clientY - area.top + 14}px`;
+    });
+
+    fulfillmentCanvas.addEventListener("mouseleave", () => {
+        fulfillmentTooltip.style.display = "none";
+    });
+}
 
 drawChart("supplierChart", {
     type: "bar",
@@ -1008,74 +1436,138 @@ drawChart("supplierChart", {
     }
 });
 
-const coverageCtx = document.getElementById("coverageChart").getContext("2d");
+const coverageCtxModern = document.getElementById("coverageChart").getContext("2d");
 
-const planGradient = coverageCtx.createLinearGradient(0, 0, 0, 420);
-planGradient.addColorStop(0, "rgba(116,185,255,0.75)");
-planGradient.addColorStop(1, "rgba(116,185,255,0.25)");
+const modernPlanGradient = coverageCtxModern.createLinearGradient(0, 0, 0, 420);
+modernPlanGradient.addColorStop(0, "rgba(147,197,253,.78)");
+modernPlanGradient.addColorStop(1, "rgba(219,234,254,.58)");
 
-const coverageChart = new Chart(
-    coverageCtx,
+const modernPossibleGradient = coverageCtxModern.createLinearGradient(0, 0, 0, 420);
+modernPossibleGradient.addColorStop(0, "rgba(20,184,166,.86)");
+modernPossibleGradient.addColorStop(1, "rgba(153,246,228,.56)");
+
+function formatCoveragePercentModern(value){
+    const number = Number(value || 0);
+    return Number.isInteger(number)
+        ? `${number.toFixed(0)}%`
+        : `${number.toFixed(1)}%`;
+}
+
+function formatCoverageEa(value){
+    return `${Number(value || 0).toLocaleString()} EA`;
+}
+
+new Chart(
+    coverageCtxModern,
     {
         data: {
             labels: {{ week_labels | tojson }},
             datasets: [
                 {
                     type: "bar",
-                    label: "생산계획",
+                    label: "생산 계획",
                     data: {{ week_plan_qty | tojson }},
                     yAxisID: "y",
-                    backgroundColor: planGradient,
-                    borderColor: "#4A90E2",
-                    borderWidth: 1.5,
-                    borderRadius: 8,
-                    maxBarThickness: 42,
-                    order: 2,
+                    backgroundColor: modernPlanGradient,
+                    borderColor: "rgba(96,165,250,.95)",
+                    borderWidth: 1,
+                    borderRadius: 9,
+                    borderSkipped: false,
+                    categoryPercentage: .62,
+                    barPercentage: .74,
+                    maxBarThickness: 34,
+                    order: 3,
                     datalabels: {
-                        color: "#356FC7",
-                        anchor: "center",
-                        align: "center",
-                        offset: 8,
+                        color: "#2563eb",
+                        anchor: "end",
+                        align: "top",
+                        offset: 2,
+                        clamp: true,
                         font: {
-                            size: 12,
-                            weight: "700"
+                            size: 10,
+                            weight: "800"
                         },
-                        formatter: value => value.toLocaleString()
+                        formatter: value => value > 0 ? Number(value).toLocaleString() : ""
                     }
                 },
-
+                {
+                    type: "bar",
+                    label: "조달 가능",
+                    data: {{ week_possible_qty | tojson }},
+                    yAxisID: "y",
+                    backgroundColor: modernPossibleGradient,
+                    borderColor: "rgba(13,148,136,.95)",
+                    borderWidth: 1,
+                    borderRadius: 9,
+                    borderSkipped: false,
+                    categoryPercentage: .62,
+                    barPercentage: .74,
+                    maxBarThickness: 34,
+                    order: 2,
+                    datalabels: {
+                        color: "#0f766e",
+                        anchor: "center",
+                        align: "center",
+                        clamp: true,
+                        font: {
+                            size: 10,
+                            weight: "900"
+                        },
+                        formatter: value => value > 0 ? Number(value).toLocaleString() : ""
+                    }
+                },
                 {
                     type: "line",
-                    label: "조달율",
+                    label: "조달률",
                     data: {{ week_coverage | tojson }},
                     yAxisID: "y1",
-                    borderColor: "#EC6AA5",
-                    backgroundColor: "rgba(236,106,165,.12)",
+                    borderColor: "#1e3a8a",
+                    backgroundColor: "rgba(30,58,138,.10)",
                     fill: false,
-                    tension: .45,
+                    tension: .42,
                     cubicInterpolationMode: "monotone",
                     borderWidth: 3,
                     pointRadius: 5,
-                    pointHoverRadius: 7,
-                    pointBackgroundColor: "#EC6AA5",
+                    pointHoverRadius: 8,
+                    pointBackgroundColor(context){
+                        const value = Number(context.raw || 0);
+                        if(value < 70) return "#ef4444";
+                        if(value < 90) return "#f59e0b";
+                        return "#1e3a8a";
+                    },
                     pointBorderColor: "#fff",
                     pointBorderWidth: 2,
                     order: 1,
                     datalabels: {
-                        color: "#EC6AA5",
-                        anchor: "end",
-                        align: "bottom",
-                        offset: -20,
-                        font: {
-                            size: 11,
-                            weight: "700"
+                        color(context){
+                            const value = Number(context.dataset.data[context.dataIndex] || 0);
+                            if(value < 70) return "#ef4444";
+                            if(value < 90) return "#d97706";
+                            return "#1e3a8a";
                         },
-                        formatter: value => value + "%"
+                        backgroundColor: "rgba(255,255,255,.92)",
+                        borderColor: "#dbeafe",
+                        borderWidth: 1,
+                        borderRadius: 999,
+                        padding: {
+                            left: 7,
+                            right: 7,
+                            top: 3,
+                            bottom: 3
+                        },
+                        anchor: "end",
+                        align: "top",
+                        offset: 8,
+                        clamp: true,
+                        font: {
+                            size: 10,
+                            weight: "900"
+                        },
+                        formatter: value => formatCoveragePercentModern(value)
                     }
                 }
             ]
         },
-
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -1083,93 +1575,105 @@ const coverageChart = new Chart(
                 mode: "index",
                 intersect: false
             },
-
             plugins: {
                 legend: {
                     position: "top",
+                    align: "center",
                     labels: {
                         usePointStyle: true,
                         pointStyle: "circle",
-                        padding: 22,
+                        boxWidth: 8,
+                        boxHeight: 8,
+                        padding: 18,
                         color: "#334155",
                         font: {
                             size: 12,
-                            weight: "700"
+                            weight: "800"
                         }
                     }
                 },
-
                 tooltip: {
-                    backgroundColor: "#1E293B",
+                    backgroundColor: "rgba(15,23,42,.96)",
                     titleColor: "#fff",
-                    bodyColor: "#fff",
-                    padding: 12,
-                    cornerRadius: 8,
+                    bodyColor: "#dbeafe",
+                    borderColor: "rgba(191,219,254,.35)",
+                    borderWidth: 1,
+                    padding: 13,
+                    cornerRadius: 10,
+                    displayColors: true,
                     callbacks: {
-                        label: function(context){
-                            if(context.dataset.label==="조달율"){
-                                return "조달율 : " + context.raw + "%";
+                        title(items){
+                            return items[0]?.label || "";
+                        },
+                        label(context){
+                            if(context.dataset.yAxisID === "y1"){
+                                return `조달률: ${formatCoveragePercentModern(context.raw)}`;
                             }
-                            return "생산계획 : " + context.raw.toLocaleString() + " EA";
+                            return `${context.dataset.label}: ${formatCoverageEa(context.raw)}`;
                         }
                     }
                 }
             },
-
             scales: {
                 x: {
                     grid: {
                         display: false
                     },
-
+                    border: {
+                        display: false
+                    },
                     ticks: {
-                        color:"#64748B",
-                        font:{
-                            size:11,
-                            weight:"700"
+                        color: "#475569",
+                        padding: 8,
+                        font: {
+                            size: 11,
+                            weight: "800"
                         }
                     }
                 },
-
                 y: {
-                    position:"left",
-                    beginAtZero:true,
-                    title:{
-                        display:true,
-                        color:"#64748B"
+                    position: "left",
+                    beginAtZero: true,
+                    border: {
+                        display: false
                     },
-
-                    grid:{
-                        color:"rgba(148,163,184,.15)"
+                    grid: {
+                        color: "rgba(148,163,184,.13)"
                     },
-
-                    ticks:{
-                        color:"#64748B"
+                    ticks: {
+                        color: "#94a3b8",
+                        maxTicksLimit: 5,
+                        callback: value => Number(value).toLocaleString(),
+                        font: {
+                            size: 10,
+                            weight: "700"
+                        }
                     }
                 },
-
                 y1: {
-                    position:"right",
-                    beginAtZero:true,
-                    min:0,
-                    max:100,
-                    title:{
-                        display:true,
-                        color:"#64748B"
+                    position: "right",
+                    beginAtZero: true,
+                    min: 0,
+                    max: 100,
+                    border: {
+                        display: false
                     },
-
-                    ticks:{
-                        callback:value=>value+"%",
-                        color:"#64748B"
+                    ticks: {
+                        stepSize: 25,
+                        callback: value => `${value}%`,
+                        color: "#94a3b8",
+                        font: {
+                            size: 10,
+                            weight: "700"
+                        }
                     },
-
-                    grid:{
-                        drawOnChartArea:false
+                    grid: {
+                        drawOnChartArea: false
                     }
                 }
             }
         },
-        plugins:[ChartDataLabels]
+        plugins: [ChartDataLabels]
     }
 );
 </script>
