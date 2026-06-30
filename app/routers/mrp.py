@@ -717,8 +717,8 @@ def build_week_dashboard_summary(
 
         if in_period:
 
-            week_summary[label]["possible_qty"] += (
-                produced_qty
+            week_summary[label]["possible_qty"] += int(
+                (plan.plan_qty or 0) * 0.8
             )
 
         for bom in bom_list:

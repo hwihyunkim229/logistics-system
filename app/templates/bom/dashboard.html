@@ -1479,8 +1479,8 @@ new Chart(
                     order: 3,
                     datalabels: {
                         color: "#2563eb",
-                        anchor: "end",
-                        align: "top",
+                        anchor: "center",
+                        align: "center",
                         offset: 2,
                         clamp: true,
                         font: {
@@ -1521,29 +1521,21 @@ new Chart(
                     label: "조달률",
                     data: {{ week_coverage | tojson }},
                     yAxisID: "y1",
-                    borderColor: "#1e3a8a",
-                    backgroundColor: "rgba(30,58,138,.10)",
+                    borderColor: "#0F766E",
+                    backgroundColor: "rgba(15,118,110,.12)",
                     fill: false,
                     tension: .42,
                     cubicInterpolationMode: "monotone",
                     borderWidth: 3,
                     pointRadius: 5,
                     pointHoverRadius: 8,
-                    pointBackgroundColor(context){
-                        const value = Number(context.raw || 0);
-                        if(value < 70) return "#ef4444";
-                        if(value < 90) return "#f59e0b";
-                        return "#1e3a8a";
-                    },
+                    pointBackgroundColor: "#0F766E",
                     pointBorderColor: "#fff",
                     pointBorderWidth: 2,
                     order: 1,
                     datalabels: {
-                        color(context){
-                            const value = Number(context.dataset.data[context.dataIndex] || 0);
-                            if(value < 70) return "#ef4444";
-                            if(value < 90) return "#d97706";
-                            return "#1e3a8a";
+                        datalabels: {
+                            color: "#0F766E"
                         },
                         backgroundColor: "rgba(255,255,255,.92)",
                         borderColor: "#dbeafe",
