@@ -41,7 +41,8 @@ from app.routers import (
     admin,
     stock,
     stock_dashboard,
-    mrp
+    mrp,
+    assistant
 )
 import time
 
@@ -120,6 +121,7 @@ app.include_router(admin.router)
 app.include_router(stock.router)
 app.include_router(stock_dashboard.router)
 app.include_router(mrp.router)
+app.include_router(assistant.router)
 
 Base.metadata.create_all(
     bind=engine

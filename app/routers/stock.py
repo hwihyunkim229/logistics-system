@@ -26,10 +26,32 @@ from app.models.bom import BOM
 from app.models.inventory import Inventory
 from app.models.material_master import MaterialMaster
 from app.models.material_note import MaterialNote
+from app.utils.logger import save_log
 
 router = APIRouter()
 
 templates = Jinja2Templates(directory="app/templates")
+
+STOCK_LOG_PRODUCT = "가계상 재고"
+
+
+def current_user(request: Request):
+    return request.session.get("user") or "system"
+
+
+def summarize_items(items):
+    codes = [
+        item.item_code
+        for item in items[:10]
+    ]
+
+    suffix = (
+        f" 외 {len(items) - 10}건"
+        if len(items) > 10
+        else ""
+    )
+
+    return ", ".join(codes) + suffix
 
 
 def get_db():
@@ -165,6 +187,14 @@ async def stock_move_in(
 
     db.commit()
 
+    save_log(
+        user=username,
+        product=STOCK_LOG_PRODUCT,
+        action="STOCK_MOVE_IN",
+        serial=summarize_items(items),
+        detail=f"가계상 재고 입고: {qty} EA / 비고: {remark}"
+    )
+
     return JSONResponse(
         {
             "status": "success"
@@ -231,6 +261,14 @@ async def stock_move_out(
 
     db.commit()
 
+    save_log(
+        user=username,
+        product=STOCK_LOG_PRODUCT,
+        action="STOCK_MOVE_OUT",
+        serial=summarize_items(items),
+        detail=f"가계상 재고 출고: {qty} EA / 비고: {remark}"
+    )
+
     return JSONResponse(
         {
             "status": "success"
@@ -240,6 +278,7 @@ async def stock_move_out(
 
 @router.post("/stock/delete-selected")
 async def delete_selected_stock(
+    request: Request,
     data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
@@ -258,6 +297,14 @@ async def delete_selected_stock(
         db.delete(item)
 
     db.commit()
+
+    save_log(
+        user=current_user(request),
+        product=STOCK_LOG_PRODUCT,
+        action="STOCK_DELETE_SELECTED",
+        serial=summarize_items(items),
+        detail=f"가계상 재고 선택 삭제: {len(items)}건"
+    )
 
     return JSONResponse(
         {
@@ -350,6 +397,7 @@ def stock_history(
 
 @router.get("/stock/download-excel")
 def download_stock_excel(
+    request: Request,
     db: Session = Depends(get_db)
 ):
 
@@ -391,6 +439,13 @@ def download_stock_excel(
 
     output.seek(0)
 
+    save_log(
+        user=current_user(request),
+        product=STOCK_LOG_PRODUCT,
+        action="STOCK_DOWNLOAD_EXCEL",
+        detail=f"가계상 재고 엑셀 다운로드: {len(items)}건"
+    )
+
     return StreamingResponse(
         output,
         media_type=
@@ -429,6 +484,7 @@ def get_item_master(
 
 @router.post("/stock/upload-excel")
 async def upload_stock_excel(
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
@@ -490,6 +546,13 @@ async def upload_stock_excel(
 
     db.commit()
 
+    save_log(
+        user=current_user(request),
+        product=STOCK_LOG_PRODUCT,
+        action="STOCK_UPLOAD_EXCEL",
+        detail=f"가계상 재고 엑셀 업로드: 신규 {created}건 / 제외 {skipped}건"
+    )
+
     return JSONResponse(
         {
             "status": "success",
@@ -502,6 +565,7 @@ async def upload_stock_excel(
 
 @router.post("/stock/update-qty")
 async def update_qty(
+    request: Request,
     data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
@@ -541,12 +605,21 @@ async def update_qty(
 
     db.commit()
 
+    save_log(
+        user=current_user(request),
+        product=STOCK_LOG_PRODUCT,
+        action="STOCK_UPDATE_QTY",
+        serial=item.item_code,
+        detail=f"{item.item_name} 수량 변경: {old_qty} -> {new_qty}"
+    )
+
     return {
         "status":"success"
     }
 
 @router.post("/stock/update-grade")
 async def update_grade(
+    request: Request,
     data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
@@ -562,14 +635,24 @@ async def update_grade(
     if not item:
         return {"status": "error"}
 
+    old_grade = item.grade
     item.grade = data["grade"]
 
     db.commit()
+
+    save_log(
+        user=current_user(request),
+        product=STOCK_LOG_PRODUCT,
+        action="STOCK_UPDATE_GRADE",
+        serial=item.item_code,
+        detail=f"{item.item_name} Grade 변경: {old_grade or '-'} -> {item.grade or '-'}"
+    )
 
     return {"status": "success"}
 
 @router.post("/stock/bulk-update-grade")
 async def bulk_update_grade(
+    request: Request,
     data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
@@ -591,12 +674,21 @@ async def bulk_update_grade(
 
     db.commit()
 
+    save_log(
+        user=current_user(request),
+        product=STOCK_LOG_PRODUCT,
+        action="STOCK_BULK_UPDATE_GRADE",
+        serial=summarize_items(items),
+        detail=f"가계상 재고 Grade 일괄 변경: {len(items)}건 -> {grade}"
+    )
+
     return {
         "status":"success"
     }
 
 @router.post("/stock/bulk-update-qty")
 async def bulk_update_qty(
+    request: Request,
     data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
@@ -618,12 +710,21 @@ async def bulk_update_qty(
 
     db.commit()
 
+    save_log(
+        user=current_user(request),
+        product=STOCK_LOG_PRODUCT,
+        action="STOCK_BULK_UPDATE_QTY",
+        serial=summarize_items(items),
+        detail=f"가계상 재고 수량 일괄 변경: {len(items)}건 -> {qty} EA"
+    )
+
     return {
         "status":"success"
     }
 
 @router.get("/stock/history/download-excel")
 def download_history_excel(
+    request: Request,
     db: Session = Depends(get_db)
 ):
 
@@ -680,6 +781,13 @@ def download_history_excel(
     df.to_excel(
         temp_file.name,
         index=False
+    )
+
+    save_log(
+        user=current_user(request),
+        product=STOCK_LOG_PRODUCT,
+        action="STOCK_HISTORY_DOWNLOAD_EXCEL",
+        detail=f"가계상 재고 입출고 이력 다운로드: {len(history)}건"
     )
 
     return FileResponse(
@@ -866,6 +974,14 @@ def update_item(
 
         db.commit()
 
+        save_log(
+            user=user,
+            product=STOCK_LOG_PRODUCT,
+            action="STOCK_ITEM_MASTER_UPDATE",
+            serial=f"{old_code} -> {new_code}",
+            detail=f"품목 기준정보 변경: {old_name} / Rev {old_rev or '-'} -> {new_name} / Rev {new_rev or '-'}"
+        )
+
         return {
             "status":"success"
         }
@@ -903,6 +1019,7 @@ def item_master_history(
 
 @router.post("/stock/item-master/upload")
 async def upload_item_master(
+    request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
@@ -950,6 +1067,13 @@ async def upload_item_master(
         created += 1
 
     db.commit()
+
+    save_log(
+        user=current_user(request),
+        product=STOCK_LOG_PRODUCT,
+        action="STOCK_ITEM_MASTER_UPLOAD",
+        detail=f"품목 기준정보 업로드: 신규 {created}건 / 제외 {skipped}건"
+    )
 
     return {
         "status": "success",

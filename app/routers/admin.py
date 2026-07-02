@@ -300,15 +300,13 @@ def admin_activity(
 
     logs = (
         query
-        .order_by(ActivityLog.id.asc())
+        .order_by(ActivityLog.id.desc())
         .offset((page - 1) * per_page)
         .limit(per_page)
         .all()
     )
 
-    db.close()
-
-    ACTIONS = [
+    base_actions = [
         "LOGIN",
         "LOGOUT",
         "UPLOAD_EXCEL",
@@ -325,8 +323,50 @@ def admin_activity(
         "CREATE_USER",
         "RESET_PASSWORD",
         "DELETE_USER",
-        "CHANGE_PASSWORD"
+        "CHANGE_PASSWORD",
+        "STOCK_MOVE_IN",
+        "STOCK_MOVE_OUT",
+        "STOCK_DELETE_SELECTED",
+        "STOCK_DOWNLOAD_EXCEL",
+        "STOCK_UPLOAD_EXCEL",
+        "STOCK_UPDATE_QTY",
+        "STOCK_UPDATE_GRADE",
+        "STOCK_BULK_UPDATE_GRADE",
+        "STOCK_BULK_UPDATE_QTY",
+        "STOCK_HISTORY_DOWNLOAD_EXCEL",
+        "STOCK_ITEM_MASTER_UPDATE",
+        "STOCK_ITEM_MASTER_UPLOAD",
+        "MRP_BOM_ADD",
+        "MRP_BOM_UPLOAD",
+        "MRP_BOM_DOWNLOAD",
+        "MRP_PRODUCTION_PLAN_UPLOAD",
+        "MRP_PRODUCTION_PLAN_DOWNLOAD",
+        "MRP_INVENTORY_ADD",
+        "MRP_INVENTORY_UPDATE",
+        "MRP_INVENTORY_UPLOAD",
+        "MRP_INVENTORY_DOWNLOAD",
+        "MRP_RESULT_DOWNLOAD",
+        "MRP_MATERIAL_MASTER_ADD",
+        "MRP_MATERIAL_MASTER_UPDATE",
+        "MRP_MATERIAL_MASTER_UPLOAD",
+        "MRP_MATERIAL_MASTER_DOWNLOAD",
+        "MRP_MATERIAL_NOTE_SAVE",
     ]
+
+    existing_actions = [
+        row[0]
+        for row in db.query(ActivityLog.action)
+        .distinct()
+        .order_by(ActivityLog.action)
+        .all()
+        if row[0]
+    ]
+
+    ACTIONS = sorted(
+        set(base_actions + existing_actions)
+    )
+
+    db.close()
 
     return templates.TemplateResponse(
         request=request,

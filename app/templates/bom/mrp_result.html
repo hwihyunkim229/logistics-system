@@ -727,7 +727,7 @@ td{
                 <h2 style="font-size:20px;">MRP 현황</h2>
                 <div class="page-subtitle">
                     총 {{ summary.filtered_item_count }}건 조회
-                    총 부족 수량 : {{ "%.2f"|format(summary.total_shortage) }}
+                    총 부족 수량 : {{ "{:,.0f}".format(summary.total_shortage) }}
                 </div>
             </div>
         </div>
@@ -781,10 +781,10 @@ td{
                         <td>
                             {{ row.product_summary }}
                         </td>
-                        <td class="number">{{ "%.2f"|format(row.required_qty) }}</td>
-                        <td class="number">{{ "%.2f"|format(row.stock_qty) }}</td>
+                        <td class="number">{{ "{:,.0f}".format(row.required_qty) }}</td>
+                        <td class="number">{{ "{:,.0f}".format(row.stock_qty) }}</td>
                         <td class="number {% if row.shortage_qty > 0 %}shortage{% endif %}">
-                            {{ "%.2f"|format(row.shortage_qty) }}
+                            {{ "{:,.0f}".format(row.shortage_qty) }}
                         </td>
                         <td class="date-col">
                         {% if row.need_date %}
@@ -811,12 +811,16 @@ td{
                                 ></div>
                             </div>
                         </td>
-                        <td> {% if row.shortage_qty > 0 %}
-                            {{ "{:,.0f}".format( row.recommended_order_qty ) }} 
-                            EA 
-                            {% else %} 
-                            자재 수급 완료 
-                            {% endif %} 
+                        <td>
+                            {% if row.shortage_qty > 0 %}
+                                <strong>
+                                    {{ "{:,.0f}".format(row.recommended_order_qty) }} EA
+                                </strong>
+                            {% else %}
+                                <strong>
+                                    자재 수급 완료
+                                </strong>
+                            {% endif %}
                         </td>
                         <td>
                             <button
@@ -873,15 +877,15 @@ td{
                                                 <td>{{ detail.product_name }}</td>
 
                                                 <td>
-                                                    {{ "%.2f"|format(detail.plan_qty) }}
+                                                    {{ "{:,.0f}".format(detail.plan_qty) }}
                                                 </td>
 
                                                 <td>
-                                                    {{ "%.2f"|format(detail.bom_qty) }}
+                                                    {{ "{:,.0f}".format(detail.bom_qty) }}
                                                 </td>
 
                                                 <td>
-                                                    {{ "%.2f"|format(detail.required_qty) }}
+                                                    {{ "{:,.0f}".format(detail.required_qty) }}
                                                 </td>
                                             </tr>
 
@@ -1007,28 +1011,28 @@ td{
                                                 <tr>
                                                     <th>단품 창고</th>
                                                     <td>
-                                                        {{ "%.2f"|format(row.warehouse_single) }}
+                                                        {{ "{:,.0f}".format(row.warehouse_single) }}
                                                     </td>
                                                 </tr>
 
                                                 <tr>
                                                     <th>반제품 창고</th>
                                                     <td>
-                                                        {{ "%.2f"|format(row.warehouse_semi) }}
+                                                        {{ "{:,.0f}".format(row.warehouse_semi) }}
                                                     </td>
                                                 </tr>
 
                                                 <tr>
                                                     <th>협력사 재고</th>
                                                     <td>
-                                                        {{ "%.2f"|format(row.supplier_stock) }}
+                                                        {{ "{:,.0f}".format(row.supplier_stock) }}
                                                     </td>
                                                 </tr>
 
                                                 <tr>
                                                     <th>외주업체 재고</th>
                                                     <td>
-                                                        {{ "%.2f"|format(row.subcontract_stock) }}
+                                                        {{ "{:,.0f}".format(row.subcontract_stock) }}
                                                     </td>
                                                 </tr>
 

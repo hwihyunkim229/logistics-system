@@ -580,6 +580,16 @@
                                         사이즈 수정
                                     </span>
 
+                                {% elif log.action.startswith("STOCK_") %}
+                                    <span class="action-badge action-update">
+                                        가계상 재고
+                                    </span>
+
+                                {% elif log.action.startswith("MRP_") %}
+                                    <span class="action-badge action-download">
+                                        MRP
+                                    </span>
+
                                 {% else %}
                                     {{ log.action }}
                                 {% endif %}

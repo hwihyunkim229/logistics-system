@@ -1,0 +1,1057 @@
+from collections import Counter, defaultdict
+from datetime import date, datetime, timedelta
+from urllib.parse import quote
+from zoneinfo import ZoneInfo
+from app.routers.mrp import calculate_mrp
+from sqlalchemy import func, or_
+
+from app.assistant.registry import tool
+from app.models.activity_log import ActivityLog
+from app.models.bom import BOM
+from app.models.inbound import Inbound
+from app.models.inventory import Inventory
+from app.models.item import Item
+from app.models.item_master import ItemMaster
+from app.models.material_master import MaterialMaster
+from app.models.material_note import MaterialNote
+from app.models.movement import Movement
+from app.models.outbound import Outbound
+from app.models.production_plan import ProductionPlan
+from app.models.stock import Stock
+from app.models.stock_movement import StockMovement
+from app.models.user import User
+
+
+MAX_ROWS = 15
+
+SERVICE_NAMES = {
+    "cart_bp_pro": "CART BP pro",
+    "cart_bp": "CART BP",
+    "cart_on": "CART ON",
+    "hanbang": "한방 병원",
+    "cart_platform": "CART PLATFORM",
+    "cart_ring": "CART RING",
+    "cart_o2": "CART O2",
+}
+
+
+def _keyword(value):
+    return (value or "").strip()
+
+
+def _like(value):
+    return f"%{value.lower()}%"
+
+
+def _fmt_dt(value):
+    if not value:
+        return ""
+    return value.strftime("%Y-%m-%d %H:%M")
+
+
+def _fmt_date(value):
+    if not value:
+        return ""
+    return value.strftime("%Y-%m-%d")
+
+
+def _safe_user(row):
+    return {
+        "username": row.username,
+        "role": row.role,
+        "must_change_password": bool(row.must_change_password),
+    }
+
+
+def _period_range(period):
+    today = datetime.now(ZoneInfo("Asia/Seoul")).date()
+
+    if period == "today":
+        start = today
+        end = today + timedelta(days=1)
+    elif period == "yesterday":
+        start = today - timedelta(days=1)
+        end = today
+    elif period == "this_week":
+        start = today - timedelta(days=today.weekday())
+        end = today + timedelta(days=1)
+    elif period == "this_month":
+        start = date(today.year, today.month, 1)
+        end = today + timedelta(days=1)
+    else:
+        return None, None
+
+    return (
+        datetime.combine(start, datetime.min.time()),
+        datetime.combine(end, datetime.min.time()),
+    )
+
+
+def _apply_flow_filters(query, model, product="", period="all", keyword=""):
+    if product:
+        query = query.filter(model.product == product)
+
+    start, end = _period_range(period)
+
+    if start and end:
+        query = query.filter(
+            model.created_at >= start,
+            model.created_at < end,
+        )
+
+    keyword = _keyword(keyword)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(
+            or_(
+                func.lower(model.serial).like(pattern),
+                func.lower(model.product).like(pattern),
+                func.lower(model.size).like(pattern),
+                func.lower(model.category).like(pattern),
+                func.lower(model.client).like(pattern),
+                func.lower(model.note).like(pattern),
+            )
+        )
+
+    return query
+
+
+def _flow_rows(query, model):
+    return [
+        {
+            "created_at": _fmt_dt(row.created_at),
+            "serial": row.serial,
+            "product": row.product,
+            "product_name": SERVICE_NAMES.get(row.product, row.product),
+            "size": row.size,
+            "category": row.category,
+            "client": row.client,
+        }
+        for row in query.order_by(model.created_at.desc()).limit(5).all()
+    ]
+
+
+def _encoded(value):
+    return quote(value or "", safe="")
+
+
+def _contains_filter(model, fields, value):
+    pattern = _like(value)
+    return or_(*[
+        func.lower(getattr(model, field)).like(pattern)
+        for field in fields
+    ])
+
+
+def _find_page_match(db, target):
+    target = _keyword(target)
+
+    if not target:
+        return None
+
+    stock = (
+        db.query(Stock)
+        .filter(_contains_filter(Stock, ["item_code", "item_name", "category"], target))
+        .first()
+    )
+
+    if stock:
+        return {
+            "page": "stock",
+            "url": (
+                f"/stock?category={_encoded(stock.category)}"
+                f"&keyword={_encoded(target)}&highlight={_encoded(target)}"
+            ),
+            "label": "가계상 재고",
+        }
+
+    inventory = (
+        db.query(Inventory)
+        .filter(_contains_filter(Inventory, ["item_code", "item_name", "warehouse_type"], target))
+        .first()
+    )
+
+    if inventory:
+        return {
+            "page": "inventory",
+            "url": f"/mrp/inventory?highlight={_encoded(target)}",
+            "label": "MRP 재고",
+        }
+
+    bom = (
+        db.query(BOM)
+        .filter(_contains_filter(BOM, ["product_name", "component_code", "component_name"], target))
+        .first()
+    )
+
+    if bom:
+        return {
+            "page": "bom",
+            "url": f"/mrp/bom?highlight={_encoded(target)}",
+            "label": "BOM",
+        }
+
+    material = (
+        db.query(MaterialMaster)
+        .filter(_contains_filter(MaterialMaster, ["item_code", "item_name", "supplier"], target))
+        .first()
+    )
+
+    if material:
+        return {
+            "page": "material_master",
+            "url": f"/mrp/material-master?highlight={_encoded(target)}",
+            "label": "자재 기준정보",
+        }
+
+    item = (
+        db.query(ItemMaster)
+        .filter(_contains_filter(ItemMaster, ["item_code", "item_name", "rev"], target))
+        .first()
+    )
+
+    if item:
+        return {
+            "page": "item_master",
+            "url": f"/stock/item-master/manage?highlight={_encoded(target)}",
+            "label": "품목 기준정보",
+        }
+
+    inbound = (
+        db.query(Inbound)
+        .filter(_contains_filter(Inbound, ["serial", "product", "size", "category", "client"], target))
+        .first()
+    )
+
+    if inbound:
+        return {
+            "page": "inbound",
+            "url": f"/search?highlight={_encoded(target)}",
+            "label": "제품 물류 입고",
+        }
+
+    outbound = (
+        db.query(Outbound)
+        .filter(_contains_filter(Outbound, ["serial", "product", "size", "category", "client"], target))
+        .first()
+    )
+
+    if outbound:
+        return {
+            "page": "outbound",
+            "url": f"/search?highlight={_encoded(target)}",
+            "label": "제품 물류 출고",
+        }
+
+    return None
+
+
+@tool("general.chat")
+def general_chat(db, question: str):
+    return {
+        "status": "general",
+        "question": question,
+        "message": (
+            "Logistics 시스템의 재고, 입출고, BOM, 생산계획, MRP, "
+            "품목/자재 기준정보, 사용자/활동 로그에 대해 질문할 수 있습니다."
+        )
+    }
+
+
+@tool("security.block")
+def security_block(db, question: str = ""):
+    return {
+        "status": "blocked",
+        "message": (
+            "비밀번호와 패스워드는 보안상 조회하거나 제공할 수 없습니다. "
+            "필요하면 관리자 화면에서 비밀번호 초기화 또는 변경 절차를 사용해 주세요."
+        )
+    }
+
+
+@tool("knowledge.answer")
+def knowledge_answer(db, question: str = "", topic: str = ""):
+    return {
+        "status": "knowledge",
+        "question": question,
+        "topic": topic,
+        "facts": {
+            "가계상 재고": (
+                "가계상 재고는 이 시스템의 Stock 테이블 기준 재고입니다. "
+                "품목코드, 품목명, 등급, Rev, 구분(반제품/제품/원자재), 수량으로 관리됩니다."
+            ),
+            "제품 물류": (
+                "제품 물류는 시리얼 단위 입고/출고 흐름입니다. "
+                "Inbound, Outbound, Movement 테이블을 기준으로 제품, 시리얼, 사이즈, 고객, 일시를 추적합니다."
+            ),
+            "MRP": (
+                "MRP는 생산계획과 BOM, MRP 재고, 자재 기준정보를 조합해 필요 수량, 부족 수량, "
+                "발주 필요일, 권장 발주 수량을 계산하는 영역입니다."
+            ),
+            "BOM": (
+                "BOM은 제품을 만들기 위해 필요한 구성품 목록입니다. "
+                "제품명, 구성품 코드, 구성품명, 소요 수량으로 관리됩니다."
+            ),
+        }
+    }
+
+
+@tool("knowledge.out_of_scope")
+def knowledge_out_of_scope(db, question: str = ""):
+    return {
+        "status": "out_of_scope",
+        "message": (
+            "저는 현재 Logistics 시스템 데이터와 업무 용어를 기준으로 답변합니다. "
+            "날씨, 뉴스, 주가처럼 외부 실시간 정보는 이 assistant에서 조회하지 않습니다."
+        )
+    }
+
+
+@tool("admin.account_action")
+def admin_account_action(db, action: str = ""):
+    return {
+        "status": "account_action",
+        "action": action,
+        "type": "move",
+        "url": "/admin/users",
+        "message": (
+            "계정 생성은 보안상 AI 채팅에서 직접 처리하지 않습니다. "
+            "관리자 계정 관리 화면에서 사용자명, 초기 비밀번호, 권한을 입력해 생성해 주세요."
+        )
+    }
+
+
+@tool("activity.login_summary")
+def activity_login_summary(db, period: str = "all", keyword: str = ""):
+    query = db.query(ActivityLog).filter(ActivityLog.action == "LOGIN")
+
+    start, end = _period_range(period)
+
+    if start and end:
+        query = query.filter(
+            ActivityLog.created_at >= start,
+            ActivityLog.created_at < end,
+        )
+
+    keyword = _keyword(keyword)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(
+            or_(
+                func.lower(ActivityLog.user).like(pattern),
+                func.lower(ActivityLog.serial).like(pattern),
+                func.lower(ActivityLog.detail).like(pattern),
+            )
+        )
+
+    rows = query.order_by(ActivityLog.id.desc()).limit(MAX_ROWS + 1).all()
+    users = sorted({row.user for row in rows if row.user})
+
+    return {
+        "status": "login_summary",
+        "period": period,
+        "keyword": keyword,
+        "count": query.count(),
+        "users": users,
+        "truncated": len(rows) > MAX_ROWS,
+        "rows": [
+            {
+                "created_at": _fmt_dt(row.created_at),
+                "user": row.user,
+                "detail": row.detail,
+            }
+            for row in rows[:MAX_ROWS]
+        ],
+    }
+
+
+@tool("logistics.flow_count")
+def logistics_flow_count(
+    db,
+    flow_type: str = "both",
+    product: str = "",
+    period: str = "all",
+    keyword: str = "",
+):
+    inbound_query = _apply_flow_filters(
+        db.query(Inbound),
+        Inbound,
+        product=product,
+        period=period,
+        keyword=keyword,
+    )
+
+    outbound_query = _apply_flow_filters(
+        db.query(Outbound),
+        Outbound,
+        product=product,
+        period=period,
+        keyword=keyword,
+    )
+
+    inbound_count = inbound_query.count() if flow_type in ("both", "inbound") else 0
+    outbound_count = outbound_query.count() if flow_type in ("both", "outbound") else 0
+
+    return {
+        "status": "flow_count",
+        "flow_type": flow_type,
+        "product": product,
+        "product_name": SERVICE_NAMES.get(product, product) if product else "",
+        "period": period,
+        "keyword": keyword,
+        "inbound_count": inbound_count,
+        "outbound_count": outbound_count,
+        "inbound_rows": (
+            _flow_rows(inbound_query, Inbound)
+            if flow_type in ("both", "inbound")
+            else []
+        ),
+        "outbound_rows": (
+            _flow_rows(outbound_query, Outbound)
+            if flow_type in ("both", "outbound")
+            else []
+        ),
+    }
+
+
+@tool("stock.summary")
+@tool("stock.summary")
+def stock_summary(
+    db,
+    category: str = "",
+    item: str = "",
+    sort: str = "",
+    order: str = "asc",
+    limit: int = MAX_ROWS,
+):
+    query = db.query(Stock)
+
+    if category:
+        query = query.filter(Stock.category == category)
+
+    keyword = _keyword(item)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(
+            or_(
+                func.lower(Stock.item_code).like(pattern),
+                func.lower(Stock.item_name).like(pattern),
+                func.lower(Stock.category).like(pattern),
+            )
+        )
+
+    if sort == "qty":
+
+        if order == "desc":
+            query = query.order_by(Stock.qty.desc())
+
+        else:
+            query = query.order_by(Stock.qty.asc())
+
+    elif sort == "item_name":
+
+        if order == "desc":
+            query = query.order_by(Stock.item_name.desc())
+
+        else:
+            query = query.order_by(Stock.item_name.asc())
+
+    else:
+
+        query = query.order_by(
+            Stock.category,
+            Stock.item_name,
+            Stock.item_code,
+        )
+
+    rows = query.limit(limit + 1).all()
+    total_rows = query.count()
+    total_qty = query.with_entities(func.coalesce(func.sum(Stock.qty), 0)).scalar() or 0
+
+    category_rows = (
+        db.query(
+            Stock.category,
+            func.count(Stock.id),
+            func.coalesce(func.sum(Stock.qty), 0),
+        )
+        .group_by(Stock.category)
+        .order_by(Stock.category)
+        .all()
+    )
+
+    return {
+        "status": "stock_summary",
+        "stock_type": "book_stock",
+        "stock_name": "가계상 재고",
+        "sort": sort,
+        "order": order,
+        "limit": limit,
+        "category": category,
+        "keyword": keyword,
+        "total_rows": total_rows,
+        "total_qty": int(total_qty),
+        "is_top_result": (
+            sort == "qty"
+            and limit == 1
+        ),
+        "category_summary": [
+            {
+                "category": row[0],
+                "row_count": row[1],
+                "qty": int(row[2] or 0),
+            }
+            for row in category_rows
+        ],
+        "truncated": len(rows) > limit,
+        "rows": [
+            {
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "category": row.category,
+                "grade": row.grade,
+                "rev": row.rev,
+                "qty": row.qty or 0,
+            }
+            for row in rows[:limit]
+        ],
+    }
+
+
+@tool("system.summary")
+def system_summary(db, question: str = ""):
+    inbound_count = db.query(Inbound).count()
+    outbound_count = db.query(Outbound).count()
+    stock_qty = db.query(func.coalesce(func.sum(Stock.qty), 0)).scalar() or 0
+    inventory_qty = db.query(func.coalesce(func.sum(Inventory.qty), 0)).scalar() or 0
+    plan_qty = db.query(func.coalesce(func.sum(ProductionPlan.plan_qty), 0)).scalar() or 0
+
+    return {
+        "status": "summary",
+        "available_stock_types":[
+            "가계상 재고",
+            "MRP 재고"
+        ],
+        "counts": {
+            "items": db.query(Item).count(),
+            "inbound": inbound_count,
+            "outbound": outbound_count,
+            "movements": db.query(Movement).count(),
+            "book_stock_rows": db.query(Stock).count(),
+            "book_stock_qty": int(stock_qty),
+            "inventory_rows": db.query(Inventory).count(),
+            "inventory_qty": int(inventory_qty),
+            "bom_rows": db.query(BOM).count(),
+            "production_plan_rows": db.query(ProductionPlan).count(),
+            "production_plan_qty": int(plan_qty),
+            "material_master_rows": db.query(MaterialMaster).count(),
+            "item_master_rows": db.query(ItemMaster).count(),
+            "users": db.query(User).count(),
+            "activity_logs": db.query(ActivityLog).count(),
+        }
+    }
+
+
+@tool("stock.book")
+def stock_book(db, item: str = ""):
+    keyword = _keyword(item)
+    query = db.query(Stock)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(
+            or_(
+                func.lower(Stock.item_code).like(pattern),
+                func.lower(Stock.item_name).like(pattern),
+                func.lower(Stock.category).like(pattern),
+            )
+        )
+
+    rows = query.order_by(Stock.item_name, Stock.item_code).limit(MAX_ROWS + 1).all()
+
+    return {
+        "status": "rows",
+        "domain": "book_stock",
+        "keyword": keyword,
+        "truncated": len(rows) > MAX_ROWS,
+        "rows": [
+            {
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "category": row.category,
+                "grade": row.grade,
+                "rev": row.rev,
+                "qty": row.qty or 0,
+            }
+            for row in rows[:MAX_ROWS]
+        ],
+    }
+
+@tool("stock.select")
+def stock_select(db):
+
+    return {
+
+        "status":"need_stock_type",
+
+        "choices":[
+            "가계상 재고",
+            "MRP 재고"
+        ]
+
+    }
+
+@tool("inventory.search")
+def inventory_search(db, item: str = ""):
+    keyword = _keyword(item)
+    query = db.query(Inventory)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(
+            or_(
+                func.lower(Inventory.item_code).like(pattern),
+                func.lower(Inventory.item_name).like(pattern),
+                func.lower(Inventory.warehouse_type).like(pattern),
+            )
+        )
+
+    rows = query.order_by(Inventory.item_code, Inventory.warehouse_type).limit(MAX_ROWS + 1).all()
+
+    return {
+        "status": "rows",
+        "domain": "inventory",
+        "keyword": keyword,
+        "truncated": len(rows) > MAX_ROWS,
+        "rows": [
+            {
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "warehouse_type": row.warehouse_type,
+                "qty": row.qty or 0,
+            }
+            for row in rows[:MAX_ROWS]
+        ],
+    }
+
+
+@tool("bom.detail")
+def bom_detail(db, item: str = ""):
+    keyword = _keyword(item)
+    query = db.query(BOM)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(
+            or_(
+                func.lower(BOM.product_name).like(pattern),
+                func.lower(BOM.component_code).like(pattern),
+                func.lower(BOM.component_name).like(pattern),
+            )
+        )
+
+    rows = query.order_by(BOM.product_name, BOM.component_code).limit(MAX_ROWS + 1).all()
+
+    return {
+        "status": "rows",
+        "domain": "bom",
+        "keyword": keyword,
+        "truncated": len(rows) > MAX_ROWS,
+        "rows": [
+            {
+                "product_name": row.product_name,
+                "component_code": row.component_code,
+                "component_name": row.component_name,
+                "qty": row.qty or 0,
+            }
+            for row in rows[:MAX_ROWS]
+        ],
+    }
+
+
+@tool("production.plan")
+def production_plan(db, item: str = ""):
+    keyword = _keyword(item)
+    query = db.query(ProductionPlan)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(func.lower(ProductionPlan.product_name).like(pattern))
+
+    rows = query.order_by(ProductionPlan.plan_date, ProductionPlan.product_name).limit(MAX_ROWS + 1).all()
+
+    return {
+        "status": "rows",
+        "domain": "production_plan",
+        "keyword": keyword,
+        "truncated": len(rows) > MAX_ROWS,
+        "rows": [
+            {
+                "plan_date": _fmt_date(row.plan_date),
+                "product_name": row.product_name,
+                "plan_qty": row.plan_qty or 0,
+            }
+            for row in rows[:MAX_ROWS]
+        ],
+    }
+
+
+@tool("material.master")
+def material_master(db, item: str = ""):
+    keyword = _keyword(item)
+    query = db.query(MaterialMaster)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(
+            or_(
+                func.lower(MaterialMaster.item_code).like(pattern),
+                func.lower(MaterialMaster.item_name).like(pattern),
+                func.lower(MaterialMaster.supplier).like(pattern),
+            )
+        )
+
+    rows = query.order_by(MaterialMaster.item_code).limit(MAX_ROWS + 1).all()
+    notes = {
+        note.item_code: note.note
+        for note in db.query(MaterialNote).filter(
+            MaterialNote.item_code.in_([row.item_code for row in rows[:MAX_ROWS]])
+        ).all()
+    } if rows else {}
+
+    return {
+        "status": "rows",
+        "domain": "material_master",
+        "keyword": keyword,
+        "truncated": len(rows) > MAX_ROWS,
+        "rows": [
+            {
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "supplier": row.supplier,
+                "lead_time_week": row.lead_time_week or 0,
+                "moq": row.moq or 0,
+                "note": notes.get(row.item_code, ""),
+            }
+            for row in rows[:MAX_ROWS]
+        ],
+    }
+
+
+@tool("item.master")
+def item_master(db, item: str = ""):
+    keyword = _keyword(item)
+    query = db.query(ItemMaster)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(
+            or_(
+                func.lower(ItemMaster.item_code).like(pattern),
+                func.lower(ItemMaster.item_name).like(pattern),
+                func.lower(ItemMaster.rev).like(pattern),
+            )
+        )
+
+    rows = query.order_by(ItemMaster.item_code).limit(MAX_ROWS + 1).all()
+
+    return {
+        "status": "rows",
+        "domain": "item_master",
+        "keyword": keyword,
+        "truncated": len(rows) > MAX_ROWS,
+        "rows": [
+            {
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "rev": row.rev,
+            }
+            for row in rows[:MAX_ROWS]
+        ],
+    }
+
+
+@tool("movement.search")
+def movement_search(db, item: str = ""):
+    keyword = _keyword(item)
+    pattern = _like(keyword) if keyword else None
+
+    logistics_query = db.query(Movement)
+    stock_query = db.query(StockMovement)
+
+    if pattern:
+        logistics_query = logistics_query.filter(
+            or_(
+                func.lower(Movement.serial).like(pattern),
+                func.lower(Movement.product).like(pattern),
+                func.lower(Movement.type).like(pattern),
+                func.lower(Movement.client).like(pattern),
+                func.lower(Movement.user).like(pattern),
+            )
+        )
+        stock_query = stock_query.filter(
+            or_(
+                func.lower(StockMovement.item_code).like(pattern),
+                func.lower(StockMovement.item_name).like(pattern),
+                func.lower(StockMovement.movement_type).like(pattern),
+                func.lower(StockMovement.user).like(pattern),
+            )
+        )
+
+    movements = logistics_query.order_by(Movement.id.desc()).limit(8).all()
+    stock_movements = stock_query.order_by(StockMovement.id.desc()).limit(8).all()
+
+    return {
+        "status": "rows",
+        "domain": "movement",
+        "keyword": keyword,
+        "rows": {
+            "serial_movements": [
+                {
+                    "created_at": _fmt_dt(row.created_at),
+                    "serial": row.serial,
+                    "product": row.product,
+                    "type": row.type,
+                    "client": row.client,
+                    "category": row.category,
+                    "user": row.user,
+                }
+                for row in movements
+            ],
+            "stock_movements": [
+                {
+                    "created_at": _fmt_dt(row.created_at),
+                    "item_code": row.item_code,
+                    "item_name": row.item_name,
+                    "category": row.category,
+                    "movement_type": row.movement_type,
+                    "qty": row.qty or 0,
+                    "user": row.user,
+                    "source": row.source,
+                }
+                for row in stock_movements
+            ],
+        },
+    }
+
+
+@tool("activity.search")
+def activity_search(db, item: str = ""):
+    keyword = _keyword(item)
+    query = db.query(ActivityLog)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(
+            or_(
+                func.lower(ActivityLog.user).like(pattern),
+                func.lower(ActivityLog.product).like(pattern),
+                func.lower(ActivityLog.action).like(pattern),
+                func.lower(ActivityLog.serial).like(pattern),
+                func.lower(ActivityLog.detail).like(pattern),
+            )
+        )
+
+    rows = query.order_by(ActivityLog.id.desc()).limit(MAX_ROWS + 1).all()
+
+    return {
+        "status": "rows",
+        "domain": "activity",
+        "keyword": keyword,
+        "truncated": len(rows) > MAX_ROWS,
+        "rows": [
+            {
+                "created_at": _fmt_dt(row.created_at),
+                "user": row.user,
+                "product": row.product,
+                "action": row.action,
+                "serial": row.serial,
+                "detail": row.detail,
+            }
+            for row in rows[:MAX_ROWS]
+        ],
+    }
+
+
+@tool("admin.user_summary")
+def admin_user_summary(db, item: str = ""):
+    keyword = _keyword(item)
+    query = db.query(User)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(
+            or_(
+                func.lower(User.username).like(pattern),
+                func.lower(User.role).like(pattern),
+            )
+        )
+
+    rows = query.order_by(User.username).limit(MAX_ROWS + 1).all()
+    role_counts = Counter(row.role for row in db.query(User).all())
+
+    return {
+        "status": "users",
+        "keyword": keyword,
+        "role_counts": dict(role_counts),
+        "must_change_password_count": db.query(User).filter(User.must_change_password.is_(True)).count(),
+        "truncated": len(rows) > MAX_ROWS,
+        "rows": [_safe_user(row) for row in rows[:MAX_ROWS]],
+    }
+
+
+@tool("page.move")
+def page_move(db, page: str):
+    pages = {
+        "dashboard": ("/dashboard/overview", "전체 Dashboard로 이동합니다."),
+        "stock": ("/stock", "가공상 재고 현황으로 이동합니다."),
+        "stock_history": ("/stock/history", "재고 입출고 현황으로 이동합니다."),
+        "stock_dashboard": ("/stock/dashboard", "재고 Dashboard로 이동합니다."),
+        "mrp": ("/mrp", "MRP Dashboard로 이동합니다."),
+        "mrp_result": ("/mrp/result", "MRP Result로 이동합니다."),
+        "bom": ("/mrp/bom", "BOM 화면으로 이동합니다."),
+        "production_plan": ("/mrp/production-plan", "생산 계획 화면으로 이동합니다."),
+        "inventory": ("/mrp/inventory", "MRP 재고 현황으로 이동합니다."),
+        "material_master": ("/mrp/material-master", "자재 기준정보로 이동합니다."),
+        "item_master": ("/stock/item-master/manage", "품목 관리로 이동합니다."),
+        "users": ("/admin/users", "계정 관리로 이동합니다."),
+        "activity": ("/admin/activity", "활동 로그로 이동합니다."),
+        "search": ("/search", "전체 조회로 이동합니다."),
+    }
+
+    url, message = pages.get(page, pages["dashboard"])
+
+    return {
+        "status": "move",
+        "type": "move",
+        "url": url,
+        "message": message,
+    }
+
+
+@tool("page.find")
+def page_find(db, page: str = "", target: str = ""):
+    target = _keyword(target)
+    encoded = _encoded(target)
+
+    if page == "mrp_result":
+        return {
+            "status": "move",
+            "type": "move",
+            "url": f"/mrp/result?highlight={encoded}",
+            "message": f"MRP Result 전체 목록에서 '{target}' 행을 표시합니다.",
+        }
+
+    if page == "stock":
+        stock = (
+            db.query(Stock)
+            .filter(_contains_filter(Stock, ["item_code", "item_name", "category"], target))
+            .first()
+        )
+        category = stock.category if stock else ""
+        url = f"/stock?highlight={encoded}"
+        if category:
+            url = f"/stock?category={_encoded(category)}&highlight={encoded}"
+
+        return {
+            "status": "move",
+            "type": "move",
+            "url": url,
+            "message": f"가계상 재고에서 '{target}' 위치로 이동합니다.",
+        }
+
+    if page == "stock_history":
+        return {
+            "status": "move",
+            "type": "move",
+            "url": f"/stock/history?highlight={encoded}",
+            "message": f"재고 입출고 이력 전체 목록에서 '{target}' 행을 표시합니다.",
+        }
+
+    if page == "bom":
+        return {
+            "status": "move",
+            "type": "move",
+            "url": f"/mrp/bom?highlight={encoded}",
+            "message": f"BOM 화면에서 '{target}' 위치로 이동합니다.",
+        }
+
+    if page == "material_master":
+        return {
+            "status": "move",
+            "type": "move",
+            "url": f"/mrp/material-master?highlight={encoded}",
+            "message": f"자재 기준정보에서 '{target}' 위치로 이동합니다.",
+        }
+
+    if page == "item_master":
+        return {
+            "status": "move",
+            "type": "move",
+            "url": f"/stock/item-master/manage?highlight={encoded}",
+            "message": f"품목 기준정보에서 '{target}' 위치로 이동합니다.",
+        }
+
+    match = _find_page_match(db, target)
+
+    if match:
+        return {
+            "status": "move",
+            "type": "move",
+            "url": match["url"],
+            "message": f"{match['label']}에서 '{target}' 위치로 이동합니다.",
+        }
+
+    return {
+        "status": "move",
+        "type": "move",
+        "url": f"/search?highlight={encoded}",
+        "message": f"'{target}'를 전체 조회 화면에서 확인해 주세요.",
+    }
+
+
+@tool("global.search")
+def global_search(db, item: str = ""):
+    keyword = _keyword(item)
+
+    if not keyword:
+        return system_summary(db)
+
+    return {
+        "status": "global_search",
+        "keyword": keyword,
+        "book_stock": stock_book(db, keyword)["rows"][:5],
+        "inventory": inventory_search(db, keyword)["rows"][:5],
+        "bom": bom_detail(db, keyword)["rows"][:5],
+        "production_plan": production_plan(db, keyword)["rows"][:5],
+        "material_master": material_master(db, keyword)["rows"][:5],
+        "item_master": item_master(db, keyword)["rows"][:5],
+    }
+
+@tool("mrp.shortage_max")
+def mrp_shortage_max(db):
+
+    _, results, _, _ = calculate_mrp(db)
+
+    if not results:
+        return {
+            "status": "none",
+            "message": "MRP 결과가 없습니다."
+        }
+
+    row = max(
+        results,
+        key=lambda r: r.get("shortage_qty", 0)
+    )
+
+    return {
+        "type": "move",
+        "status": "success",
+        "url": f"/mrp/result?q={row['item_code']}",
+        "message": (
+            f"부족 수량이 가장 많은 품목은 "
+            f"{row['item_code']} ({row['item_name']}) 입니다."
+        )
+    }

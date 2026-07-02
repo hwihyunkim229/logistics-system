@@ -1,0 +1,196 @@
+<style>
+#assistant-btn{
+    position:fixed;
+    right:25px;
+    bottom:25px;
+    width:64px;
+    height:64px;
+    border:0;
+    border-radius:50%;
+    background:#2563eb;
+    color:white;
+    font-size:24px;
+    cursor:pointer;
+    box-shadow:0 8px 20px rgba(0,0,0,.2);
+    z-index:9999;
+}
+#assistant-window{
+    position:fixed;
+    right:25px;
+    bottom:100px;
+    width:380px;
+    height:560px;
+    background:#fff;
+    border-radius:12px;
+    overflow:hidden;
+    display:none;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+    z-index:9999;
+}
+#assistant-header{
+    background:#2563eb;
+    color:white;
+    padding:15px;
+    font-size:18px;
+    font-weight:bold;
+}
+#assistant-body{
+    height:430px;
+    overflow-y:auto;
+    padding:15px;
+    background:#f8fafc;
+}
+.assistant-message{
+    margin-bottom:15px;
+}
+.assistant-user{
+    text-align:right;
+}
+.assistant-bubble{
+    display:inline-block;
+    padding:10px 14px;
+    border-radius:12px;
+    max-width:78%;
+    white-space:pre-wrap;
+    word-break:break-word;
+    font-size:14px;
+    line-height:1.45;
+}
+.assistant-user .assistant-bubble{
+    background:#2563eb;
+    color:white;
+}
+.assistant-bot .assistant-bubble{
+    background:white;
+    border:1px solid #ddd;
+}
+#assistant-footer{
+    display:flex;
+    border-top:1px solid #ddd;
+}
+#assistant-question{
+    flex:1;
+    border:0;
+    padding:15px;
+    outline:none;
+    font-size:15px;
+}
+#assistant-send{
+    width:80px;
+    border:0;
+    background:#2563eb;
+    color:white;
+    cursor:pointer;
+}
+.assistant-move-btn{
+    display:block;
+    margin-top:10px;
+    padding:7px 11px;
+    border:0;
+    background:#10b981;
+    color:white;
+    border-radius:6px;
+    cursor:pointer;
+}
+</style>
+
+<button id="assistant-btn" type="button">AI</button>
+
+<div id="assistant-window">
+    <div id="assistant-header">Logistics Assistant</div>
+    <div id="assistant-body">
+        <div class="assistant-message assistant-bot">
+            <div class="assistant-bubble">안녕하세요.
+무엇을 도와드릴까요?</div>
+        </div>
+    </div>
+    <div id="assistant-footer">
+        <input
+            id="assistant-question"
+            type="text"
+            placeholder="질문을 입력하세요"
+            autocomplete="off"
+        >
+        <button id="assistant-send" type="button">전송</button>
+    </div>
+</div>
+
+<script>
+const assistantBtn = document.getElementById("assistant-btn");
+const assistantWindow = document.getElementById("assistant-window");
+const assistantBody = document.getElementById("assistant-body");
+const assistantQuestion = document.getElementById("assistant-question");
+const assistantSend = document.getElementById("assistant-send");
+
+assistantBtn.onclick = () => {
+    assistantWindow.style.display =
+        assistantWindow.style.display === "block" ? "none" : "block";
+};
+
+function appendMessage(text, sender){
+    const wrapper = document.createElement("div");
+    wrapper.className = `assistant-message assistant-${sender}`;
+
+    const bubble = document.createElement("div");
+    bubble.className = "assistant-bubble";
+    bubble.textContent = text;
+
+    wrapper.appendChild(bubble);
+    assistantBody.appendChild(wrapper);
+    assistantBody.scrollTop = assistantBody.scrollHeight;
+
+    return bubble;
+}
+
+function appendBotMessage(result){
+    const bubble = appendMessage(result.message || "", "bot");
+
+    if(result.type === "move" && result.url){
+        const button = document.createElement("button");
+        button.className = "assistant-move-btn";
+        button.type = "button";
+        button.textContent = "이동하기";
+        button.onclick = () => {
+            window.location.href = result.url;
+        };
+        bubble.appendChild(button);
+    }
+}
+
+async function sendQuestion(){
+    const q = assistantQuestion.value.trim();
+
+    if(q === ""){
+        return;
+    }
+
+    appendMessage(q, "user");
+    assistantQuestion.value = "";
+
+    try{
+        const response = await fetch(
+            `/assistant/chat?question=${encodeURIComponent(q)}`,
+            {
+                method:"POST"
+            }
+        );
+
+        const result = await response.json();
+        appendBotMessage(result);
+
+    }catch(err){
+        appendBotMessage({
+            type:"text",
+            message:"서버와 연결할 수 없습니다."
+        });
+        console.error(err);
+    }
+}
+
+assistantSend.onclick = sendQuestion;
+assistantQuestion.addEventListener("keypress", (event) => {
+    if(event.key === "Enter"){
+        sendQuestion();
+    }
+});
+</script>

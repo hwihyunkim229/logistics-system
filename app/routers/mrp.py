@@ -27,8 +27,15 @@ from openpyxl.utils import get_column_letter
 from app.models.material_master import MaterialMaster
 from app.models.material_note import MaterialNote
 from calendar import monthcalendar
+from app.utils.logger import save_log
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+
+MRP_LOG_PRODUCT = "MRP"
+
+
+def current_user(request: Request):
+    return request.session.get("user") or "system"
 
 BOM_COLUMNS = {
     "product_name": ["Product", "product_name", "제품명"],
@@ -1317,6 +1324,13 @@ async def upload_bom(
 
     db.commit()
 
+    save_log(
+        user=current_user(request),
+        product=MRP_LOG_PRODUCT,
+        action="MRP_BOM_UPLOAD",
+        detail=f"BOM 업로드: {len(rows)}건"
+    )
+
     current_rows = get_bom_rows(db)
 
     grouped_rows = {}
@@ -1351,6 +1365,7 @@ async def upload_bom(
 
 @router.get("/mrp/bom/download")
 def download_bom(
+    request: Request,
     db: Session = Depends(get_db)
 ):
 
@@ -1391,6 +1406,13 @@ def download_bom(
         )
 
     output.seek(0)
+
+    save_log(
+        user=current_user(request),
+        product=MRP_LOG_PRODUCT,
+        action="MRP_BOM_DOWNLOAD",
+        detail=f"BOM 다운로드: {len(rows)}건"
+    )
 
     return StreamingResponse(
 
@@ -2020,6 +2042,13 @@ async def upload_production_plan(
 
         db.commit()
 
+        save_log(
+            user=current_user(request),
+            product=MRP_LOG_PRODUCT,
+            action="MRP_PRODUCTION_PLAN_UPLOAD",
+            detail="생산계획 업로드"
+        )
+
         year = request.query_params.get("year")
         month = request.query_params.get("month")
         week = request.query_params.get("week")
@@ -2060,6 +2089,7 @@ async def upload_production_plan(
     
 @router.get("/mrp/production-plan/download")
 def download_production_plan(
+    request: Request,
     year: int,
     month: int,
     db: Session = Depends(get_db)
@@ -2361,6 +2391,13 @@ def download_production_plan(
 
     output.seek(0)
 
+    save_log(
+        user=current_user(request),
+        product=MRP_LOG_PRODUCT,
+        action="MRP_PRODUCTION_PLAN_DOWNLOAD",
+        detail=f"생산계획 다운로드: {year}-{month:02d}"
+    )
+
     return StreamingResponse(
 
         output,
@@ -2402,6 +2439,7 @@ def inventory_page(
 
 @router.post("/mrp/inventory/add")
 def add_inventory(
+    request: Request,
 
     item_code: str = Form(...),
     item_name: str = Form(...),
@@ -2424,6 +2462,14 @@ def add_inventory(
 
     db.commit()
 
+    save_log(
+        user=current_user(request),
+        product=MRP_LOG_PRODUCT,
+        action="MRP_INVENTORY_ADD",
+        serial=item_code,
+        detail=f"MRP 재고 추가: {item_name} / {warehouse_type} / {qty} EA"
+    )
+
     return RedirectResponse(
         "/mrp/inventory",
         status_code=303
@@ -2431,6 +2477,7 @@ def add_inventory(
 
 @router.post("/mrp/inventory/update/{row_id}")
 def update_inventory(
+    request: Request,
 
     row_id: int,
 
@@ -2446,9 +2493,18 @@ def update_inventory(
 
     if row:
 
+        old_qty = row.qty
         row.qty = qty
 
         db.commit()
+
+        save_log(
+            user=current_user(request),
+            product=MRP_LOG_PRODUCT,
+            action="MRP_INVENTORY_UPDATE",
+            serial=row.item_code,
+            detail=f"MRP 재고 수량 변경: {row.item_name} / {old_qty} -> {qty} EA"
+        )
 
     return RedirectResponse(
         "/mrp/inventory",
@@ -2457,6 +2513,7 @@ def update_inventory(
 
 @router.post("/mrp/inventory/upload")
 async def upload_inventory(
+    request: Request,
 
     file: UploadFile = File(...),
 
@@ -2482,6 +2539,8 @@ async def upload_inventory(
                 f"{col} 컬럼 없음"
             )
 
+    changed_count = 0
+
     for _, row in df.iterrows():
 
         item_code = str(row["품목코드"]).strip()
@@ -2502,6 +2561,7 @@ async def upload_inventory(
 
             existing.item_name = item_name
             existing.qty = qty
+            changed_count += 1
 
         else:
 
@@ -2513,8 +2573,16 @@ async def upload_inventory(
                     qty=qty
                 )
             )
+            changed_count += 1
 
     db.commit()
+
+    save_log(
+        user=current_user(request),
+        product=MRP_LOG_PRODUCT,
+        action="MRP_INVENTORY_UPLOAD",
+        detail=f"MRP 재고 업로드: {changed_count}건"
+    )
 
     return RedirectResponse(
         "/mrp/inventory",
@@ -2523,6 +2591,7 @@ async def upload_inventory(
 
 @router.get("/mrp/inventory/download")
 def download_inventory(
+    request: Request,
 
     db: Session = Depends(get_db)
 ):
@@ -2564,6 +2633,13 @@ def download_inventory(
         )
 
     output.seek(0)
+
+    save_log(
+        user=current_user(request),
+        product=MRP_LOG_PRODUCT,
+        action="MRP_INVENTORY_DOWNLOAD",
+        detail=f"MRP 재고 다운로드: {len(rows)}건"
+    )
 
     return StreamingResponse(
 
@@ -2938,6 +3014,13 @@ def download_mrp_result(
 
     output.seek(0)
 
+    save_log(
+        user=current_user(request),
+        product=MRP_LOG_PRODUCT,
+        action="MRP_RESULT_DOWNLOAD",
+        detail=f"MRP Result 다운로드: {len(rows)}건"
+    )
+
     return StreamingResponse(
         output,
         media_type=
@@ -2972,6 +3055,7 @@ def material_master_page(
 
 @router.post("/mrp/material-master/add")
 def add_material_master(
+    request: Request,
 
     item_code: str = Form(...),
     item_name: str = Form(...),
@@ -3014,6 +3098,14 @@ def add_material_master(
         )
 
     db.commit()
+
+    save_log(
+        user=current_user(request),
+        product=MRP_LOG_PRODUCT,
+        action="MRP_MATERIAL_MASTER_ADD",
+        serial=item_code,
+        detail=f"자재 기준정보 저장: {item_name} / 업체 {supplier or '-'} / LT {lead_time_week}주 / MOQ {moq}"
+    )
 
     return RedirectResponse(
         "/mrp/material-master",
@@ -3080,10 +3172,19 @@ async def update_material_master(
 
     db.commit()
 
+    save_log(
+        user=current_user(request),
+        product=MRP_LOG_PRODUCT,
+        action="MRP_MATERIAL_MASTER_UPDATE",
+        serial=row.item_code,
+        detail=f"자재 기준정보 수정: {row.item_name} / {field}={value}"
+    )
+
     return {"success": True}
 
 @router.get("/mrp/material-master/download")
 def download_material_master(
+    request: Request,
     db: Session = Depends(get_db)
 ):
 
@@ -3123,6 +3224,13 @@ def download_material_master(
         )
 
     output.seek(0)
+
+    save_log(
+        user=current_user(request),
+        product=MRP_LOG_PRODUCT,
+        action="MRP_MATERIAL_MASTER_DOWNLOAD",
+        detail=f"자재 기준정보 다운로드: {len(rows)}건"
+    )
 
     return StreamingResponse(
         output,
@@ -3256,6 +3364,13 @@ async def upload_material_master(
 
         db.commit()
 
+        save_log(
+            user=current_user(request),
+            product=MRP_LOG_PRODUCT,
+            action="MRP_MATERIAL_MASTER_UPLOAD",
+            detail="자재 기준정보 업로드"
+        )
+
         return RedirectResponse(
             "/mrp/material-master",
             status_code=303
@@ -3340,6 +3455,14 @@ async def save_material_note(
         )
 
     db.commit()
+
+    save_log(
+        user=current_user(request),
+        product=MRP_LOG_PRODUCT,
+        action="MRP_MATERIAL_NOTE_SAVE",
+        serial=item_code,
+        detail="자재 노트 저장"
+    )
 
     return {
         "success": True

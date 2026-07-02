@@ -370,6 +370,34 @@ body.sidebar-collapsed .main{
     border-color:
         rgba(96,165,250,.25) !important;
 }
+.assistant-target-highlight{
+    background:linear-gradient(
+        90deg,
+        rgba(37,99,235,.11),
+        rgba(37,99,235,.045)
+    ) !important;
+    box-shadow:
+        inset 3px 0 0 #3b82f6,
+        0 8px 22px rgba(15,23,42,.08);
+    animation:assistantHighlightPulse 1.4s ease-in-out 1;
+}
+@keyframes assistantHighlightPulse{
+    0%{
+        box-shadow:
+            inset 3px 0 0 rgba(59,130,246,.25),
+            0 0 0 rgba(59,130,246,0);
+    }
+    50%{
+        box-shadow:
+            inset 3px 0 0 #3b82f6,
+            0 10px 26px rgba(37,99,235,.14);
+    }
+    100%{
+        box-shadow:
+            inset 3px 0 0 #3b82f6,
+            0 8px 22px rgba(15,23,42,.08);
+    }
+}
 </style>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -610,7 +638,7 @@ body.sidebar-collapsed .main{
 <div class="main">
     {% block content %}{% endblock %}
 </div>
-
+{% include "assistant/assistant.html" %}
 </body>
 </html>
 
@@ -796,4 +824,40 @@ function toggleSidebar(){
         sidebar.classList.contains("collapsed")
     );
 }
+
+function highlightAssistantTarget(){
+
+    const params = new URLSearchParams(window.location.search);
+    const target = (params.get("highlight") || "").trim().toLowerCase();
+
+    if(!target){
+        return;
+    }
+
+    const rows = Array.from(
+        document.querySelectorAll("table tbody tr")
+    );
+
+    const row = rows.find(item =>
+        item.textContent.toLowerCase().includes(target)
+    );
+
+    if(!row){
+        return;
+    }
+
+    row.classList.add("assistant-target-highlight");
+
+    setTimeout(() => {
+        row.scrollIntoView({
+            behavior:"smooth",
+            block:"center"
+        });
+    }, 250);
+}
+
+window.addEventListener(
+    "DOMContentLoaded",
+    highlightAssistantTarget
+);
 </script>
