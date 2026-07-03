@@ -144,11 +144,21 @@ def _contains_filter(model, fields, value):
     ])
 
 
-def _find_page_match(db, target):
+def _find_page_matches(db, target):
+    """Find every module that has a row matching `target`, not just the
+    first one. An item code is not unique across modules (a component
+    can appear in Stock, BOM, MaterialMaster, ItemMaster all at once),
+    so stopping at the first hit silently sends everyone to whichever
+    table happens to be checked first (Stock) even when that is not
+    what they meant.
+    """
+
     target = _keyword(target)
 
     if not target:
-        return None
+        return []
+
+    matches = []
 
     stock = (
         db.query(Stock)
@@ -157,14 +167,14 @@ def _find_page_match(db, target):
     )
 
     if stock:
-        return {
+        matches.append({
             "page": "stock",
             "url": (
                 f"/stock?category={_encoded(stock.category)}"
                 f"&keyword={_encoded(target)}&highlight={_encoded(target)}"
             ),
             "label": "가계상 재고",
-        }
+        })
 
     inventory = (
         db.query(Inventory)
@@ -173,11 +183,11 @@ def _find_page_match(db, target):
     )
 
     if inventory:
-        return {
+        matches.append({
             "page": "inventory",
             "url": f"/mrp/inventory?highlight={_encoded(target)}",
             "label": "MRP 재고",
-        }
+        })
 
     bom = (
         db.query(BOM)
@@ -186,11 +196,11 @@ def _find_page_match(db, target):
     )
 
     if bom:
-        return {
+        matches.append({
             "page": "bom",
             "url": f"/mrp/bom?highlight={_encoded(target)}",
             "label": "BOM",
-        }
+        })
 
     material = (
         db.query(MaterialMaster)
@@ -199,11 +209,11 @@ def _find_page_match(db, target):
     )
 
     if material:
-        return {
+        matches.append({
             "page": "material_master",
             "url": f"/mrp/material-master?highlight={_encoded(target)}",
             "label": "자재 기준정보",
-        }
+        })
 
     item = (
         db.query(ItemMaster)
@@ -212,11 +222,11 @@ def _find_page_match(db, target):
     )
 
     if item:
-        return {
+        matches.append({
             "page": "item_master",
             "url": f"/stock/item-master/manage?highlight={_encoded(target)}",
             "label": "품목 기준정보",
-        }
+        })
 
     inbound = (
         db.query(Inbound)
@@ -225,11 +235,11 @@ def _find_page_match(db, target):
     )
 
     if inbound:
-        return {
+        matches.append({
             "page": "inbound",
             "url": f"/search?highlight={_encoded(target)}",
             "label": "제품 물류 입고",
-        }
+        })
 
     outbound = (
         db.query(Outbound)
@@ -238,13 +248,13 @@ def _find_page_match(db, target):
     )
 
     if outbound:
-        return {
+        matches.append({
             "page": "outbound",
             "url": f"/search?highlight={_encoded(target)}",
             "label": "제품 물류 출고",
-        }
+        })
 
-    return None
+    return matches
 
 
 @tool("general.chat")
@@ -416,7 +426,6 @@ def logistics_flow_count(
     }
 
 
-@tool("stock.summary")
 @tool("stock.summary")
 def stock_summary(
     db,
@@ -945,11 +954,29 @@ def page_find(db, page: str = "", target: str = ""):
         }
 
     if page == "stock":
-        stock = (
-            db.query(Stock)
-            .filter(_contains_filter(Stock, ["item_code", "item_name", "category"], target))
-            .first()
-        )
+        # The /stock route always filters to one category (defaults to
+        # 반제품 if none is given - there is no "all categories" view),
+        # so the right category has to be resolved before navigating or
+        # the target row may not even be in the rendered table.
+        #
+        # A bare number ("수량이 100인 행으로 이동") means a quantity
+        # value, not an item code/name - look it up by qty, not by a
+        # substring match against item_code/item_name/category, which
+        # would land on the category of an unrelated item whose code
+        # happens to contain that number.
+        if target.isdigit():
+            stock = (
+                db.query(Stock)
+                .filter(Stock.qty == int(target))
+                .first()
+            )
+        else:
+            stock = (
+                db.query(Stock)
+                .filter(_contains_filter(Stock, ["item_code", "item_name", "category"], target))
+                .first()
+            )
+
         category = stock.category if stock else ""
         url = f"/stock?highlight={encoded}"
         if category:
@@ -994,9 +1021,10 @@ def page_find(db, page: str = "", target: str = ""):
             "message": f"품목 기준정보에서 '{target}' 위치로 이동합니다.",
         }
 
-    match = _find_page_match(db, target)
+    matches = _find_page_matches(db, target)
 
-    if match:
+    if len(matches) == 1:
+        match = matches[0]
         return {
             "status": "move",
             "type": "move",
@@ -1004,11 +1032,40 @@ def page_find(db, page: str = "", target: str = ""):
             "message": f"{match['label']}에서 '{target}' 위치로 이동합니다.",
         }
 
+    if len(matches) > 1:
+        # Same item code exists in more than one module - ask instead
+        # of silently guessing (guessing always picked Stock, since it
+        # was the first table checked, regardless of what the user
+        # actually meant).
+        return {
+            "status": "need_page_choice",
+            "target": target,
+            "choices": matches,
+            "message": f"'{target}'이(가) 여러 화면에 있습니다. 어디로 이동할까요?",
+        }
+
     return {
         "status": "move",
         "type": "move",
         "url": f"/search?highlight={encoded}",
         "message": f"'{target}'를 전체 조회 화면에서 확인해 주세요.",
+    }
+
+
+@tool("page.choice")
+def page_choice(db, url: str = "", message: str = ""):
+    """Resolves a pending "which page did you mean" follow-up.
+
+    Only ever invoked internally by AssistantAgent's follow-up resolver
+    once the user has picked one of the offered options - never exposed
+    to the AI planner or keyword router, since `url` is trusted/
+    pre-built rather than user- or model-controlled input.
+    """
+    return {
+        "status": "move",
+        "type": "move",
+        "url": url,
+        "message": message or "요청한 위치로 이동합니다.",
     }
 
 
@@ -1049,9 +1106,49 @@ def mrp_shortage_max(db):
     return {
         "type": "move",
         "status": "success",
-        "url": f"/mrp/result?q={row['item_code']}",
+        # highlight (not q) so the full table renders and base.html's
+        # global highlightAssistantTarget() finds and scrolls to the
+        # row - q instead filters the table down to just this row,
+        # which leaves nothing for the highlight effect to apply to.
+        "url": f"/mrp/result?highlight={_encoded(row['item_code'])}",
         "message": (
             f"부족 수량이 가장 많은 품목은 "
             f"{row['item_code']} ({row['item_name']}) 입니다."
         )
+    }
+
+
+@tool("mrp.shortage_min")
+def mrp_shortage_min(db):
+
+    _, results, _, _ = calculate_mrp(db)
+
+    if not results:
+        return {
+            "status": "none",
+            "message": "MRP 결과가 없습니다."
+        }
+
+    row = min(
+        results,
+        key=lambda r: r.get("shortage_qty", 0)
+    )
+
+    if row.get("shortage_qty", 0) <= 0:
+        message = (
+            f"부족 수량이 없는 품목의 예시는 "
+            f"{row['item_code']} ({row['item_name']}) 입니다."
+        )
+    else:
+        message = (
+            f"부족 수량이 가장 적은 품목은 "
+            f"{row['item_code']} ({row['item_name']})이며, "
+            f"부족 수량은 {row['shortage_qty']}입니다."
+        )
+
+    return {
+        "type": "move",
+        "status": "success",
+        "url": f"/mrp/result?highlight={_encoded(row['item_code'])}",
+        "message": message,
     }

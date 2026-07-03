@@ -1,109 +1,317 @@
 <style>
 #assistant-btn{
     position:fixed;
-    right:25px;
-    bottom:25px;
-    width:64px;
-    height:64px;
+    right:26px;
+    bottom:26px;
+    width:60px;
+    height:60px;
     border:0;
     border-radius:50%;
-    background:#2563eb;
+    background:linear-gradient(135deg,#2563eb,#1d4ed8);
     color:white;
-    font-size:24px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
     cursor:pointer;
-    box-shadow:0 8px 20px rgba(0,0,0,.2);
+    box-shadow:0 10px 24px rgba(37,99,235,.35);
     z-index:9999;
+    transition:transform .15s ease, box-shadow .15s ease;
 }
+#assistant-btn:hover{
+    transform:translateY(-2px) scale(1.04);
+    box-shadow:0 14px 30px rgba(37,99,235,.42);
+}
+#assistant-btn:active{
+    transform:translateY(0) scale(.97);
+}
+#assistant-btn svg{
+    width:26px;
+    height:26px;
+}
+#assistant-btn .assistant-btn-badge{
+    position:absolute;
+    top:4px;
+    right:4px;
+    width:10px;
+    height:10px;
+    border-radius:50%;
+    background:#22c55e;
+    border:2px solid #fff;
+}
+
 #assistant-window{
     position:fixed;
-    right:25px;
-    bottom:100px;
+    right:26px;
+    bottom:98px;
     width:380px;
-    height:560px;
+    height:580px;
     background:#fff;
-    border-radius:12px;
+    border-radius:18px;
     overflow:hidden;
-    display:none;
-    box-shadow:0 10px 30px rgba(0,0,0,.25);
+    display:flex;
+    flex-direction:column;
+    box-shadow:0 20px 50px rgba(15,23,42,.22), 0 2px 8px rgba(15,23,42,.08);
     z-index:9999;
+    font-family:'Segoe UI', sans-serif;
+    opacity:0;
+    transform:translateY(16px) scale(.98);
+    pointer-events:none;
+    transition:opacity .18s ease, transform .18s ease;
 }
+#assistant-window.open{
+    opacity:1;
+    transform:translateY(0) scale(1);
+    pointer-events:auto;
+}
+
 #assistant-header{
-    background:#2563eb;
+    background:linear-gradient(135deg,#2563eb,#1e40af);
     color:white;
-    padding:15px;
-    font-size:18px;
-    font-weight:bold;
+    padding:16px 18px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-shrink:0;
 }
+#assistant-header .assistant-avatar{
+    width:36px;
+    height:36px;
+    border-radius:50%;
+    background:rgba(255,255,255,.18);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+}
+#assistant-header .assistant-avatar svg{
+    width:20px;
+    height:20px;
+}
+#assistant-header .assistant-title-block{
+    flex:1;
+    min-width:0;
+}
+#assistant-header .assistant-title{
+    font-size:15.5px;
+    font-weight:700;
+    line-height:1.2;
+}
+#assistant-header .assistant-subtitle{
+    font-size:12px;
+    opacity:.82;
+    display:flex;
+    align-items:center;
+    gap:5px;
+    margin-top:2px;
+}
+#assistant-header .assistant-subtitle .dot{
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:#4ade80;
+    box-shadow:0 0 0 3px rgba(74,222,128,.25);
+    flex-shrink:0;
+}
+#assistant-close{
+    border:0;
+    background:rgba(255,255,255,.14);
+    color:white;
+    width:28px;
+    height:28px;
+    border-radius:50%;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    transition:background .15s ease;
+}
+#assistant-close:hover{
+    background:rgba(255,255,255,.26);
+}
+
 #assistant-body{
-    height:430px;
+    flex:1;
     overflow-y:auto;
-    padding:15px;
-    background:#f8fafc;
+    padding:16px;
+    background:#f4f6fb;
+    scrollbar-width:thin;
 }
+#assistant-body::-webkit-scrollbar{
+    width:6px;
+}
+#assistant-body::-webkit-scrollbar-thumb{
+    background:rgba(37,99,235,.2);
+    border-radius:6px;
+}
+
 .assistant-message{
-    margin-bottom:15px;
+    margin-bottom:12px;
+    display:flex;
 }
 .assistant-user{
-    text-align:right;
+    justify-content:flex-end;
+}
+.assistant-bot{
+    justify-content:flex-start;
 }
 .assistant-bubble{
     display:inline-block;
     padding:10px 14px;
-    border-radius:12px;
-    max-width:78%;
+    border-radius:16px;
+    max-width:80%;
     white-space:pre-wrap;
     word-break:break-word;
-    font-size:14px;
-    line-height:1.45;
+    font-size:13.5px;
+    line-height:1.55;
 }
 .assistant-user .assistant-bubble{
-    background:#2563eb;
+    background:linear-gradient(135deg,#2563eb,#1d4ed8);
     color:white;
+    border-bottom-right-radius:4px;
 }
 .assistant-bot .assistant-bubble{
     background:white;
-    border:1px solid #ddd;
+    color:#1e293b;
+    border:1px solid #e6e9f2;
+    border-bottom-left-radius:4px;
+    box-shadow:0 1px 2px rgba(15,23,42,.04);
 }
-#assistant-footer{
-    display:flex;
-    border-top:1px solid #ddd;
-}
-#assistant-question{
-    flex:1;
-    border:0;
-    padding:15px;
-    outline:none;
-    font-size:15px;
-}
-#assistant-send{
-    width:80px;
-    border:0;
-    background:#2563eb;
-    color:white;
-    cursor:pointer;
-}
+
 .assistant-move-btn{
-    display:block;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
     margin-top:10px;
-    padding:7px 11px;
+    padding:8px 13px;
     border:0;
     background:#10b981;
     color:white;
-    border-radius:6px;
+    border-radius:20px;
+    font-size:12.5px;
+    font-weight:600;
     cursor:pointer;
+    transition:background .15s ease, transform .1s ease;
+}
+.assistant-move-btn:hover{
+    background:#0ea371;
+}
+.assistant-move-btn:active{
+    transform:scale(.97);
+}
+
+.assistant-typing{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:12px 14px;
+    border-radius:16px;
+    border-bottom-left-radius:4px;
+    background:white;
+    border:1px solid #e6e9f2;
+}
+.assistant-typing span{
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:#94a3b8;
+    animation:assistantTypingBounce 1.1s infinite ease-in-out;
+}
+.assistant-typing span:nth-child(2){ animation-delay:.15s; }
+.assistant-typing span:nth-child(3){ animation-delay:.3s; }
+@keyframes assistantTypingBounce{
+    0%, 60%, 100%{ transform:translateY(0); opacity:.5; }
+    30%{ transform:translateY(-4px); opacity:1; }
+}
+
+#assistant-footer{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    border-top:1px solid #edf0f7;
+    padding:10px 12px;
+    background:white;
+    flex-shrink:0;
+}
+#assistant-question{
+    flex:1;
+    border:1px solid #e2e6f0;
+    background:#f4f6fb;
+    border-radius:20px;
+    padding:10px 16px;
+    outline:none;
+    font-size:13.5px;
+    font-family:inherit;
+    transition:border-color .15s ease, background .15s ease;
+}
+#assistant-question:focus{
+    border-color:#93b4fb;
+    background:white;
+}
+#assistant-question:disabled{
+    opacity:.6;
+}
+#assistant-send{
+    width:38px;
+    height:38px;
+    flex-shrink:0;
+    border:0;
+    border-radius:50%;
+    background:#2563eb;
+    color:white;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:background .15s ease, transform .1s ease;
+}
+#assistant-send:hover:not(:disabled){
+    background:#1d4ed8;
+}
+#assistant-send:active:not(:disabled){
+    transform:scale(.94);
+}
+#assistant-send:disabled{
+    opacity:.5;
+    cursor:default;
+}
+#assistant-send svg{
+    width:16px;
+    height:16px;
 }
 </style>
 
-<button id="assistant-btn" type="button">AI</button>
+<button id="assistant-btn" type="button" aria-label="AI Assistant">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 3C7.03 3 3 6.58 3 11c0 2.39 1.19 4.53 3.08 6.02-.1.98-.5 2.2-1.5 3.48a.5.5 0 0 0 .5.8c2.1-.4 3.7-1.2 4.77-1.9A10.9 10.9 0 0 0 12 19c4.97 0 9-3.58 9-8s-4.03-8-9-8Z" fill="white"/>
+        <circle cx="8.5" cy="11" r="1.15" fill="#2563eb"/>
+        <circle cx="12" cy="11" r="1.15" fill="#2563eb"/>
+        <circle cx="15.5" cy="11" r="1.15" fill="#2563eb"/>
+    </svg>
+    <span class="assistant-btn-badge"></span>
+</button>
 
 <div id="assistant-window">
-    <div id="assistant-header">Logistics Assistant</div>
-    <div id="assistant-body">
-        <div class="assistant-message assistant-bot">
-            <div class="assistant-bubble">안녕하세요.
-무엇을 도와드릴까요?</div>
+    <div id="assistant-header">
+        <div class="assistant-avatar">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 3C7.03 3 3 6.58 3 11c0 2.39 1.19 4.53 3.08 6.02-.1.98-.5 2.2-1.5 3.48a.5.5 0 0 0 .5.8c2.1-.4 3.7-1.2 4.77-1.9A10.9 10.9 0 0 0 12 19c4.97 0 9-3.58 9-8s-4.03-8-9-8Z" fill="white"/>
+                <circle cx="8.5" cy="11" r="1.15" fill="#2563eb"/>
+                <circle cx="12" cy="11" r="1.15" fill="#2563eb"/>
+                <circle cx="15.5" cy="11" r="1.15" fill="#2563eb"/>
+            </svg>
         </div>
+        <div class="assistant-title-block">
+            <div class="assistant-title">Logistics Assistant</div>
+            <div class="assistant-subtitle"><span class="dot"></span>온라인</div>
+        </div>
+        <button id="assistant-close" type="button" aria-label="닫기">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 6l12 12M18 6L6 18" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+        </button>
     </div>
+    <div id="assistant-body"></div>
     <div id="assistant-footer">
         <input
             id="assistant-question"
@@ -111,86 +319,190 @@
             placeholder="질문을 입력하세요"
             autocomplete="off"
         >
-        <button id="assistant-send" type="button">전송</button>
+        <button id="assistant-send" type="button" aria-label="전송">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 11l18-8-8 18-2.5-7.5L3 11Z" stroke="white" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+            </svg>
+        </button>
     </div>
 </div>
 
 <script>
-const assistantBtn = document.getElementById("assistant-btn");
-const assistantWindow = document.getElementById("assistant-window");
-const assistantBody = document.getElementById("assistant-body");
-const assistantQuestion = document.getElementById("assistant-question");
-const assistantSend = document.getElementById("assistant-send");
+(() => {
+    const STORAGE_KEY = "assistant_chat_state::{{ request.session.get('user', '') }}";
+    const GREETING = "안녕하세요.\n무엇을 도와드릴까요?";
 
-assistantBtn.onclick = () => {
-    assistantWindow.style.display =
-        assistantWindow.style.display === "block" ? "none" : "block";
-};
+    const assistantBtn = document.getElementById("assistant-btn");
+    const assistantWindow = document.getElementById("assistant-window");
+    const assistantClose = document.getElementById("assistant-close");
+    const assistantBody = document.getElementById("assistant-body");
+    const assistantQuestion = document.getElementById("assistant-question");
+    const assistantSend = document.getElementById("assistant-send");
 
-function appendMessage(text, sender){
-    const wrapper = document.createElement("div");
-    wrapper.className = `assistant-message assistant-${sender}`;
-
-    const bubble = document.createElement("div");
-    bubble.className = "assistant-bubble";
-    bubble.textContent = text;
-
-    wrapper.appendChild(bubble);
-    assistantBody.appendChild(wrapper);
-    assistantBody.scrollTop = assistantBody.scrollHeight;
-
-    return bubble;
-}
-
-function appendBotMessage(result){
-    const bubble = appendMessage(result.message || "", "bot");
-
-    if(result.type === "move" && result.url){
-        const button = document.createElement("button");
-        button.className = "assistant-move-btn";
-        button.type = "button";
-        button.textContent = "이동하기";
-        button.onclick = () => {
-            window.location.href = result.url;
-        };
-        bubble.appendChild(button);
-    }
-}
-
-async function sendQuestion(){
-    const q = assistantQuestion.value.trim();
-
-    if(q === ""){
-        return;
-    }
-
-    appendMessage(q, "user");
-    assistantQuestion.value = "";
-
-    try{
-        const response = await fetch(
-            `/assistant/chat?question=${encodeURIComponent(q)}`,
-            {
-                method:"POST"
+    // Conversation and open/closed state survive page navigation
+    // (this widget is re-created fresh on every server-rendered page)
+    // and only clear on explicit logout or when the browser's storage
+    // is cleared - not just from toggling the widget or navigating to
+    // another page.
+    function loadState(){
+        try{
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if(raw){
+                return JSON.parse(raw);
             }
-        );
+        }catch(err){
+            console.error(err);
+        }
+        return { open:false, messages:[{ text:GREETING, sender:"bot" }] };
+    }
 
-        const result = await response.json();
-        appendBotMessage(result);
+    function saveState(){
+        try{
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }catch(err){
+            console.error(err);
+        }
+    }
 
-    }catch(err){
-        appendBotMessage({
-            type:"text",
-            message:"서버와 연결할 수 없습니다."
+    const state = loadState();
+
+    function setOpen(open){
+        state.open = open;
+        assistantWindow.classList.toggle("open", open);
+        saveState();
+
+        if(open){
+            assistantBody.scrollTop = assistantBody.scrollHeight;
+            assistantQuestion.focus();
+        }
+    }
+
+    assistantBtn.onclick = () => setOpen(!state.open);
+    assistantClose.onclick = () => setOpen(false);
+
+    const logoutLink = document.querySelector('a[href="/logout"]');
+    if(logoutLink){
+        logoutLink.addEventListener("click", () => {
+            try{
+                localStorage.removeItem(STORAGE_KEY);
+            }catch(err){
+                console.error(err);
+            }
         });
-        console.error(err);
     }
-}
 
-assistantSend.onclick = sendQuestion;
-assistantQuestion.addEventListener("keypress", (event) => {
-    if(event.key === "Enter"){
-        sendQuestion();
+    function renderBubble(message){
+        const wrapper = document.createElement("div");
+        wrapper.className = `assistant-message assistant-${message.sender}`;
+
+        const bubble = document.createElement("div");
+        bubble.className = "assistant-bubble";
+        bubble.textContent = message.text;
+
+        if(message.moveUrl){
+            const button = document.createElement("button");
+            button.className = "assistant-move-btn";
+            button.type = "button";
+            button.textContent = "이동하기 →";
+            button.onclick = () => {
+                window.location.href = message.moveUrl;
+            };
+            bubble.appendChild(document.createElement("br"));
+            bubble.appendChild(button);
+        }
+
+        wrapper.appendChild(bubble);
+        assistantBody.appendChild(wrapper);
+        return bubble;
     }
-});
+
+    function renderAll(){
+        assistantBody.innerHTML = "";
+        state.messages.forEach(renderBubble);
+        assistantBody.scrollTop = assistantBody.scrollHeight;
+    }
+
+    function appendMessage(text, sender, moveUrl){
+        const message = { text, sender, moveUrl: moveUrl || null };
+        state.messages.push(message);
+        saveState();
+
+        renderBubble(message);
+        assistantBody.scrollTop = assistantBody.scrollHeight;
+    }
+
+    function showTyping(){
+        const wrapper = document.createElement("div");
+        wrapper.className = "assistant-message assistant-bot";
+        wrapper.id = "assistant-typing-indicator";
+
+        const typing = document.createElement("div");
+        typing.className = "assistant-typing";
+        typing.innerHTML = "<span></span><span></span><span></span>";
+
+        wrapper.appendChild(typing);
+        assistantBody.appendChild(wrapper);
+        assistantBody.scrollTop = assistantBody.scrollHeight;
+    }
+
+    function hideTyping(){
+        const el = document.getElementById("assistant-typing-indicator");
+        if(el){
+            el.remove();
+        }
+    }
+
+    function setBusy(busy){
+        assistantQuestion.disabled = busy;
+        assistantSend.disabled = busy;
+    }
+
+    async function sendQuestion(){
+        const q = assistantQuestion.value.trim();
+
+        if(q === ""){
+            return;
+        }
+
+        appendMessage(q, "user");
+        assistantQuestion.value = "";
+        setBusy(true);
+        showTyping();
+
+        try{
+            const response = await fetch(
+                `/assistant/chat?question=${encodeURIComponent(q)}`,
+                {
+                    method:"POST"
+                }
+            );
+
+            const result = await response.json();
+            hideTyping();
+            appendMessage(
+                result.message || "",
+                "bot",
+                result.type === "move" ? result.url : null
+            );
+
+        }catch(err){
+            hideTyping();
+            appendMessage("서버와 연결할 수 없습니다.", "bot");
+            console.error(err);
+        }finally{
+            setBusy(false);
+            assistantQuestion.focus();
+        }
+    }
+
+    assistantSend.onclick = sendQuestion;
+    assistantQuestion.addEventListener("keypress", (event) => {
+        if(event.key === "Enter"){
+            sendQuestion();
+        }
+    });
+
+    renderAll();
+    assistantWindow.classList.toggle("open", state.open);
+})();
 </script>

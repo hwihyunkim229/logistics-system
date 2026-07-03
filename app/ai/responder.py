@@ -1,7 +1,7 @@
 import json
 
 from app.ai.client import ask_ai
-from app.ai.prompts import ANSWER_PROMPT
+from app.ai.prompts import ANSWER_PROMPT, GENERAL_KNOWLEDGE_PROMPT
 
 
 PERIOD_LABELS = {
@@ -21,7 +21,14 @@ def make_answer(question, result):
 
     if result.get("status") == "blocked":
         return fallback
-    
+
+    if result.get("status") == "general":
+        ai_answer = ask_ai(
+            user_message=question,
+            system_prompt=GENERAL_KNOWLEDGE_PROMPT,
+        )
+        return ai_answer or fallback
+
     AI_REQUIRED = {
         "rows",
         "global_search",
@@ -83,6 +90,23 @@ def _fallback_answer(result):
             "• 가계상 재고\n"
             "• MRP 재고"
         )
+
+    if status == "need_page_choice":
+        target = result.get("target", "")
+        choices = result.get("choices", [])
+
+        lines = [
+            f"'{target}'이(가) 여러 화면에 있습니다. 어디로 이동할까요?",
+            "",
+        ]
+        lines.extend(
+            f"{i}. {choice.get('label', '')}"
+            for i, choice in enumerate(choices, 1)
+        )
+        lines.append("")
+        lines.append("번호나 이름으로 답해 주세요.")
+
+        return "\n".join(lines)
 
     if status == "summary":
         counts = result.get("counts", {})
