@@ -186,7 +186,7 @@ def _find_page_matches(db, target):
         matches.append({
             "page": "inventory",
             "url": f"/inventory?highlight={_encoded(target)}",
-            "label": "계상 재고",
+            "label": "수불 재고",
         })
 
     bom = (
@@ -291,20 +291,25 @@ def knowledge_answer(db, question: str = "", topic: str = ""):
                 "가계상 재고는 이 시스템의 Stock 테이블 기준 장부상 재고입니다. "
                 "품목코드, 품목명, 등급(A/B/F), Rev, 구분(반제품/제품/원자재), 수량으로 관리됩니다."
             ),
-            "계상 재고": (
-                "계상 재고는 창고구분(창고재고/제공재고/외주재고)별로 관리되는 재고입니다. "
+            "수불 재고": (
+                "수불 재고(구 계상 재고)는 창고구분(창고재고/제공재고/외주재고)별로 관리되는 재고입니다. "
                 "창고재고만 구분(반제품/제품/원자재)과 등급(A/B/F)으로 다시 나뉘고, "
                 "품목코드+창고구분+LOT+등급 조합으로 관리됩니다. "
                 "LOT은 제품/반제품에만 있는 개념이며(원자재는 LOT이 없습니다), "
                 "F25처럼 있는 그대로의 문자열로 취급됩니다. "
-                "MRP 계산은 이 계상 재고를 사용합니다."
+                "MRP 계산은 이 수불 재고를 사용합니다."
+            ),
+            "계상 재고": (
+                "계상 재고는 수불 재고의 이전 명칭입니다. 창고구분(창고재고/제공재고/외주재고)별로 "
+                "관리되는 재고이며, 창고재고만 구분(반제품/제품/원자재)과 등급(A/B/F)으로 다시 나뉘고, "
+                "품목코드+창고구분+LOT+등급 조합으로 관리됩니다. MRP 계산은 이 재고를 사용합니다."
             ),
             "제품 물류": (
                 "제품 물류는 시리얼 단위 입고/출고 흐름입니다. "
                 "Inbound, Outbound, Movement 테이블을 기준으로 제품, 시리얼, 사이즈, 고객, 일시를 추적합니다."
             ),
             "MRP": (
-                "MRP는 생산계획과 BOM, 계상 재고, 자재 기준정보를 조합해 필요 수량, 부족 수량, "
+                "MRP는 생산계획과 BOM, 수불 재고, 자재 기준정보를 조합해 필요 수량, 부족 수량, "
                 "발주 필요일, 권장 발주 수량을 계산하는 영역입니다."
             ),
             "BOM": (
@@ -312,7 +317,7 @@ def knowledge_answer(db, question: str = "", topic: str = ""):
                 "제품명, 구성품 코드, 구성품명, 소요 수량으로 관리됩니다."
             ),
             "LOT": (
-                "LOT은 계상 재고의 로트 표기이며 제품/반제품에만 있는 개념입니다(원자재는 LOT이 없습니다). "
+                "LOT은 수불 재고의 로트 표기이며 제품/반제품에만 있는 개념입니다(원자재는 LOT이 없습니다). "
                 "F25, G23처럼 있는 그대로의 문자열로 취급되며 별도로 해석하거나 변환하지 않습니다."
             ),
         }
@@ -553,7 +558,7 @@ def system_summary(db, question: str = ""):
         "status": "summary",
         "available_stock_types":[
             "가계상 재고",
-            "계상 재고"
+            "수불 재고"
         ],
         "counts": {
             "items": db.query(Item).count(),
@@ -619,7 +624,7 @@ def stock_select(db):
 
         "choices":[
             "가계상 재고",
-            "계상 재고"
+            "수불 재고"
         ]
 
     }
@@ -963,16 +968,16 @@ def admin_user_summary(db, item: str = ""):
 def page_move(db, page: str):
     pages = {
         "dashboard": ("/dashboard/overview", "전체 Dashboard로 이동합니다."),
-        "stock": ("/stock", "가공상 재고 현황으로 이동합니다."),
+        "stock": ("/stock", "가계상 재고 현황으로 이동합니다."),
         "stock_history": ("/stock/history", "재고 입출고 현황으로 이동합니다."),
         "stock_dashboard": ("/stock/dashboard", "재고 Dashboard로 이동합니다."),
         "mrp": ("/mrp", "MRP Dashboard로 이동합니다."),
         "mrp_result": ("/mrp/result", "MRP Result로 이동합니다."),
         "bom": ("/mrp/bom", "BOM 화면으로 이동합니다."),
         "production_plan": ("/mrp/production-plan", "생산 계획 화면으로 이동합니다."),
-        "inventory": ("/inventory", "계상 재고 현황으로 이동합니다."),
-        "inventory_history": ("/inventory/history", "계상 재고 입출고 현황으로 이동합니다."),
-        "inventory_dashboard": ("/inventory/dashboard", "계상 재고 Dashboard로 이동합니다."),
+        "inventory": ("/inventory", "수불 재고 현황으로 이동합니다."),
+        "inventory_history": ("/inventory/history", "수불 재고 입출고 현황으로 이동합니다."),
+        "inventory_dashboard": ("/inventory/dashboard", "수불 재고 Dashboard로 이동합니다."),
         "material_master": ("/mrp/material-master", "자재 기준정보로 이동합니다."),
         "item_master": ("/stock/item-master/manage", "품목 관리로 이동합니다."),
         "users": ("/admin/users", "계정 관리로 이동합니다."),

@@ -13,7 +13,7 @@ Main modules
 - Product Inbound
 - Product Outbound
 - Book Stock (가계상 재고)
-- Inventory (계상 재고)
+- Inventory (수불 재고, 구 계상 재고)
 - Stock Movement
 - MRP
 - BOM
@@ -47,11 +47,12 @@ TOP 재고
 가장 적은 재고
 
 ====================================================
-INVENTORY (계상 재고)
+INVENTORY (수불 재고)
 ====================================================
 
-계상 재고 is the physical/system inventory, different from
-Book Stock (가계상 재고). It was previously called "MRP 재고".
+수불 재고 is the physical/system inventory, different from
+Book Stock (가계상 재고). It was previously called "계상 재고" and,
+before that, "MRP 재고" - users may still say either old name.
 
 Warehouse Types (창고구분)
 
@@ -77,6 +78,7 @@ Each row also has
 
 Typical questions
 
+수불 재고
 계상 재고
 창고재고
 제공재고
@@ -222,8 +224,8 @@ Always use one tool.
 
 Always prefer stock.summary over global.search when asking inventory.
 
-Always prefer inventory.search when asking 계상 재고, 창고재고,
-제공재고, 외주재고, LOT or grade-based stock questions.
+Always prefer inventory.search when asking 수불 재고, 계상 재고,
+창고재고, 제공재고, 외주재고, LOT or grade-based stock questions.
 
 Always prefer material.master when asking supplier, MOQ or Lead Time.
 

@@ -21,7 +21,7 @@ router = APIRouter()
 
 templates = Jinja2Templates(directory="app/templates")
 
-INVENTORY_LOG_PRODUCT = "계상 재고"
+INVENTORY_LOG_PRODUCT = "수불 재고"
 
 WAREHOUSE_TYPES = ["창고재고", "제공재고", "외주재고"]
 CATEGORIES = ["반제품", "제품", "원자재"]
@@ -355,7 +355,7 @@ async def add_inventory(
             product=INVENTORY_LOG_PRODUCT,
             action="INVENTORY_ADD",
             serial=item_code,
-            detail=f"계상 재고 신규 등록 (A/B/F 자동 생성): {item_name} / {warehouse_type} / LOT {lot or '-'}"
+            detail=f"수불 재고 신규 등록 (A/B/F 자동 생성): {item_name} / {warehouse_type} / LOT {lot or '-'}"
         )
 
         return JSONResponse({"status": "success", "message": "A/B/F 등급이 모두 생성되었습니다."})
@@ -405,7 +405,7 @@ async def add_inventory(
         product=INVENTORY_LOG_PRODUCT,
         action="INVENTORY_ADD",
         serial=item_code,
-        detail=f"계상 재고 신규 등록: {item_name} / {warehouse_type} / {qty} EA"
+        detail=f"수불 재고 신규 등록: {item_name} / {warehouse_type} / {qty} EA"
     )
 
     return JSONResponse({"status": "success"})
@@ -449,7 +449,7 @@ async def inventory_move_in(
         product=INVENTORY_LOG_PRODUCT,
         action="INVENTORY_MOVE_IN",
         serial=summarize_items(items),
-        detail=f"계상 재고 입고: {qty} EA / 비고: {remark}"
+        detail=f"수불 재고 입고: {qty} EA / 비고: {remark}"
     )
 
     return JSONResponse({"status": "success"})
@@ -503,7 +503,7 @@ async def inventory_move_out(
         product=INVENTORY_LOG_PRODUCT,
         action="INVENTORY_MOVE_OUT",
         serial=summarize_items(items),
-        detail=f"계상 재고 출고: {qty} EA / 비고: {remark}"
+        detail=f"수불 재고 출고: {qty} EA / 비고: {remark}"
     )
 
     return JSONResponse({"status": "success"})
@@ -530,7 +530,7 @@ async def delete_selected_inventory(
         product=INVENTORY_LOG_PRODUCT,
         action="INVENTORY_DELETE_SELECTED",
         serial=summarize_items(items),
-        detail=f"계상 재고 선택 삭제: {len(items)}건"
+        detail=f"수불 재고 선택 삭제: {len(items)}건"
     )
 
     return JSONResponse({"status": "success"})
@@ -643,7 +643,7 @@ async def bulk_update_inventory_qty(
         product=INVENTORY_LOG_PRODUCT,
         action="INVENTORY_BULK_UPDATE_QTY",
         serial=summarize_items(items),
-        detail=f"계상 재고 수량 일괄 변경: {len(items)}건 -> {qty} EA"
+        detail=f"수불 재고 수량 일괄 변경: {len(items)}건 -> {qty} EA"
     )
 
     return JSONResponse({"status": "success"})
@@ -671,7 +671,7 @@ async def bulk_update_inventory_note(
         product=INVENTORY_LOG_PRODUCT,
         action="INVENTORY_BULK_UPDATE_NOTE",
         serial=summarize_items(items),
-        detail=f"계상 재고 비고 일괄 변경: {len(items)}건 -> {note}"
+        detail=f"수불 재고 비고 일괄 변경: {len(items)}건 -> {note}"
     )
 
     return JSONResponse({"status": "success"})
@@ -810,7 +810,7 @@ def download_inventory_history_excel(
         user=current_user(request),
         product=INVENTORY_LOG_PRODUCT,
         action="INVENTORY_HISTORY_DOWNLOAD_EXCEL",
-        detail=f"계상 재고 입출고 이력 다운로드: {len(history)}건"
+        detail=f"수불 재고 입출고 이력 다운로드: {len(history)}건"
     )
 
     return StreamingResponse(
@@ -1004,7 +1004,7 @@ def download_inventory_excel(request: Request, db: Session = Depends(get_db)):
         user=current_user(request),
         product=INVENTORY_LOG_PRODUCT,
         action="INVENTORY_DOWNLOAD_EXCEL",
-        detail=f"계상 재고 엑셀 다운로드: {len(rows)}건"
+        detail=f"수불 재고 엑셀 다운로드: {len(rows)}건"
     )
 
     return StreamingResponse(
@@ -1141,7 +1141,7 @@ async def upload_inventory_excel(
         user=current_user(request),
         product=INVENTORY_LOG_PRODUCT,
         action="INVENTORY_UPLOAD_EXCEL",
-        detail=f"계상 재고 업로드: {message}"
+        detail=f"수불 재고 업로드: {message}"
     )
 
     return JSONResponse(

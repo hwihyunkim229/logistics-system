@@ -101,7 +101,7 @@ def _fallback_answer(result):
         return (
             "어떤 재고를 조회하시겠습니까?\n\n"
             "• 가계상 재고\n"
-            "• 계상 재고"
+            "• 수불 재고"
         )
 
     if status == "need_page_choice":
@@ -129,7 +129,7 @@ def _fallback_answer(result):
             f"- 제품 물류 출고: {counts.get('outbound', 0):,}건\n"
             f"- 시리얼 이동 이력: {counts.get('movements', 0):,}건\n"
             f"- 가계상 재고 수량: {counts.get('book_stock_qty', 0):,} EA\n"
-            f"- 계상 재고 수량: {counts.get('inventory_qty', 0):,} EA\n"
+            f"- 수불 재고 수량: {counts.get('inventory_qty', 0):,} EA\n"
             f"- BOM: {counts.get('bom_rows', 0):,}건\n"
             f"- 생산계획 수량: {counts.get('production_plan_qty', 0):,} EA\n"
             f"- 사용자: {counts.get('users', 0):,}명"
@@ -162,7 +162,7 @@ def _fallback_answer(result):
 
         for key, label in [
             ("book_stock", "가계상 재고"),
-            ("inventory", "계상 재고"),
+            ("inventory", "수불 재고"),
             ("bom", "BOM"),
             ("production_plan", "생산계획"),
             ("material_master", "자재 기준정보"),
@@ -365,7 +365,7 @@ def _movement_answer(rows):
 def _domain_label(domain):
     return {
         "book_stock": "가계상 재고",
-        "inventory": "계상 재고",
+        "inventory": "수불 재고",
         "bom": "BOM",
         "production_plan": "생산계획",
         "material_master": "자재 기준정보",

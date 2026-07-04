@@ -121,17 +121,18 @@ PAGE_KEYWORDS = [
     (("활동 로그", "로그"), "activity"),
     (("계정", "사용자", "유저"), "users"),
     # Substring traps, most-specific first: "가계상 재고 X" contains
-    # "계상 재고 X", and "계상 재고 입출고" contains "재고 입출고" -
-    # so 가계상-prefixed entries come first, then 계상-prefixed, then
-    # the generic 재고 forms as fallback.
+    # "계상 재고 X", and "계상 재고 입출고"/"수불 재고 입출고" contains
+    # "재고 입출고" - so 가계상-prefixed entries come first, then
+    # 수불/계상-prefixed, then the generic 재고 forms as fallback.
     (("가계상 재고 입출고",), "stock_history"),
     (("가계상 재고 dashboard", "가계상 재고 대시보드"), "stock_dashboard"),
-    (("계상 재고 입출고", "계상재고 입출고"), "inventory_history"),
-    (("계상 재고 dashboard", "계상 재고 대시보드", "계상재고 대시보드"), "inventory_dashboard"),
+    (("수불 재고 입출고", "수불재고 입출고", "계상 재고 입출고", "계상재고 입출고"), "inventory_history"),
+    (("수불 재고 dashboard", "수불 재고 대시보드", "수불재고 대시보드",
+      "계상 재고 dashboard", "계상 재고 대시보드", "계상재고 대시보드"), "inventory_dashboard"),
     (("재고 입출고", "stock history"), "stock_history"),
     (("재고 dashboard", "재고 대시보드"), "stock_dashboard"),
     (("가계상 재고", "book stock", "stock"), "stock"),
-    (("계상 재고", "계상재고", "창고재고", "제공재고", "외주재고"), "inventory"),
+    (("수불 재고", "수불재고", "계상 재고", "계상재고", "창고재고", "제공재고", "외주재고"), "inventory"),
     (("mrp",), "mrp"),
     (("dashboard", "대시보드"), "dashboard"),
     (("전체 조회", "통합 조회"), "search"),
@@ -145,7 +146,7 @@ DOMAIN_KEYWORDS = [
     (("품목", "item master", "rev", "리비전"), "item.master"),
     (("이동", "serial", "시리얼"), "movement.search"),
     (("사용자", "유저", "계정", "admin", "관리자"), "admin.user_summary"),
-    (("창고", "warehouse", "mrp 재고", "보유재고", "계상 재고", "계상재고"), "inventory.search"),
+    (("창고", "warehouse", "mrp 재고", "보유재고", "수불 재고", "수불재고", "계상 재고", "계상재고"), "inventory.search"),
     (("재고", "stock", "가계상", "반제품", "원자재", "제품"), "stock.summary"),
     (("요약", "전체", "현황", "통계"), "system.summary"),
 ]
@@ -551,15 +552,16 @@ def resolve_tool(question):
 
         }
 
-    # "계상 재고"는 "가계상 재고"의 부분 문자열이라 아래 stock.summary
-    # 분기("재고" 키워드)에 먼저 잡히므로, "가계상"이 없는 계상 재고
-    # 질문(창고재고/제공재고/외주재고 포함)을 여기서 먼저 처리한다.
+    # "계상 재고"(현재 명칭: 수불 재고)는 "가계상 재고"의 부분 문자열이라
+    # 아래 stock.summary 분기("재고" 키워드)에 먼저 잡히므로, "가계상"이
+    # 없는 수불/계상 재고 질문(창고재고/제공재고/외주재고 포함)을 여기서
+    # 먼저 처리한다.
     if "가계상" not in text and contains_any(
         text,
-        ("계상 재고", "계상재고", "창고재고", "제공재고", "외주재고")
+        ("수불 재고", "수불재고", "계상 재고", "계상재고", "창고재고", "제공재고", "외주재고")
     ):
         matched = [
-            kw for kw in ("계상 재고", "계상재고", "창고재고", "제공재고", "외주재고")
+            kw for kw in ("수불 재고", "수불재고", "계상 재고", "계상재고", "창고재고", "제공재고", "외주재고")
             if kw in text
         ]
 

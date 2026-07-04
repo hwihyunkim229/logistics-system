@@ -126,7 +126,7 @@ Use this tool when the user asks about
 원자재
 제품
 
-CRITICAL: "계상 재고" WITHOUT 가 is a DIFFERENT module
+CRITICAL: "수불 재고" or "계상 재고" WITHOUT 가 is a DIFFERENT module
 (inventory.search), NOT this tool. Only use stock.summary when the
 user says 가계상 재고 or plain 재고 with no warehouse words.
 
@@ -159,10 +159,12 @@ inventory.search
 
 Description
 
-계상 재고 (Inventory). Previously called "MRP 재고".
+수불 재고 (Inventory). Previously called "계상 재고", and before that
+"MRP 재고" - users may still say either old name.
 
 Use when user asks
 
+수불 재고
 계상 재고
 창고재고
 제공재고
@@ -170,7 +172,7 @@ Use when user asks
 MRP 재고
 Warehouse
 LOT 재고
-등급 재고 (계상 재고 문맥일 때)
+등급 재고 (수불 재고 문맥일 때)
 
 Arguments
 
@@ -322,9 +324,9 @@ activity
 users
 search
 
-inventory = 계상 재고 현황 page
-inventory_history = 계상 재고 입출고 현황 page
-inventory_dashboard = 계상 재고 Dashboard page
+inventory = 수불 재고 현황 page
+inventory_history = 수불 재고 입출고 현황 page
+inventory_dashboard = 수불 재고 Dashboard page
 stock = 가계상 재고 현황 page
 
 global.search is the LAST choice.
@@ -472,7 +474,7 @@ Return
 }
 
 User:
-계상 재고 알려줘
+수불 재고 알려줘
 
 Return
 
@@ -536,7 +538,7 @@ Return
 }
 
 User:
-계상 재고 페이지 열어줘
+수불 재고 페이지 열어줘
 
 Return
 
@@ -548,7 +550,7 @@ Return
 }
 
 User:
-계상 재고 입출고 현황으로 이동
+수불 재고 입출고 현황으로 이동
 
 Return
 
@@ -560,15 +562,15 @@ Return
 }
 
 User:
-계상 재고가 뭐야
+수불 재고가 뭐야
 
 Return
 
 {
     "tool":"knowledge.answer",
     "arguments":{
-        "question":"계상 재고가 뭐야",
-        "topic":"계상 재고"
+        "question":"수불 재고가 뭐야",
+        "topic":"수불 재고"
     }
 }
 """
@@ -612,11 +614,14 @@ def ai_resolve_tool(question):
     if tool not in ALLOWED_TOOLS:
         return None
 
-    # LLM이 "계상 재고"와 "가계상 재고"를 자주 혼동하므로, 프롬프트에만
-    # 의존하지 않고 코드에서 교차 선택을 차단한다. None을 반환하면
-    # 결정적 키워드 라우터(query_router)가 올바르게 처리한다.
+    # LLM이 "수불 재고"(구 계상 재고)와 "가계상 재고"를 자주 혼동하므로,
+    # 프롬프트에만 의존하지 않고 코드에서 교차 선택을 차단한다. None을
+    # 반환하면 결정적 키워드 라우터(query_router)가 올바르게 처리한다.
     q = question or ""
-    inventory_terms = ("계상 재고", "계상재고", "창고재고", "제공재고", "외주재고")
+    inventory_terms = (
+        "수불 재고", "수불재고", "계상 재고", "계상재고",
+        "창고재고", "제공재고", "외주재고"
+    )
     asks_inventory = "가계상" not in q and any(t in q for t in inventory_terms)
     asks_book_stock = "가계상" in q
 
