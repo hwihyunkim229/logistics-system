@@ -495,7 +495,17 @@ def stock_summary(
 
     rows = query.limit(limit + 1).all()
     total_rows = query.count()
-    total_qty = query.with_entities(func.coalesce(func.sum(Stock.qty), 0)).scalar() or 0
+
+    # order_by() must be cleared before collapsing to a bare aggregate -
+    # Postgres rejects ORDER BY columns that aren't grouped/aggregated
+    # when the SELECT list is aggregate-only (SQLite silently allows it,
+    # which is why this only surfaced against the Postgres/Neon DB).
+    total_qty = (
+        query.order_by(None)
+        .with_entities(func.coalesce(func.sum(Stock.qty), 0))
+        .scalar()
+        or 0
+    )
 
     category_rows = (
         db.query(
