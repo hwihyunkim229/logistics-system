@@ -28,7 +28,6 @@
     letter-spacing:0.5px;
 }
 
-/* 상단 */
 .top {
     display:flex;
     gap:24px;
@@ -36,7 +35,6 @@
     margin-bottom:24px;
 }
 
-/* 하단 */
 .bottom {
     display: flex;
     flex-direction: column;
@@ -45,7 +43,6 @@
     min-height: 760px;
 }
 
-/* 카드 */
 .card {
     background:white;
     padding:20px;
@@ -61,11 +58,9 @@
     margin-bottom:16px;
 }
 
-/* 좌/우 */
 .scan { width:40%; }
 .result { flex:1; }
 
-/* 입력 */
 #qrInput {
     width:100%;
     padding:10px;
@@ -75,7 +70,6 @@
     box-sizing:border-box;
 }
 
-/* 결과 */
 .result-list {
     flex:1;
     overflow-y:auto;
@@ -111,8 +105,8 @@ td {
 }
 
 button {
-    padding:10px 18px;            /* 크기 키움 */
-    border-radius:10px;           /* 둥근 사각형 */
+    padding:10px 18px;
+    border-radius:10px;
     border:1px solid #ddd;
     background:white;
     color:#333;
@@ -121,19 +115,16 @@ button {
     transition:all 0.2s ease;
 }
 
-/* 🔥 hover */
 button:hover {
     background:black;
     color:white;
     border-color:black;
 }
 
-/* 🔥 클릭 */
 button:active {
     transform:scale(0.97);
 }
 
-/* 🔥 버튼 간격 */
 button + button {
     margin-left:6px;
 }
@@ -153,18 +144,15 @@ select {
     outline:none;
 }
 
-/* 🔥 hover */
 select:hover {
     border-color:black;
 }
 
-/* 🔥 클릭 (focus) */
 select:focus {
     border-color:black;
     box-shadow:0 0 0 2px rgba(0,0,0,0.1);
 }
 
-/* 🔥 화살표 커스텀 (깔끔하게) */
 select {
     appearance:none;
     -webkit-appearance:none;
@@ -175,7 +163,7 @@ select {
     background-position:right 10px center;
     background-size:16px;
 
-    padding-right:30px; /* 화살표 공간 */
+    padding-right:30px;
 }
 
 .toolbar {
@@ -185,7 +173,6 @@ select {
     margin-bottom: 12px;
 }
 
-/* 가운데를 자연스럽게 밀기 */
 .center-group {
     margin-right:20px;
     display: flex;
@@ -193,7 +180,6 @@ select {
     gap: 8px;
 }
 
-/* 오른쪽 끝 */
 .right-group {
     margin-left:auto;
     display:flex;
@@ -297,7 +283,6 @@ td input[type="text"]:hover {
     border-color: #bbb;
 }
 
-/* focus */
 td input[type="text"]:focus {
     border-color: #2c3e50;
     background: white;
@@ -313,7 +298,6 @@ td input[type="text"]:focus {
 
 }
 
-/* 🔥 헤더 고정 */
 .table-wrapper thead th {
     position: sticky;
     top: 0;
@@ -341,12 +325,10 @@ td input[type="text"]:focus {
     min-height: 20px;
 }
 
-/* hover */
 .editable-text:hover {
     background: #f5f6fa;
 }
 
-/* editing 상태 */
 .editable-text:focus {
     outline: none;
     background: #fff;
@@ -354,10 +336,10 @@ td input[type="text"]:focus {
 }
 
 .editable select {
-    width: 70px;              /* 🔥 핵심: 크기 고정 */
+    width: 70px;
     height: 28px;
 
-    padding: 2px 6px;         /* 🔥 줄이기 */
+    padding: 2px 6px;
     font-size: 13px;
 
     border-radius: 6px;
@@ -365,18 +347,16 @@ td input[type="text"]:focus {
 
     box-sizing: border-box;
     text-align: center;
-    text-align-last: center;   /* 🔥 중요 */
+    text-align-last: center;
 }
 
-/* 🔹 출고 구분은 조금 넓게 */
 td:nth-child(5) select {
     width: 90px;
 }
 
-/* 🔹 포커스 시 커지는 현상 제거 */
 .editable select:focus {
     outline: none;
-    box-shadow: none;   /* 🔥 커지는 원인 제거 */
+    box-shadow: none;
     border-color: #999;
 }
 
@@ -401,7 +381,6 @@ th:hover span {
     outline: none;
 }
 
-/* hover */
 #bulkInputArea input:hover {
     border-color: #bbb;
     background: white;
@@ -441,7 +420,6 @@ th:hover span {
     color: white;
 }
 
-/* 아이콘 크기 */
 .excel-download i {
     font-size: 18px;
 }
@@ -580,17 +558,14 @@ th:hover span {
                 <tr>
                     <td><input type="checkbox" class="rowCheck" value="{{item.id}}"></td>
 
-                    <!-- 🔥 날짜 -->
                     <td>
                         {{ item.created_at.strftime("%Y-%m-%d") if item.created_at else "-" }}
                     </td>
 
-                    <!-- Serial -->
                     <td onclick="openHistory('{{item.serial}}')" style="cursor:pointer; color:#2980b9;">
                         {{ item.serial }}
                     </td>
 
-                    <!-- 🔥 Size -->
                     <td class="editable" data-id="{{ item.id }}" data-field="size">
                         <span class="display">
                             {{ item.size if item.size else "-" }}
@@ -604,7 +579,6 @@ th:hover span {
                         </select>
                     </td>
 
-                    <!-- 🔥 출고 구분 -->
                     <td class="editable" data-id="{{ item.id }}" data-field="category">
                         <span class="display">
                             {{ item.category if item.category else "-" }}
@@ -617,7 +591,6 @@ th:hover span {
                         </select>
                     </td>
 
-                    <!-- 출고처 -->
                     <td class="editable-text"
                         contenteditable="true"
                         data-id="{{item.id}}"
@@ -625,7 +598,6 @@ th:hover span {
                         {{ item.client or "" }}
                     </td>
 
-                    <!-- 비고 -->
                     <td class="editable-text"
                         contenteditable="true"
                         data-id="{{item.id}}"
@@ -747,7 +719,7 @@ if(qrInput){
                     div.innerText = "✅ " + label + ": " + data.serial;
                     div.style.color = "green";
 
-                    addRow(data); // 🔥 실시간 추가
+                    addRow(data);
                 }
 
                 list.prepend(div);
@@ -1108,7 +1080,6 @@ document.querySelectorAll(".editable").forEach(td => {
         span.textContent = value;
         td.classList.remove("editing");
 
-        // 🔥 자동 저장
         const id = td.dataset.id;
         const field = td.dataset.field;
 
@@ -1129,12 +1100,10 @@ document.querySelectorAll(".editable-text").forEach(td => {
 
     let original = td.innerText;
 
-    // 클릭 시 기존 값 기억
     td.addEventListener("focus", function(){
         original = this.innerText;
     });
 
-    // Enter → 저장
     td.addEventListener("keydown", function(e){
         if(e.key === "Enter"){
             e.preventDefault();
@@ -1142,18 +1111,15 @@ document.querySelectorAll(".editable-text").forEach(td => {
         }
     });
 
-    // blur → 저장
     td.addEventListener("blur", function(){
         const id = this.dataset.id;
         const field = this.dataset.field;
         const value = this.innerText.trim();
 
-        // 값이 안 바뀌면 요청 안 보냄 (🔥 중요)
         if(value === original) return;
 
         updateField(id, field, value);
 
-        // 저장 표시
         this.style.background = "#e8f5e9";
         setTimeout(()=>{
             this.style.background = "";
@@ -1253,7 +1219,6 @@ function applyBulk(){
         return;
     }
 
-    // 🔥 미리보기 메시지
     const fieldNameMap = {
         size: "Size",
         category: "출고 구분",

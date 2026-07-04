@@ -1,3 +1,8 @@
+import sys
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi import Request
@@ -27,6 +32,7 @@ from app.models import (
     bom,
     production_plan,
     inventory,
+    inventory_movement,
     material_note,
     material_master,
     item_master
@@ -42,6 +48,7 @@ from app.routers import (
     stock,
     stock_dashboard,
     mrp,
+    inventory as inventory_router,
     assistant
 )
 import time
@@ -121,6 +128,7 @@ app.include_router(admin.router)
 app.include_router(stock.router)
 app.include_router(stock_dashboard.router)
 app.include_router(mrp.router)
+app.include_router(inventory_router.router)
 app.include_router(assistant.router)
 
 Base.metadata.create_all(

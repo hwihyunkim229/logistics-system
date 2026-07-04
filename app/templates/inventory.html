@@ -49,7 +49,6 @@ th {
     color:white;
 }
 
-/* 상태 색상 */
 .status-IN { color:green; font-weight:600; }
 .status-OUT { color:gray; }
 .status-OUT_ONLY { color:red; font-weight:600; }
@@ -81,7 +80,7 @@ th {
 <script>
 let originalData = [];
 
-fetch("/inventory")
+fetch("/serial-inventory")
 .then(res => res.json())
 .then(data => {
     originalData = data;
@@ -115,7 +114,6 @@ function getStatusLabel(status){
 
 function filterData(type){
 
-    // 버튼 active 처리
     document.querySelectorAll(".filter-btn").forEach(btn=>{
         btn.classList.remove("active");
     });

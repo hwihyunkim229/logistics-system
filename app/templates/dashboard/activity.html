@@ -5,10 +5,6 @@
 
 <style>
 
-/* =========================
-🔥 Title
-========================= */
-
 .page-title{
     margin-bottom:28px;
 
@@ -22,10 +18,6 @@
 
     gap:10px;
 }
-
-/* =========================
-🔥 Filter
-========================= */
 
 .filter-bar{
     display:flex;
@@ -168,10 +160,6 @@
     transform:translateY(-1px);
 }
 
-/* =========================
-🔥 KPI GRID
-========================= */
-
 .kpi-grid{
     display:grid;
     justify-content:center;
@@ -252,10 +240,6 @@
     color:rgba(255,255,255,0.65);
 }
 
-/* =========================
-🔥 Layout
-========================= */
-
 .top-layout{
     display:grid;
     grid-template-columns:
@@ -263,10 +247,6 @@
     gap:22px;
     margin-bottom:28px;
 }
-
-/* =========================
-🔥 Card
-========================= */
 
 .dashboard-card{
     position:relative;
@@ -329,17 +309,9 @@
     color:#94a3b8;
 }
 
-/* =========================
-🔥 Activity Chart
-========================= */
-
 .activity-chart{
     height:320px;
 }
-
-/* =========================
-🔥 Service Rank
-========================= */
 
 .service-list{
     display:flex;
@@ -377,10 +349,6 @@
     font-size:13px;
     font-weight:800;
 }
-
-/* =========================
-🔥 Table
-========================= */
 
 .activity-table{
     width:100%;
@@ -431,10 +399,6 @@
     background:rgba(59,130,246,0.06);
 }
 
-/* =========================
-🔥 Type Badge
-========================= */
-
 .type-badge{
     display:inline-flex;
 
@@ -474,15 +438,13 @@
 
 .log-table-wrap{
 
-    max-height:650px;   /* 원하는 높이 */
+    max-height:650px;
 
     overflow-y:auto;
     overflow-x:auto;
 
     border-radius:18px;
 }
-
-/* 스크롤바 */
 
 .log-table-wrap::-webkit-scrollbar{
     width:10px;
@@ -499,10 +461,6 @@
 .log-table-wrap::-webkit-scrollbar-track{
     background:transparent;
 }
-
-/* =========================
-🔥 Responsive
-========================= */
 
 @media (max-width:1200px){
     .top-summary{
@@ -676,8 +634,6 @@
     Dashboard
 </h2>
 
-<!-- FILTER -->
-
 <div class="filter-bar">
 
     <div class="filter-wrap">
@@ -734,8 +690,6 @@
 
 </div>
 
-<!-- KPI -->
-
 <div class="kpi-grid">
 
     <div class="kpi-card">
@@ -759,8 +713,6 @@
     </div>
 
 </div>
-
-<!-- TOP -->
 
 <div class="top-layout">
 
@@ -829,8 +781,6 @@
     </div>
 
 </div>
-
-<!-- TABLE -->
 
 <div class="dashboard-card">
 
@@ -1332,10 +1282,6 @@ new Chart(
         }
     }
 );
-
-/* =========================
-🔥 Date Filter
-========================= */
 
 const filterBtn =
     document.getElementById("dateFilterBtn");

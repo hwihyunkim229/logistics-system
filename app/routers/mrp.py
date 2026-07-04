@@ -309,22 +309,32 @@ def calculate_mrp(db, year=None, month=None, week=None):
         )
 
         inventory_detail = {
-            "창고재고(단품)": 0,
-            "창고재고(반제품)": 0,
+            "창고재고": 0,
             "제공재고": 0,
             "외주재고": 0,
         }
 
+        stock_qty = 0
+
         for inv in inventory_list:
 
-            inventory_detail[
-                inv.warehouse_type
-            ] += (inv.qty or 0)
+            qty = inv.qty or 0
 
-        stock_qty = sum(
-            inv.qty or 0
-            for inv in inventory_list
-        )
+            if inv.warehouse_type == "창고재고":
+
+                if inv.grade == "A":
+                    inventory_detail["창고재고"] += qty
+                    stock_qty += qty
+
+            elif inv.warehouse_type == "제공재고":
+
+                inventory_detail["제공재고"] += qty
+                stock_qty += qty
+
+            elif inv.warehouse_type == "외주재고":
+
+                inventory_detail["외주재고"] += qty
+                stock_qty += qty
 
         period_details = [
             detail for detail in row["details"]
@@ -472,10 +482,8 @@ def calculate_mrp(db, year=None, month=None, week=None):
                     if len(product_names) == 1
                     else f"{len(product_names)} products"
                 ),
-                "warehouse_single":
-                    inventory_detail["창고재고(단품)"],
-                "warehouse_semi":
-                    inventory_detail["창고재고(반제품)"],
+                "warehouse_stock":
+                    inventory_detail["창고재고"],
                 "supplier_stock":
                     inventory_detail["제공재고"],
                 "subcontract_stock":
@@ -635,7 +643,15 @@ def build_week_dashboard_summary(
     remain_inventory = defaultdict(float)
 
     for inv in inventory_rows:
-        remain_inventory[inv.item_code] += (inv.qty or 0)
+
+        qty = inv.qty or 0
+
+        if inv.warehouse_type == "창고재고":
+            if inv.grade == "A":
+                remain_inventory[inv.item_code] += qty
+
+        elif inv.warehouse_type in ["제공재고", "외주재고"]:
+            remain_inventory[inv.item_code] += qty
 
     bom_map = defaultdict(list)
 
@@ -2409,249 +2425,6 @@ def download_production_plan(
 
             "Content-Disposition":
             f"attachment; filename=production_plan_{year}_{month:02d}.xlsx"
-
-        }
-
-    )
-
-@router.get("/mrp/inventory")
-def inventory_page(
-    request: Request,
-    db: Session = Depends(get_db),
-):
-
-    rows = (
-        db.query(Inventory)
-        .order_by(
-            Inventory.item_code,
-            Inventory.warehouse_type
-        )
-        .all()
-    )
-
-    return templates.TemplateResponse(
-        request=request,
-        name="bom/inventory.html",
-        context={
-            "rows": rows
-        }
-    )
-
-@router.post("/mrp/inventory/add")
-def add_inventory(
-    request: Request,
-
-    item_code: str = Form(...),
-    item_name: str = Form(...),
-    warehouse_type: str = Form(...),
-    qty: int = Form(...),
-
-    db: Session = Depends(get_db)
-):
-
-    db.add(
-
-        Inventory(
-            item_code=item_code,
-            item_name=item_name,
-            warehouse_type=warehouse_type,
-            qty=qty
-        )
-
-    )
-
-    db.commit()
-
-    save_log(
-        user=current_user(request),
-        product=MRP_LOG_PRODUCT,
-        action="MRP_INVENTORY_ADD",
-        serial=item_code,
-        detail=f"MRP 재고 추가: {item_name} / {warehouse_type} / {qty} EA"
-    )
-
-    return RedirectResponse(
-        "/mrp/inventory",
-        status_code=303
-    )
-
-@router.post("/mrp/inventory/update/{row_id}")
-def update_inventory(
-    request: Request,
-
-    row_id: int,
-
-    qty: int = Form(...),
-
-    db: Session = Depends(get_db)
-):
-
-    row = db.get(
-        Inventory,
-        row_id
-    )
-
-    if row:
-
-        old_qty = row.qty
-        row.qty = qty
-
-        db.commit()
-
-        save_log(
-            user=current_user(request),
-            product=MRP_LOG_PRODUCT,
-            action="MRP_INVENTORY_UPDATE",
-            serial=row.item_code,
-            detail=f"MRP 재고 수량 변경: {row.item_name} / {old_qty} -> {qty} EA"
-        )
-
-    return RedirectResponse(
-        "/mrp/inventory",
-        status_code=303
-    )
-
-@router.post("/mrp/inventory/upload")
-async def upload_inventory(
-    request: Request,
-
-    file: UploadFile = File(...),
-
-    db: Session = Depends(get_db)
-):
-
-    df = pd.read_excel(file.file)
-
-    required = [
-
-        "품목코드",
-        "품목명",
-        "창고구분",
-        "수량"
-
-    ]
-
-    for col in required:
-
-        if col not in df.columns:
-
-            raise Exception(
-                f"{col} 컬럼 없음"
-            )
-
-    changed_count = 0
-
-    for _, row in df.iterrows():
-
-        item_code = str(row["품목코드"]).strip()
-        item_name = str(row["품목명"]).strip()
-        warehouse_type = str(row["창고구분"]).strip()
-        qty = int(row["수량"])
-
-        existing = (
-            db.query(Inventory)
-            .filter(
-                Inventory.item_code == item_code,
-                Inventory.warehouse_type == warehouse_type
-            )
-            .first()
-        )
-
-        if existing:
-
-            existing.item_name = item_name
-            existing.qty = qty
-            changed_count += 1
-
-        else:
-
-            db.add(
-                Inventory(
-                    item_code=item_code,
-                    item_name=item_name,
-                    warehouse_type=warehouse_type,
-                    qty=qty
-                )
-            )
-            changed_count += 1
-
-    db.commit()
-
-    save_log(
-        user=current_user(request),
-        product=MRP_LOG_PRODUCT,
-        action="MRP_INVENTORY_UPLOAD",
-        detail=f"MRP 재고 업로드: {changed_count}건"
-    )
-
-    return RedirectResponse(
-        "/mrp/inventory",
-        status_code=303
-    )
-
-@router.get("/mrp/inventory/download")
-def download_inventory(
-    request: Request,
-
-    db: Session = Depends(get_db)
-):
-
-    rows = (
-        db.query(Inventory)
-        .order_by(
-            Inventory.item_code,
-            Inventory.warehouse_type
-        )
-        .all()
-    )
-
-    data = []
-
-    for row in rows:
-
-        data.append({
-
-            "품목코드": row.item_code,
-            "품목명": row.item_name,
-            "창고구분": row.warehouse_type,
-            "수량": row.qty
-
-        })
-
-    df = pd.DataFrame(data)
-
-    output = io.BytesIO()
-
-    with pd.ExcelWriter(
-        output,
-        engine="openpyxl"
-    ) as writer:
-
-        df.to_excel(
-            writer,
-            index=False
-        )
-
-    output.seek(0)
-
-    save_log(
-        user=current_user(request),
-        product=MRP_LOG_PRODUCT,
-        action="MRP_INVENTORY_DOWNLOAD",
-        detail=f"MRP 재고 다운로드: {len(rows)}건"
-    )
-
-    return StreamingResponse(
-
-        output,
-
-        media_type=
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
-        headers={
-
-            "Content-Disposition":
-            "attachment; filename=inventory.xlsx"
 
         }
 

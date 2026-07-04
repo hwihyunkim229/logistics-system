@@ -179,8 +179,66 @@
 .filter-wrap{
     position:relative;
     display:flex;
+    align-items:flex-start;
     justify-content:flex-end;
+    gap:10px;
     min-width:60px;
+}
+
+.range-badge{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    height:48px;
+    margin-top:40px;
+    padding:0 18px;
+    border-radius:16px;
+    background:white;
+    box-shadow:
+        0 8px 24px rgba(15,23,42,0.08);
+    font-size:13px;
+    font-weight:700;
+    color:#475569;
+    white-space:nowrap;
+}
+
+.range-badge.cumulative{
+    color:#2563eb;
+}
+
+.badge-dot{
+    width:8px;
+    height:8px;
+    flex-shrink:0;
+    border-radius:50%;
+    background:#94a3b8;
+}
+
+.badge-dot.active{
+    background:#2563eb;
+}
+
+.reset-btn{
+    display:flex;
+    align-items:center;
+    height:48px;
+    margin-top:40px;
+    padding:0 16px;
+    border-radius:16px;
+    background:white;
+    box-shadow:
+        0 8px 24px rgba(15,23,42,0.08);
+    font-size:13px;
+    font-weight:700;
+    color:#2563eb;
+    text-decoration:none;
+    white-space:nowrap;
+    transition:0.2s ease;
+}
+
+.reset-btn:hover{
+    background:#2563eb;
+    color:white;
 }
 
 .calendar-btn{
@@ -269,6 +327,21 @@
 
     <div class="filter-wrap">
 
+        <div class="range-badge {% if is_cumulative %}cumulative{% endif %}">
+            <span class="badge-dot {% if not is_cumulative %}active{% endif %}"></span>
+            {% if is_cumulative %}
+                전체 누적 보기
+            {% else %}
+                {{ start }} ~ {{ end }}
+            {% endif %}
+        </div>
+
+        {% if not is_cumulative %}
+        <a href="/dashboard/overview" class="reset-btn" title="전체 기간으로 초기화">
+            전체보기
+        </a>
+        {% endif %}
+
         <button
             id="dateFilterBtn"
             class="calendar-btn"
@@ -325,11 +398,7 @@
 
 </div>
 
-    <!-- KPI -->
-
     <div class="kpi-grid">
-
-    <!-- 전체 누적 출고 -->
 
         <div class="kpi-card">
 
@@ -351,9 +420,6 @@
 
         </div>
 
-
-        <!-- 전체 누적 입고 -->
-
         <div class="kpi-card">
 
             <div class="kpi-top">
@@ -374,9 +440,6 @@
 
         </div>
 
-
-        <!-- 선택 기간 출고 -->
-
         <div class="kpi-card">
 
             <div class="kpi-top">
@@ -392,13 +455,10 @@
             </div>
 
             <div class="kpi-sub">
-                {{ start }} ~ {{ end }}
+                {% if is_cumulative %}전체 기간{% else %}{{ start }} ~ {{ end }}{% endif %}
             </div>
 
         </div>
-
-
-        <!-- 선택 기간 입고 -->
 
         <div class="kpi-card">
 
@@ -415,13 +475,10 @@
             </div>
 
             <div class="kpi-sub">
-                {{ start }} ~ {{ end }}
+                {% if is_cumulative %}전체 기간{% else %}{{ start }} ~ {{ end }}{% endif %}
             </div>
 
         </div>
-
-
-        <!-- 출고 정보 미입력 -->
 
         <div class="kpi-card">
 
@@ -445,9 +502,6 @@
 
     </div>
 
-
-    <!-- TREND -->
-
     <div class="chart-card">
 
         <div class="chart-header">
@@ -459,7 +513,7 @@
 
                 <div class="chart-desc">
 
-                    {{ start }} ~ {{ end }}
+                    {% if is_cumulative %}전체 기간 누적{% else %}{{ start }} ~ {{ end }}{% endif %}
 
                     {% if group_mode == "day" %}
                         · 일별 기준
@@ -480,9 +534,6 @@
         <canvas id="trendChart"></canvas>
 
     </div>
-
-
-    <!-- SIZE -->
 
     <div class="chart-card">
 
@@ -507,13 +558,20 @@
 
 Chart.register(ChartDataLabels);
 
+const trendCtx = document.getElementById("trendChart").getContext("2d");
 
-// =========================
-// TREND CHART
-// =========================
+function makeGradient(ctx, colorStart, colorEnd){
+    const gradient = ctx.createLinearGradient(0, 0, 0, 340);
+    gradient.addColorStop(0, colorStart);
+    gradient.addColorStop(1, colorEnd);
+    return gradient;
+}
+
+const trendPointCount = JSON.parse('{{ trend_labels | tojson | safe }}').length;
+const trendDense = trendPointCount > 20;
 
 new Chart(
-    document.getElementById("trendChart"),
+    trendCtx,
     {
         type:"line",
 
@@ -528,17 +586,17 @@ new Chart(
                     data: JSON.parse('{{ trend_out | tojson | safe }}'),
 
                     borderColor:"#ec4899",
-                    backgroundColor:"rgba(236,72,153,0.10)",
+                    backgroundColor: makeGradient(trendCtx, "rgba(236,72,153,0.35)", "rgba(236,72,153,0.02)"),
 
                     pointBackgroundColor:"#ec4899",
                     pointBorderColor:"#ffffff",
 
-                    pointBorderWidth:3,
+                    pointBorderWidth:trendDense ? 1.5 : 3,
 
-                    pointRadius:5,
-                    pointHoverRadius:7,
+                    pointRadius:trendDense ? 2 : 5,
+                    pointHoverRadius:trendDense ? 5 : 7,
 
-                    borderWidth:4,
+                    borderWidth:trendDense ? 2.5 : 4,
 
                     tension:0.4,
 
@@ -551,17 +609,17 @@ new Chart(
                     data: JSON.parse('{{ trend_in | tojson | safe }}'),
 
                     borderColor:"#2563eb",
-                    backgroundColor:"rgba(37,99,235,0.12)",
+                    backgroundColor: makeGradient(trendCtx, "rgba(37,99,235,0.35)", "rgba(37,99,235,0.02)"),
 
                     pointBackgroundColor:"#2563eb",
                     pointBorderColor:"#ffffff",
 
-                    pointBorderWidth:3,
+                    pointBorderWidth:trendDense ? 1.5 : 3,
 
-                    pointRadius:5,
-                    pointHoverRadius:7,
+                    pointRadius:trendDense ? 2 : 5,
+                    pointHoverRadius:trendDense ? 5 : 7,
 
-                    borderWidth:4,
+                    borderWidth:trendDense ? 2.5 : 4,
 
                     tension:0.4,
 
@@ -615,6 +673,8 @@ new Chart(
                 },
 
                 datalabels:{
+                    display: !trendDense,
+
                     color:"#64748b",
 
                     anchor:'end',
@@ -640,6 +700,9 @@ new Chart(
                     ticks:{
                         color:"#64748b",
 
+                        autoSkip:true,
+                        maxRotation:0,
+
                         font:{
                             size:12,
                             weight:'600'
@@ -670,152 +733,198 @@ new Chart(
     }
 );
 
+const ctx = document.getElementById("sizeChart");
 
-// =========================
-// SIZE CHART
-// =========================
+// 입고 Gradient
+const blueGradient = ctx.getContext("2d").createLinearGradient(0, 0, 0, 350);
+blueGradient.addColorStop(0, "rgba(37,99,235,0.95)");
+blueGradient.addColorStop(0.4, "rgba(59,130,246,0.75)");
+blueGradient.addColorStop(1, "rgba(147,197,253,0.25)");
 
-new Chart(
-    document.getElementById("sizeChart"),
-    {
-        type:"bar",
+// 출고 Gradient
+const pinkGradient = ctx.getContext("2d").createLinearGradient(0, 0, 0, 350);
+pinkGradient.addColorStop(0, "rgba(236,72,153,0.95)");
+pinkGradient.addColorStop(0.4, "rgba(244,114,182,0.75)");
+pinkGradient.addColorStop(1, "rgba(251,207,232,0.25)");
 
-        data:{
-            labels: JSON.parse('{{ size_labels | tojson | safe }}'),
+new Chart(ctx, {
 
-            datasets:[
+    type: "bar",
 
-                {
-                    label:"출고",
+    data: {
 
-                    data: JSON.parse('{{ size_out | tojson | safe }}'),
+        labels: JSON.parse('{{ size_labels | tojson | safe }}'),
 
-                    backgroundColor:"#ec4899",
+        datasets: [
 
-                    borderRadius:12,
-                    borderSkipped:false,
+            {
+                label: "출고",
 
-                    maxBarThickness:48
-                },
+                data: JSON.parse('{{ size_out | tojson | safe }}'),
 
-                {
-                    label:"입고",
+                backgroundColor: pinkGradient,
 
-                    data: JSON.parse('{{ size_in | tojson | safe }}'),
+                borderColor: "#ec4899",
+                borderWidth: 1,
 
-                    backgroundColor:"#2563eb",
+                borderRadius: 14,
+                borderSkipped: false,
 
-                    borderRadius:12,
-                    borderSkipped:false,
+                hoverBackgroundColor: "#ec4899",
+                hoverBorderWidth: 2,
 
-                    maxBarThickness:48
-                },
-            ]
+                maxBarThickness: 42
+            },
+
+            {
+                label: "입고",
+
+                data: JSON.parse('{{ size_in | tojson | safe }}'),
+
+                backgroundColor: blueGradient,
+
+                borderColor: "#2563eb",
+                borderWidth: 1,
+
+                borderRadius: 14,
+                borderSkipped: false,
+
+                hoverBackgroundColor: "#2563eb",
+                hoverBorderWidth: 2,
+
+                maxBarThickness: 42
+            }
+
+        ]
+
+    },
+
+    options: {
+
+        responsive: true,
+        maintainAspectRatio: false,
+
+        layout: {
+            padding: {
+                top: 20,
+                left: 10,
+                right: 10,
+                bottom: 10
+            }
         },
 
-        options:{
-            responsive:true,
-            maintainAspectRatio:false,
+        interaction: {
+            intersect: false,
+            mode: "index"
+        },
 
-            interaction:{
-                intersect:false,
-                mode:'index'
-            },
+        plugins: {
 
-            plugins:{
+            legend: {
+                position: "top",
 
-                legend:{
-                    position:'top',
+                labels: {
+                    usePointStyle: true,
+                    pointStyle: "circle",
+                    padding: 22,
 
-                    labels:{
-                        usePointStyle:true,
-                        pointStyle:'circle',
+                    color: "#475569",
 
-                        padding:24,
-
-                        color:'#475569',
-
-                        font:{
-                            size:13,
-                            weight:'700'
-                        }
-                    }
-                },
-
-                tooltip:{
-                    backgroundColor:"#0f172a",
-
-                    titleColor:"#ffffff",
-                    bodyColor:"#e2e8f0",
-
-                    padding:14,
-
-                    cornerRadius:14,
-
-                    displayColors:true
-                },
-
-                datalabels:{
-                    color:function(context){
-                        return context.dataset.data[context.dataIndex] > 0
-                            ? "#ffffff"
-                            : "#64748b";
-                    },
-
-                    anchor:'end',
-                    align:'start',
-
-                    offset:+10,
-
-                    clamp:true,
-
-                    font:{
-                        weight:'700',
-                        size:14
+                    font: {
+                        size: 13,
+                        weight: "700"
                     }
                 }
             },
 
-            scales:{
+            tooltip: {
 
-                x:{
-                    grid:{
-                        color:"rgba(148,163,184,0.08)",
-                        drawBorder:false
-                    },
+                backgroundColor: "#0f172a",
 
-                    ticks:{
-                        color:"#64748b",
+                titleColor: "#fff",
+                bodyColor: "#e2e8f0",
 
-                        font:{
-                            size:12,
-                            weight:'600'
-                        }
-                    }
+                padding: 14,
+
+                cornerRadius: 12,
+
+                displayColors: true
+            },
+
+            datalabels: {
+
+                color: function (context) {
+                    return context.dataset.data[context.dataIndex] > 0
+                        ? "#ffffff"
+                        : "#94a3b8";
                 },
 
-                y:{
-                    beginAtZero:true,
+                anchor: "end",
+                align: "start",
 
-                    grid:{
-                        color:"rgba(148,163,184,0.3)",
-                        drawBorder:false
-                    },
+                offset: 10,
 
-                    ticks:{
-                        color:"#64748b",
+                clamp: true,
 
-                        font:{
-                            size:12,
-                            weight:'600'
-                        }
+                font: {
+                    size: 13,
+                    weight: "700"
+                }
+            }
+
+        },
+
+        scales: {
+
+            x: {
+
+                grid: {
+                    display: false
+                },
+
+                ticks: {
+
+                    color: "#64748b",
+
+                    font: {
+                        size: 12,
+                        weight: "600"
                     }
+
+                }
+
+            },
+
+            y: {
+
+                beginAtZero: true,
+
+                grid: {
+
+                    color: "rgba(148,163,184,0.15)",
+
+                    drawBorder: false
+
+                },
+
+                ticks: {
+
+                    color: "#64748b",
+
+                    font: {
+                        size: 12,
+                        weight: "600"
+                    }
+
                 }
 
             }
+
         }
+
     }
-);
+
+});
 
 const filterBtn =
     document.getElementById("dateFilterBtn");

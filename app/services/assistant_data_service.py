@@ -185,8 +185,8 @@ def _find_page_matches(db, target):
     if inventory:
         matches.append({
             "page": "inventory",
-            "url": f"/mrp/inventory?highlight={_encoded(target)}",
-            "label": "MRP 재고",
+            "url": f"/inventory?highlight={_encoded(target)}",
+            "label": "계상 재고",
         })
 
     bom = (
@@ -288,20 +288,32 @@ def knowledge_answer(db, question: str = "", topic: str = ""):
         "topic": topic,
         "facts": {
             "가계상 재고": (
-                "가계상 재고는 이 시스템의 Stock 테이블 기준 재고입니다. "
-                "품목코드, 품목명, 등급, Rev, 구분(반제품/제품/원자재), 수량으로 관리됩니다."
+                "가계상 재고는 이 시스템의 Stock 테이블 기준 장부상 재고입니다. "
+                "품목코드, 품목명, 등급(A/B/F), Rev, 구분(반제품/제품/원자재), 수량으로 관리됩니다."
+            ),
+            "계상 재고": (
+                "계상 재고는 창고구분(창고재고/제공재고/외주재고)별로 관리되는 재고입니다. "
+                "창고재고만 구분(반제품/제품/원자재)과 등급(A/B/F)으로 다시 나뉘고, "
+                "품목코드+창고구분+LOT+등급 조합으로 관리됩니다. "
+                "LOT은 제품/반제품에만 있는 개념이며(원자재는 LOT이 없습니다), "
+                "F25처럼 있는 그대로의 문자열로 취급됩니다. "
+                "MRP 계산은 이 계상 재고를 사용합니다."
             ),
             "제품 물류": (
                 "제품 물류는 시리얼 단위 입고/출고 흐름입니다. "
                 "Inbound, Outbound, Movement 테이블을 기준으로 제품, 시리얼, 사이즈, 고객, 일시를 추적합니다."
             ),
             "MRP": (
-                "MRP는 생산계획과 BOM, MRP 재고, 자재 기준정보를 조합해 필요 수량, 부족 수량, "
+                "MRP는 생산계획과 BOM, 계상 재고, 자재 기준정보를 조합해 필요 수량, 부족 수량, "
                 "발주 필요일, 권장 발주 수량을 계산하는 영역입니다."
             ),
             "BOM": (
                 "BOM은 제품을 만들기 위해 필요한 구성품 목록입니다. "
                 "제품명, 구성품 코드, 구성품명, 소요 수량으로 관리됩니다."
+            ),
+            "LOT": (
+                "LOT은 계상 재고의 로트 표기이며 제품/반제품에만 있는 개념입니다(원자재는 LOT이 없습니다). "
+                "F25, G23처럼 있는 그대로의 문자열로 취급되며 별도로 해석하거나 변환하지 않습니다."
             ),
         }
     }
@@ -541,7 +553,7 @@ def system_summary(db, question: str = ""):
         "status": "summary",
         "available_stock_types":[
             "가계상 재고",
-            "MRP 재고"
+            "계상 재고"
         ],
         "counts": {
             "items": db.query(Item).count(),
@@ -607,13 +619,20 @@ def stock_select(db):
 
         "choices":[
             "가계상 재고",
-            "MRP 재고"
+            "계상 재고"
         ]
 
     }
 
 @tool("inventory.search")
-def inventory_search(db, item: str = ""):
+def inventory_search(
+    db,
+    item: str = "",
+    warehouse_type: str = "",
+    category: str = "",
+    grade: str = "",
+    lot: str = "",
+):
     keyword = _keyword(item)
     query = db.query(Inventory)
 
@@ -627,18 +646,47 @@ def inventory_search(db, item: str = ""):
             )
         )
 
-    rows = query.order_by(Inventory.item_code, Inventory.warehouse_type).limit(MAX_ROWS + 1).all()
+    if warehouse_type in ("창고재고", "제공재고", "외주재고"):
+        query = query.filter(Inventory.warehouse_type == warehouse_type)
+
+    if category in ("반제품", "제품", "원자재"):
+        query = query.filter(Inventory.category == category)
+
+    if grade in ("A", "B", "F"):
+        query = query.filter(Inventory.grade == grade)
+
+    rows = query.order_by(Inventory.item_code, Inventory.warehouse_type).all()
+
+    # LOT은 있는 그대로의 문자열이다 - 파싱/변환 없이 대소문자 무시 정확
+    # 일치로만 비교한다.
+    lot = (lot or "").strip()
+
+    if lot:
+        rows = [row for row in rows if (row.lot or "").strip().lower() == lot.lower()]
+
+    total_qty = sum(row.qty or 0 for row in rows)
 
     return {
         "status": "rows",
         "domain": "inventory",
         "keyword": keyword,
+        "warehouse_type": warehouse_type,
+        "category": category,
+        "grade": grade,
+        "lot": lot,
+        "total_rows": len(rows),
+        "total_qty": total_qty,
         "truncated": len(rows) > MAX_ROWS,
         "rows": [
             {
                 "item_code": row.item_code,
                 "item_name": row.item_name,
+                "category": row.category,
                 "warehouse_type": row.warehouse_type,
+                "lot": row.lot,
+                "grade": row.grade,
+                "rev": row.rev,
+                "note": row.note,
                 "qty": row.qty or 0,
             }
             for row in rows[:MAX_ROWS]
@@ -922,7 +970,9 @@ def page_move(db, page: str):
         "mrp_result": ("/mrp/result", "MRP Result로 이동합니다."),
         "bom": ("/mrp/bom", "BOM 화면으로 이동합니다."),
         "production_plan": ("/mrp/production-plan", "생산 계획 화면으로 이동합니다."),
-        "inventory": ("/mrp/inventory", "MRP 재고 현황으로 이동합니다."),
+        "inventory": ("/inventory", "계상 재고 현황으로 이동합니다."),
+        "inventory_history": ("/inventory/history", "계상 재고 입출고 현황으로 이동합니다."),
+        "inventory_dashboard": ("/inventory/dashboard", "계상 재고 Dashboard로 이동합니다."),
         "material_master": ("/mrp/material-master", "자재 기준정보로 이동합니다."),
         "item_master": ("/stock/item-master/manage", "품목 관리로 이동합니다."),
         "users": ("/admin/users", "계정 관리로 이동합니다."),

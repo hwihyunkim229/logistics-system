@@ -6,7 +6,7 @@
 <style>
 html, body {
     height: 100%;
-    overflow: hidden;   /* 🔥 전체 스크롤 제거 */
+    overflow: hidden;
 }
 
 .search-container {
@@ -15,7 +15,6 @@ html, body {
     box-sizing: border-box;
 }
 
-/* 검색 박스 */
 .search-box {
     width: 100%;
     background: white;
@@ -58,7 +57,6 @@ html, body {
     border-color: black;
 }
 
-/* 결과 카드 */
 .result-card {
     width: 100%;
     background: white;
@@ -68,7 +66,6 @@ html, body {
     box-sizing: border-box;
 }
 
-/* 테이블 */
 .search-table {
     width: 100%;
     border-collapse: collapse;
@@ -94,14 +91,12 @@ html, body {
     text-align: center;
 }
 
-/* serial 클릭 */
 .serial {
     cursor: pointer;
     color: #2980b9;
     font-weight: 500;
 }
 
-/* 상태 뱃지 */
 .badge {
     padding: 4px 10px;
     border-radius: 20px;
@@ -131,37 +126,31 @@ html, body {
     font-family: 'Segoe UI', sans-serif;
 }
 
-/* 헤더 */
 .flatpickr-months {
     background: #2c3e50;
     color: white;
     border-radius: 12px 12px 0 0;
 }
 
-/* 요일 */
 .flatpickr-weekdays {
     background: #f5f6fa;
 }
 
-/* 날짜 */
 .flatpickr-day {
     border-radius: 6px;
     transition: all 0.15s;
 }
 
-/* hover */
 .flatpickr-day:hover {
     background: #2c3e50;
     color: white;
 }
 
-/* 선택된 날짜 */
 .flatpickr-day.selected {
     background: black;
     color: white;
 }
 
-/* 오늘 */
 .flatpickr-day.today {
     border: 1px solid #2c3e50;
 }
@@ -170,7 +159,6 @@ html, body {
     color: white !important;
 }
 
-/* 🔥 연도 input */
 .flatpickr-current-month input.cur-year {
     color: white !important;
 }
@@ -216,7 +204,6 @@ html, body {
     color: #1D6F42;
 }
 
-/* hover */
 .excel-download:hover {
     background: #1D6F42;
     color: white;
@@ -236,7 +223,6 @@ html, body {
 
 <div class="search-container">
 
-    <!-- 🔍 검색 박스 -->
     <div class="search-box">
         <h2 class="section-title">통합 검색</h2>
 
@@ -316,15 +302,14 @@ html, body {
                             </a>
                         </td>
 
-                        <td>{{item.size or "-"}}</td>          <!-- 추가 -->
-                        <td>{{item.category or "-"}}</td>      <!-- 추가 -->
+                        <td>{{item.size or "-"}}</td>
+                        <td>{{item.category or "-"}}</td>
 
                         <td>{{item.client or "-"}}</td>
                         <td>{{item.note or "-"}}</td>
                     </tr>
                     {% endfor %}
 
-                    <!-- 🔵 입고 -->
                     {% for item in inbound %}
                     <tr>
                         <td><span class="badge inbound">입고</span></td>
@@ -336,8 +321,8 @@ html, body {
                                 {{ item.serial }}
                             </a>
                         </td>
-                        <td>{{item.size or "-"}}</td>          <!-- 추가 -->
-                        <td>{{item.category or "-"}}</td>      <!-- 추가 -->
+                        <td>{{item.size or "-"}}</td>
+                        <td>{{item.category or "-"}}</td>
 
                         <td>{{item.client or "-"}}</td>
                         <td>{{item.note or "-"}}</td>
@@ -362,7 +347,6 @@ function toggleDate(){
     el.style.display = el.style.display === "none" ? "flex" : "none";
 }
 
-// 🔥 flatpickr 적용
 flatpickr("#startDate", {
     dateFormat: "Y-m-d",
     allowInput: true

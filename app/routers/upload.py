@@ -861,7 +861,7 @@ async def update_field(
 
     return {"status": "ok"}
 
-@router.get("/inventory")
+@router.get("/serial-inventory")
 def get_inventory():
     db = SessionLocal()
 

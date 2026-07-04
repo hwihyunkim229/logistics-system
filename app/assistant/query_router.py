@@ -54,6 +54,19 @@ STOPWORDS = {
     "해주세요",
     "주세요",
     "해줄래",
+    "페이지",
+    "화면",
+    "열어줘",
+    "열어",
+    "열기",
+    "이동",
+    "찾아줘",
+    "가줘",
+    "위치",
+    "얼마나",
+    "얼마",
+    "뭐",
+    "등급",
 }
 
 
@@ -107,9 +120,18 @@ PAGE_KEYWORDS = [
     (("품목 관리", "item master"), "item_master"),
     (("활동 로그", "로그"), "activity"),
     (("계정", "사용자", "유저"), "users"),
+    # Substring traps, most-specific first: "가계상 재고 X" contains
+    # "계상 재고 X", and "계상 재고 입출고" contains "재고 입출고" -
+    # so 가계상-prefixed entries come first, then 계상-prefixed, then
+    # the generic 재고 forms as fallback.
+    (("가계상 재고 입출고",), "stock_history"),
+    (("가계상 재고 dashboard", "가계상 재고 대시보드"), "stock_dashboard"),
+    (("계상 재고 입출고", "계상재고 입출고"), "inventory_history"),
+    (("계상 재고 dashboard", "계상 재고 대시보드", "계상재고 대시보드"), "inventory_dashboard"),
     (("재고 입출고", "stock history"), "stock_history"),
     (("재고 dashboard", "재고 대시보드"), "stock_dashboard"),
     (("가계상 재고", "book stock", "stock"), "stock"),
+    (("계상 재고", "계상재고", "창고재고", "제공재고", "외주재고"), "inventory"),
     (("mrp",), "mrp"),
     (("dashboard", "대시보드"), "dashboard"),
     (("전체 조회", "통합 조회"), "search"),
@@ -123,7 +145,7 @@ DOMAIN_KEYWORDS = [
     (("품목", "item master", "rev", "리비전"), "item.master"),
     (("이동", "serial", "시리얼"), "movement.search"),
     (("사용자", "유저", "계정", "admin", "관리자"), "admin.user_summary"),
-    (("창고", "warehouse", "mrp 재고", "보유재고"), "inventory.search"),
+    (("창고", "warehouse", "mrp 재고", "보유재고", "계상 재고", "계상재고"), "inventory.search"),
     (("재고", "stock", "가계상", "반제품", "원자재", "제품"), "stock.summary"),
     (("요약", "전체", "현황", "통계"), "system.summary"),
 ]
@@ -152,7 +174,7 @@ WEAK_MEANING_WORDS = ("뭐야", "무엇")
 MEANING_WORDS = STRONG_MEANING_WORDS + WEAK_MEANING_WORDS
 
 PARTICLE_PATTERN = re.compile(
-    r"\b(그럼|그|이|가|은|는|을|를|의|에서|랑|과|와|이랑|으로)\b"
+    r"\b(그럼|그|이|가|은|는|을|를|의|에서|에|랑|과|와|이랑|으로|로)\b"
 )
 
 
@@ -231,6 +253,7 @@ def page_uses_target(page):
     return page not in {
         "dashboard",
         "stock_dashboard",
+        "inventory_dashboard",
         "mrp",
     }
 
@@ -527,6 +550,54 @@ def resolve_tool(question):
             "arguments":{}
 
         }
+
+    # "계상 재고"는 "가계상 재고"의 부분 문자열이라 아래 stock.summary
+    # 분기("재고" 키워드)에 먼저 잡히므로, "가계상"이 없는 계상 재고
+    # 질문(창고재고/제공재고/외주재고 포함)을 여기서 먼저 처리한다.
+    if "가계상" not in text and contains_any(
+        text,
+        ("계상 재고", "계상재고", "창고재고", "제공재고", "외주재고")
+    ):
+        matched = [
+            kw for kw in ("계상 재고", "계상재고", "창고재고", "제공재고", "외주재고")
+            if kw in text
+        ]
+
+        warehouse_type = ""
+        for wt in ("창고재고", "제공재고", "외주재고"):
+            if wt in text:
+                warehouse_type = wt
+                break
+
+        grade = ""
+        grade_match = re.search(r"\b([ABF])\s*등급|등급\s*([ABF])\b", question or "", re.IGNORECASE)
+        if grade_match:
+            grade = (grade_match.group(1) or grade_match.group(2)).upper()
+
+        lot = ""
+        lot_match = re.search(r"lot\s*([A-Za-z]*\d+)", question or "", re.IGNORECASE)
+        if lot_match:
+            lot = lot_match.group(1)
+
+        # 등급/LOT 표현은 이미 구조화된 인자로 뽑았으므로 키워드 추출
+        # 전에 걷어낸다 - 안 그러면 "A등급"의 "A"나 "LOT" 같은 파편이
+        # item에 남아 LIKE 검색을 0건으로 만든다.
+        scrubbed = re.sub(
+            r"(?i)[ABF]\s*등급|등급\s*[ABF]|lot\s*[A-Za-z]*\d*",
+            " ",
+            question or ""
+        )
+
+        return _meaning_or(matched, {
+            "tool": "inventory.search",
+            "arguments": {
+                "item": extract_keyword(scrubbed),
+                "warehouse_type": warehouse_type,
+                "category": extract_stock_category(question),
+                "grade": grade,
+                "lot": lot,
+            }
+        })
 
     if contains_any(text, ("가계상", "반제품", "원자재", "제품", "재고")):
         matched = [

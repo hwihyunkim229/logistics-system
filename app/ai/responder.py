@@ -13,6 +13,12 @@ PERIOD_LABELS = {
 }
 
 
+def _garbled(text):
+    """Groq가 간혹 U+FFFD(�) 범벅인 깨진 텍스트를 반환한다 - 그대로
+    사용자에게 보여주는 대신 결정적 fallback 답변으로 대체한다."""
+    return bool(text) and text.count("�") >= 3
+
+
 def make_answer(question, result):
     if result.get("type") == "move":
         return result.get("message", "요청한 화면으로 이동합니다.")
@@ -27,6 +33,10 @@ def make_answer(question, result):
             user_message=question,
             system_prompt=GENERAL_KNOWLEDGE_PROMPT,
         )
+
+        if _garbled(ai_answer):
+            return fallback
+
         return ai_answer or fallback
 
     AI_REQUIRED = {
@@ -55,6 +65,9 @@ def make_answer(question, result):
         user_message=context,
         system_prompt=ANSWER_PROMPT
     )
+
+    if _garbled(ai_answer):
+        return fallback
 
     return ai_answer or fallback
 
@@ -88,7 +101,7 @@ def _fallback_answer(result):
         return (
             "어떤 재고를 조회하시겠습니까?\n\n"
             "• 가계상 재고\n"
-            "• MRP 재고"
+            "• 계상 재고"
         )
 
     if status == "need_page_choice":
@@ -116,7 +129,7 @@ def _fallback_answer(result):
             f"- 제품 물류 출고: {counts.get('outbound', 0):,}건\n"
             f"- 시리얼 이동 이력: {counts.get('movements', 0):,}건\n"
             f"- 가계상 재고 수량: {counts.get('book_stock_qty', 0):,} EA\n"
-            f"- MRP 재고 수량: {counts.get('inventory_qty', 0):,} EA\n"
+            f"- 계상 재고 수량: {counts.get('inventory_qty', 0):,} EA\n"
             f"- BOM: {counts.get('bom_rows', 0):,}건\n"
             f"- 생산계획 수량: {counts.get('production_plan_qty', 0):,} EA\n"
             f"- 사용자: {counts.get('users', 0):,}명"
@@ -149,7 +162,7 @@ def _fallback_answer(result):
 
         for key, label in [
             ("book_stock", "가계상 재고"),
-            ("inventory", "MRP 재고"),
+            ("inventory", "계상 재고"),
             ("bom", "BOM"),
             ("production_plan", "생산계획"),
             ("material_master", "자재 기준정보"),
@@ -352,7 +365,7 @@ def _movement_answer(rows):
 def _domain_label(domain):
     return {
         "book_stock": "가계상 재고",
-        "inventory": "MRP 재고",
+        "inventory": "계상 재고",
         "bom": "BOM",
         "production_plan": "생산계획",
         "material_master": "자재 기준정보",
@@ -369,9 +382,17 @@ def _format_row(domain, row):
         )
 
     if domain == "inventory":
+        extra = ", ".join(
+            filter(None, [
+                row.get("category"),
+                f"LOT {row['lot']}" if row.get("lot") else "",
+                f"Grade {row['grade']}" if row.get("grade") else "",
+            ])
+        )
         return (
             f"{row['item_name']} ({row['item_code']}) "
-            f"{row['warehouse_type']}: {row['qty']:,} EA"
+            f"{row['warehouse_type']}"
+            f"{f' [{extra}]' if extra else ''}: {row['qty']:,} EA"
         )
 
     if domain == "bom":

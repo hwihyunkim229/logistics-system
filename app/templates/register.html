@@ -15,7 +15,6 @@ body {
     height: 100vh;
 }
 
-/* 🔥 카드 */
 .register-card {
     background: white;
     padding: 40px;
@@ -24,7 +23,6 @@ body {
     box-shadow: 0 8px 25px rgba(0,0,0,0.1);
 }
 
-/* 🔥 타이틀 */
 .register-title {
     font-size: 22px;
     font-weight: 700;
@@ -33,7 +31,6 @@ body {
     text-align: center;
 }
 
-/* 🔥 입력창 */
 .register-input {
     width: 100%;
     padding: 12px;
@@ -51,7 +48,6 @@ body {
     outline: none;
 }
 
-/* 🔥 비밀번호 wrapper */
 .password-wrapper {
     position: relative;
     margin-bottom: 15px;
@@ -61,7 +57,6 @@ body {
     padding-right: 40px;
 }
 
-/* 👁 버튼 */
 .pw-toggle {
     position: absolute;
     right: 10px;
@@ -73,7 +68,6 @@ body {
     font-size: 14px;
 }
 
-/* 🔥 버튼 */
 .register-btn {
     width: 100%;
     padding: 12px;
@@ -92,7 +86,6 @@ body {
     border-color: black;
 }
 
-/* 🔥 하단 링크 */
 .register-footer {
     margin-top: 15px;
     text-align: center;
@@ -109,7 +102,6 @@ body {
     text-decoration: underline;
 }
 
-/* 🔥 에러 */
 .error {
     color: red;
     font-size: 13px;
@@ -131,7 +123,6 @@ body {
 
     <form method="post">
 
-        <!-- 아이디 -->
         <input 
             name="username"
             class="register-input"
@@ -139,7 +130,6 @@ body {
             required
         >
 
-        <!-- 비밀번호 -->
         <div class="password-wrapper">
             <input 
                 id="password"
@@ -167,7 +157,6 @@ body {
         이미 계정이 있으신가요? <a href="/login">로그인</a>
     </div>
 
-    <!-- 🔥 토스트 -->
     <div id="toast" style="
         position: fixed;
         bottom: 30px;

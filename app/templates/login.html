@@ -15,7 +15,6 @@ body {
     height: 100vh;
 }
 
-/* 🔥 카드 */
 .login-card {
     background: white;
     padding: 40px;
@@ -24,7 +23,6 @@ body {
     box-shadow: 0 8px 25px rgba(0,0,0,0.1);
 }
 
-/* 🔥 타이틀 */
 .login-title {
     font-size: 22px;
     font-weight: 700;
@@ -33,7 +31,6 @@ body {
     text-align: center;
 }
 
-/* 🔥 입력창 */
 .login-input {
     width: 100%;
     padding: 12px;
@@ -51,7 +48,6 @@ body {
     outline: none;
 }
 
-/* 🔥 버튼 */
 .login-btn {
     width: 100%;
     padding: 12px;
@@ -70,7 +66,6 @@ body {
     border-color: black;
 }
 
-/* 🔥 회원가입 */
 .login-footer {
     margin-top: 15px;
     text-align: center;
@@ -87,7 +82,6 @@ body {
     text-decoration: underline;
 }
 
-/* 🔥 에러 */
 .error {
     color: red;
     font-size: 13px;
@@ -112,7 +106,6 @@ body {
     z-index: 9999;
 }
 
-/* 🔥 비밀번호 wrapper */
 .password-wrapper {
     position: relative;
 }
@@ -132,7 +125,6 @@ body {
     padding-right: 35px;
 }
 
-/* 🔥 로딩 오버레이 */
 #loadingOverlay {
     position: fixed;
     top: 0;
@@ -162,7 +154,6 @@ body {
     letter-spacing: 0.5px;
 }
 
-/* 🔥 말풍선 */
 .speech-bubble {
     margin-top: 15px;
     padding: 12px 18px;
@@ -175,7 +166,6 @@ body {
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
-/* 🔥 말풍선 꼬리 */
 .speech-bubble::after {
     content: '';
     position: absolute;
@@ -187,7 +177,6 @@ body {
     transform: rotate(45deg);
 }
 
-/* 🔥 dots */
 #dots {
     margin-left: 3px;
 }
@@ -249,7 +238,7 @@ body {
 </div>
 
 <script>
-// 🔥 비밀번호 보기
+
 function showPassword(){
     document.getElementById("password").type = "text";
 }
@@ -257,7 +246,6 @@ function hidePassword(){
     document.getElementById("password").type = "password";
 }
 
-// 🔥 로딩 표시
 const gifs = [
     "/static/changgu1.gif",
     "/static/changgu2.gif",
@@ -279,13 +267,11 @@ async function handleLogin(e){
 
         const data = await res.json();
 
-        // ❌ 로그인 실패 → 토스트
         if (!data.success) {
             showToast("아이디 또는 비밀번호가 올바르지 않습니다.");
             return;
         }
 
-        // ✅ 로그인 성공 → 로딩 시작
         const overlay = document.getElementById("loadingOverlay");
         const img = document.getElementById("loadingGif");
         const dots = document.getElementById("dots");
@@ -323,7 +309,6 @@ async function handleLogin(e){
         }, 3000);
 
     } catch (err) {
-        // 🔥 서버 에러 대응 (추가)
         showToast("서버 오류가 발생했습니다.");
     }
 }
@@ -343,7 +328,6 @@ function showToast(msg) {
     }, 2000);
 }
 
-// 🔥 URL 처리
 window.onload = function(){
     const params = new URLSearchParams(window.location.search);
 

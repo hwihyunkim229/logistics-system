@@ -51,6 +51,25 @@ def get_group_mode(
     else:
         return "month"
 
+def get_earliest_date(db, today):
+    """가장 오래된 입/출고 기록 날짜 - 기간 미지정 시 누적(전체) 보기의
+    시작일로 쓴다. 기록이 없으면 오늘로 대체한다.
+    """
+
+    earliest_out = db.query(
+        func.min(Outbound.created_at)
+    ).scalar()
+
+    earliest_in = db.query(
+        func.min(Inbound.created_at)
+    ).scalar()
+
+    candidates = [
+        d.date() for d in (earliest_out, earliest_in) if d
+    ]
+
+    return min(candidates) if candidates else today
+
 @router.get("/dashboard")
 def dashboard_root():
     return RedirectResponse("/dashboard/overview")
@@ -68,8 +87,12 @@ def dashboard_overview(
         ZoneInfo("Asia/Seoul")
     ).date()
 
+    # 기간을 지정하지 않으면(첫 진입) 최초 기록일부터 오늘까지 전체
+    # 누적을 기본으로 보여주고, 기간을 선택하면 그 기간만 반영한다.
+    is_cumulative = not start and not end
+
     if not start:
-        start_date = today - timedelta(days=6)
+        start_date = get_earliest_date(db, today)
     else:
         start_date = datetime.strptime(
             start,
@@ -272,6 +295,8 @@ def dashboard_overview(
 
             "group_mode": group_mode,
 
+            "is_cumulative": is_cumulative,
+
             "start": start_date.strftime("%Y-%m-%d"),
             "end": end_date.strftime("%Y-%m-%d")
         }
@@ -292,11 +317,13 @@ def dashboard_trend(
         ZoneInfo("Asia/Seoul")
     ).date()
 
+    # 기간을 지정하지 않으면(첫 진입) 최초 기록일부터 오늘까지 전체
+    # 누적을 기본으로 보여주고, 기간을 선택하면 그 기간만 반영한다.
+    is_cumulative = not start and not end
+
     if not start:
 
-        start_date = (
-            today - timedelta(days=6)
-        )
+        start_date = get_earliest_date(db, today)
 
     else:
 
@@ -517,7 +544,8 @@ def dashboard_trend(
             "total_in": total_in,
             "start": start_date.strftime("%Y-%m-%d"),
             "end": end_date.strftime("%Y-%m-%d"),
-            "group_mode": group_mode
+            "group_mode": group_mode,
+            "is_cumulative": is_cumulative
         }
     )
 

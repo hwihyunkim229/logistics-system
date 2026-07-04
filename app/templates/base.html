@@ -422,13 +422,9 @@ body.sidebar-collapsed .main{
 
         <div class="submenu">
 
-            <!-- 전체 조회 -->
-
             <a href="/search" class="menu-single">
                 전체 조회
             </a>
-
-            <!-- 출고 관리 -->
 
             <a
                 href="javascript:void(0)"
@@ -501,34 +497,52 @@ body.sidebar-collapsed .main{
         </div>
     </div>
 
-    <div class="menu-group" data-menu="stock">
+    <div class="menu-group" data-menu="total-stock">
 
         <div
             class="menu-title"
             onclick="toggleMenu(this)"
         >
-            가계상 재고
+            총 재고 현황
         </div>
 
         <div class="submenu">
 
-            <a href="/stock" class="menu-single">
-                재고 현황
+            <a
+                href="javascript:void(0)"
+                class="menu-parent"
+                onclick="toggleSubmenu(this)"
+            >
+                수불 재고
             </a>
 
-            <a href="/stock/history" class="menu-single">
-                입/출고 현황
+            <div class="child-menu">
+
+                <a href="/inventory">재고 현황</a>
+                <a href="/inventory/history">입출고 현황</a>
+                <a href="/inventory/dashboard">Dashboard</a>
+
+            </div>
+
+            <a
+                href="javascript:void(0)"
+                class="menu-parent"
+                onclick="toggleSubmenu(this)"
+            >
+                가계상 재고
             </a>
 
-            <a href="/stock/dashboard" class="menu-single">
-                Dashboard
-            </a>
+            <div class="child-menu">
+
+                <a href="/stock">재고 현황</a>
+                <a href="/stock/history">입/출고 현황</a>
+                <a href="/stock/dashboard">Dashboard</a>
+
+            </div>
 
         </div>
 
     </div>
-
-    <!-- MRP -->
 
     <div class="menu-group" data-menu="mrp">
 
@@ -553,10 +567,6 @@ body.sidebar-collapsed .main{
                 생산 계획
             </a>
 
-            <a href="/mrp/inventory" class="menu-single">
-                재고 현황
-            </a>
-
             <a href="/mrp/material-master" class="menu-single">
                 자재 기준 정보
             </a>
@@ -568,8 +578,6 @@ body.sidebar-collapsed .main{
         </div>
 
     </div>
-
-    <!-- 기준 정보 -->
 
     <div class="menu-group" data-menu="master">
 

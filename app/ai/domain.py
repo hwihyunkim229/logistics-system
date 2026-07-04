@@ -12,7 +12,8 @@ Main modules
 - Dashboard
 - Product Inbound
 - Product Outbound
-- Book Stock
+- Book Stock (가계상 재고)
+- Inventory (계상 재고)
 - Stock Movement
 - MRP
 - BOM
@@ -46,17 +47,46 @@ TOP 재고
 가장 적은 재고
 
 ====================================================
-MRP INVENTORY
+INVENTORY (계상 재고)
 ====================================================
 
-MRP Inventory is different from Book Stock.
+계상 재고 is the physical/system inventory, different from
+Book Stock (가계상 재고). It was previously called "MRP 재고".
 
-Warehouse Types
+Warehouse Types (창고구분)
 
-창고 재고
-외주 재고
-제공 재고
-반제품 재고
+창고재고
+제공재고
+외주재고
+
+Only 창고재고 is further divided by
+
+- Category (구분): 반제품 / 제품 / 원자재
+- Grade (등급): A / B / F
+  (every item+LOT in 창고재고 always exists as all three grades)
+
+제공재고 and 외주재고 have no category and no grade.
+
+Each row also has
+
+- LOT: only exists for 제품/반제품 (원자재 has no LOT). Treated as a
+  plain literal string, matched exactly (e.g. F25, G23) - never parsed
+  or converted.
+- Rev
+- 비고 (note)
+
+Typical questions
+
+계상 재고
+창고재고
+제공재고
+외주재고
+A등급 재고
+LOT F25 재고
+창고에 몇개
+
+MRP calculation reads this Inventory (창고재고/제공재고/외주재고
+quantities per item).
 
 ====================================================
 MRP RESULT
@@ -191,6 +221,9 @@ Never answer from memory.
 Always use one tool.
 
 Always prefer stock.summary over global.search when asking inventory.
+
+Always prefer inventory.search when asking 계상 재고, 창고재고,
+제공재고, 외주재고, LOT or grade-based stock questions.
 
 Always prefer material.master when asking supplier, MOQ or Lead Time.
 

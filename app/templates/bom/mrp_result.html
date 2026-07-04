@@ -897,8 +897,6 @@ td{
 
                                 </div>
 
-                                <!-- 발주정보 + 재고현황 -->
-
                                 <div
                                     class="detail-bottom"
                                     style="
@@ -908,8 +906,6 @@ td{
                                         width:100%;
                                     "
                                 >
-
-                                    <!-- 발주 정보 -->
 
                                     <div
                                         class="detail-card"
@@ -988,8 +984,6 @@ td{
 
                                     </div>
 
-                                    <!-- 재고 현황 -->
-
                                     <div
                                         class="detail-card"
                                         style="
@@ -1009,28 +1003,21 @@ td{
                                             <tbody>
 
                                                 <tr>
-                                                    <th>단품 창고</th>
+                                                    <th>창고 재고</th>
                                                     <td>
-                                                        {{ "{:,.0f}".format(row.warehouse_single) }}
+                                                        {{ "{:,.0f}".format(row.warehouse_stock) }}
                                                     </td>
                                                 </tr>
 
                                                 <tr>
-                                                    <th>반제품 창고</th>
-                                                    <td>
-                                                        {{ "{:,.0f}".format(row.warehouse_semi) }}
-                                                    </td>
-                                                </tr>
-
-                                                <tr>
-                                                    <th>협력사 재고</th>
+                                                    <th>제공 재고</th>
                                                     <td>
                                                         {{ "{:,.0f}".format(row.supplier_stock) }}
                                                     </td>
                                                 </tr>
 
                                                 <tr>
-                                                    <th>외주업체 재고</th>
+                                                    <th>외주 재고</th>
                                                     <td>
                                                         {{ "{:,.0f}".format(row.subcontract_stock) }}
                                                     </td>

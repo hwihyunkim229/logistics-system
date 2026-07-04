@@ -116,7 +116,7 @@ TOOLS
 stock.summary
 
 Description:
-Book Stock.
+Book Stock (가계상 재고).
 
 Use this tool when the user asks about
 
@@ -125,6 +125,10 @@ Use this tool when the user asks about
 반제품
 원자재
 제품
+
+CRITICAL: "계상 재고" WITHOUT 가 is a DIFFERENT module
+(inventory.search), NOT this tool. Only use stock.summary when the
+user says 가계상 재고 or plain 재고 with no warehouse words.
 
 Arguments
 
@@ -155,17 +159,45 @@ inventory.search
 
 Description
 
-MRP Inventory
+계상 재고 (Inventory). Previously called "MRP 재고".
 
 Use when user asks
 
-MRP 재고
+계상 재고
 창고재고
+제공재고
+외주재고
+MRP 재고
 Warehouse
+LOT 재고
+등급 재고 (계상 재고 문맥일 때)
 
 Arguments
 
 item
+string (item code or name, "" for all)
+
+warehouse_type
+창고재고
+제공재고
+외주재고
+"" (all)
+
+category
+반제품
+제품
+원자재
+"" (only meaningful for 창고재고)
+
+grade
+A
+B
+F
+"" (only meaningful for 창고재고)
+
+lot
+string - exact LOT string like "F25". Only meaningful for 제품/반제품
+(원자재 has no LOT). "" for all.
 
 --------------------------------------------------
 
@@ -275,13 +307,25 @@ Allowed values
 
 dashboard
 stock
+stock_history
+stock_dashboard
+inventory
+inventory_history
+inventory_dashboard
 bom
 mrp
+mrp_result
 production_plan
 material_master
 item_master
 activity
 users
+search
+
+inventory = 계상 재고 현황 page
+inventory_history = 계상 재고 입출고 현황 page
+inventory_dashboard = 계상 재고 Dashboard page
+stock = 가계상 재고 현황 page
 
 global.search is the LAST choice.
 
@@ -426,6 +470,107 @@ Return
         "item":""
     }
 }
+
+User:
+계상 재고 알려줘
+
+Return
+
+{
+    "tool":"inventory.search",
+    "arguments":{
+        "item":"",
+        "warehouse_type":"",
+        "category":"",
+        "grade":"",
+        "lot":""
+    }
+}
+
+User:
+창고재고에 A등급 원자재 뭐 있어
+
+Return
+
+{
+    "tool":"inventory.search",
+    "arguments":{
+        "item":"",
+        "warehouse_type":"창고재고",
+        "category":"원자재",
+        "grade":"A",
+        "lot":""
+    }
+}
+
+User:
+제공재고 현황 알려줘
+
+Return
+
+{
+    "tool":"inventory.search",
+    "arguments":{
+        "item":"",
+        "warehouse_type":"제공재고",
+        "category":"",
+        "grade":"",
+        "lot":""
+    }
+}
+
+User:
+LOT F25 창고재고 알려줘
+
+Return
+
+{
+    "tool":"inventory.search",
+    "arguments":{
+        "item":"",
+        "warehouse_type":"창고재고",
+        "category":"",
+        "grade":"",
+        "lot":"F25"
+    }
+}
+
+User:
+계상 재고 페이지 열어줘
+
+Return
+
+{
+    "tool":"page.move",
+    "arguments":{
+        "page":"inventory"
+    }
+}
+
+User:
+계상 재고 입출고 현황으로 이동
+
+Return
+
+{
+    "tool":"page.move",
+    "arguments":{
+        "page":"inventory_history"
+    }
+}
+
+User:
+계상 재고가 뭐야
+
+Return
+
+{
+    "tool":"knowledge.answer",
+    "arguments":{
+        "question":"계상 재고가 뭐야",
+        "topic":"계상 재고"
+    }
+}
 """
 
 ALLOWED_TOOLS = {
@@ -465,6 +610,20 @@ def ai_resolve_tool(question):
     tool = result.get("tool")
 
     if tool not in ALLOWED_TOOLS:
+        return None
+
+    # LLM이 "계상 재고"와 "가계상 재고"를 자주 혼동하므로, 프롬프트에만
+    # 의존하지 않고 코드에서 교차 선택을 차단한다. None을 반환하면
+    # 결정적 키워드 라우터(query_router)가 올바르게 처리한다.
+    q = question or ""
+    inventory_terms = ("계상 재고", "계상재고", "창고재고", "제공재고", "외주재고")
+    asks_inventory = "가계상" not in q and any(t in q for t in inventory_terms)
+    asks_book_stock = "가계상" in q
+
+    if asks_inventory and tool in ("stock.summary", "stock.book", "stock.select"):
+        return None
+
+    if asks_book_stock and tool == "inventory.search":
         return None
 
     args = result.get("arguments", {})
@@ -508,8 +667,42 @@ def ai_resolve_tool(question):
 
         args["limit"] = limit
 
-    result["arguments"] = args
+    # -------------------------
+    # inventory.search 검증
+    # -------------------------
 
-    print("Planner:", result)
+    if tool == "inventory.search":
+
+        if args.get("warehouse_type") not in (
+            "",
+            "창고재고",
+            "제공재고",
+            "외주재고",
+        ):
+            args["warehouse_type"] = ""
+
+        if args.get("category") not in (
+            "",
+            "반제품",
+            "제품",
+            "원자재",
+        ):
+            args["category"] = ""
+
+        if args.get("grade") not in (
+            "",
+            "A",
+            "B",
+            "F",
+        ):
+            args["grade"] = ""
+
+        if not isinstance(args.get("lot"), str):
+            args["lot"] = ""
+
+        if not isinstance(args.get("item"), str):
+            args["item"] = ""
+
+    result["arguments"] = args
 
     return result

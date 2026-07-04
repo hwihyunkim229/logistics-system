@@ -412,6 +412,16 @@ th input[type="checkbox"]{
             value="{{ current_category }}">
 
         <input
+            type="hidden"
+            name="grade"
+            value="{{ current_grade }}">
+
+        <input
+            type="hidden"
+            name="rev"
+            value="{{ current_rev }}">
+
+        <input
             type="text"
             name="keyword"
             value="{{ keyword }}"
@@ -468,47 +478,47 @@ th input[type="checkbox"]{
 
         <div class="right-group">
             <div class="filter-row">
-                <select id="gradeFilter">
-                    <option value="">
+                <select id="gradeFilter" onchange="navigateWithFilter('grade', this.value)">
+                    <option value="" {% if not current_grade %}selected{% endif %}>
                         전체 등급
                     </option>
 
-                    <option value="A">
+                    <option value="A" {% if current_grade == 'A' %}selected{% endif %}>
                         A
                     </option>
 
-                    <option value="B">
+                    <option value="B" {% if current_grade == 'B' %}selected{% endif %}>
                         B
                     </option>
 
-                    <option value="F">
+                    <option value="F" {% if current_grade == 'F' %}selected{% endif %}>
                         F
                     </option>
                 </select>
 
-                <select id="revFilter">
+                <select id="revFilter" onchange="navigateWithFilter('rev', this.value)">
 
-                    <option value="">
+                    <option value="" {% if not current_rev %}selected{% endif %}>
                         전체 Rev
                     </option>
 
-                    <option value="REV.0">
+                    <option value="REV.0" {% if current_rev == 'REV.0' %}selected{% endif %}>
                         REV.0
                     </option>
 
-                    <option value="REV.1">
+                    <option value="REV.1" {% if current_rev == 'REV.1' %}selected{% endif %}>
                         REV.1
                     </option>
 
-                    <option value="REV.2">
+                    <option value="REV.2" {% if current_rev == 'REV.2' %}selected{% endif %}>
                         REV.2
                     </option>
 
-                    <option value="REV.2D">
+                    <option value="REV.2D" {% if current_rev == 'REV.2D' %}selected{% endif %}>
                         REV.2D
                     </option>
 
-                    <option value="COMMON">
+                    <option value="COMMON" {% if current_rev == 'COMMON' %}selected{% endif %}>
                         COMMON
                     </option>
                 </select>
@@ -672,9 +682,7 @@ th input[type="checkbox"]{
 
         {% for item in items %}
         <tr
-            data-category="{{ item.category }}"
-            data-grade="{{ item.grade or '' }}"
-            data-rev="{{ item.rev or '' }}">
+            data-category="{{ item.category }}">
 
             <td>
                 <input
@@ -735,11 +743,12 @@ th input[type="checkbox"]{
         </tbody>
     </table>
 
+    {% set base_qs = "category=" ~ (current_category|urlencode) ~ "&keyword=" ~ (keyword|urlencode) ~ "&grade=" ~ (current_grade|urlencode) ~ "&rev=" ~ (current_rev|urlencode) %}
     <div class="pagination">
         {% if page > 1 %}
 
         <a
-            href="?category={{ current_category }}&keyword={{ keyword }}&page={{ page - 1 }}">
+            href="?{{ base_qs }}&page={{ page - 1 }}">
             이전
         </a>
 
@@ -747,7 +756,7 @@ th input[type="checkbox"]{
 
         {% for p in range(1, total_pages + 1) %}
         <a
-            href="?category={{ current_category }}&keyword={{ keyword }}&page={{ p }}"
+            href="?{{ base_qs }}&page={{ p }}"
             class="{% if p == page %}active{% endif %}">
             {{ p }}
         </a>
@@ -756,7 +765,7 @@ th input[type="checkbox"]{
 
         {% if page < total_pages %}
         <a
-            href="?category={{ current_category }}&keyword={{ keyword }}&page={{ page + 1 }}">
+            href="?{{ base_qs }}&page={{ page + 1 }}">
             다음
         </a>
 
@@ -1268,49 +1277,11 @@ async function applyBulkQty(){
     location.reload();
 }
 
-function applyGradeRevFilter(){
-    const grade =
-        document
-        .getElementById("gradeFilter")
-        .value;
-
-    const rev =
-        document
-        .getElementById("revFilter")
-        .value;
-
-    document
-    .querySelectorAll(
-        "#inventoryTable tbody tr"
-    )
-    .forEach(row=>{
-        const gradeMatch =
-            !grade ||
-            row.dataset.grade === grade;
-
-        const revMatch =
-            !rev ||
-            row.dataset.rev === rev;
-
-        row.style.display =
-            gradeMatch && revMatch
-            ? ""
-            : "none";
-    });
+function navigateWithFilter(param, value){
+    const url = new URL(window.location.href);
+    url.searchParams.set(param, value);
+    url.searchParams.set("page", "1");
+    window.location.href = url.pathname + "?" + url.searchParams.toString();
 }
-
-document
-.getElementById("gradeFilter")
-.addEventListener(
-    "change",
-    applyGradeRevFilter
-);
-
-document
-.getElementById("revFilter")
-.addEventListener(
-    "change",
-    applyGradeRevFilter
-);
 </script>
 {% endblock %}

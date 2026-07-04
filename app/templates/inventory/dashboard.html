@@ -1,0 +1,921 @@
+{% extends "base.html" %}
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+
+<style>
+.page-title{
+    margin-bottom:28px;
+    font-size:24px;
+    font-weight:750;
+    color:#1f2937;
+}
+.kpi-grid{
+    display:grid;
+    grid-template-columns: repeat(4, minmax(180px, 220px));
+    gap:16px;
+    justify-content:center;
+    margin-bottom:24px;
+}
+.kpi-card{
+    position:relative;
+    background:
+        linear-gradient(
+            135deg,
+            #172554 0%,
+            #1e3a8a 100%
+        );
+    border-radius:24px;
+    padding:20px;
+    color:white;
+    overflow:hidden;
+    box-shadow:
+        0 10px 24px rgba(
+            30,
+            58,
+            138,
+            0.18
+        );
+    transition:0.25s ease;
+}
+.kpi-card:hover{
+    transform:translateY(-3px);
+}
+.kpi-card::after{
+    content:"";
+    position:absolute;
+    right:-35px;
+    bottom:-35px;
+    width:130px;
+    height:130px;
+    border-radius:50%;
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            0.06
+        );
+}
+.kpi-product{
+    position:relative;
+    z-index:2;
+    font-size:16px;
+    font-weight:600;
+    margin-bottom:15px;
+}
+.kpi-value{
+    position:relative;
+    z-index:2;
+    font-size:38px;
+    font-weight:800;
+}
+.kpi-value.in{
+    color:#93c5fd;
+}
+.kpi-value.out{
+    color:#f9a8d4;
+}
+.chart-grid{
+    display:grid;
+    grid-template-columns:
+        0.75fr 1.25fr;
+    gap:24px;
+    align-items:stretch;
+}
+.chart-card{
+    background:white;
+    border-radius:28px;
+    padding:26px;
+    box-shadow:
+        0 6px 20px
+        rgba(
+            15,
+            23,
+            42,
+            0.05
+        );
+}
+.raw-grid{
+    min-width:850px;
+}
+.chart-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:18px;
+}
+.chart-title{
+    font-size:16px;
+    font-weight:700;
+    color:#0f172a;
+}
+.movement-card{
+    grid-column:1 / -1;
+}
+.category-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:14px;
+}
+.category-card{
+    background:#f8fafc;
+    border-radius:18px;
+    padding:22px;
+    border:1px solid #e2e8f0;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+.category-name{
+    font-size:20px;
+    font-weight: 800;
+    color:#64748b;
+}
+.category-value{
+    margin-top:10px;
+    font-size:42px;
+    font-weight:800;
+}
+.category-value.semi{
+    color:#3b82f6;
+}
+.category-value.product{
+    color:#8b5cf6;
+}
+.category-value.raw{
+    color:#06b6d4;
+}
+.inventory-section{
+    margin-bottom:28px;
+}
+.inventory-section:last-child{
+    margin-bottom:0;
+}
+.inventory-section-title{
+    font-size:15px;
+    font-weight:700;
+    color:#334155;
+    margin-bottom:14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+.inventory-section-title::before{
+    content:"";
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:#3b82f6;
+}
+.inventory-grid{
+    display:grid;
+    grid-template-columns: repeat(5,minmax(120px,1fr));
+    gap:14px;
+}
+.inventory-card{
+    background:#f8fafc;
+    border:1px solid #e2e8f0;
+    border-radius:18px;
+    padding:18px;
+}
+.inventory-name{
+    font-size:15px;
+    font-weight: 800;
+    color:#64748b;
+}
+.inventory-value{
+    margin-top:8px;
+    font-size:26px;
+    font-weight:800;
+    color:#2563eb;
+}
+#movementChart{
+    height:300px !important;
+}
+.chart-card.equal-height{
+    height:100%;
+}
+.filter-wrap{
+    position:relative;
+}
+.calendar-btn{
+    border:none;
+    background:#eff6ff;
+    cursor:pointer;
+    border-radius:10px;
+    padding:8px 12px;
+}
+.date-popup{
+    display:none;
+    position:absolute;
+    top:55px;
+    right:0;
+    width:320px;
+    background:white;
+    border-radius:18px;
+    padding:18px;
+    box-shadow:
+        0 12px 30px rgba(
+            15,
+            23,
+            42,
+            0.15
+        );
+    z-index:1000;
+}
+.date-popup.show{
+    display:block;
+}
+.date-popup input[type="date"]{
+    width:100%;
+    padding:10px;
+    border:1px solid #cbd5e1;
+    border-radius:10px;
+}
+.popup-title{
+    font-weight:700;
+    margin-bottom:12px;
+}
+.date-row{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    margin-bottom:12px;
+}
+.apply-btn{
+    width:100%;
+    border:none;
+    background:#2563eb;
+    color:white;
+    font-weight:600;
+    padding:12px;
+    border-radius:12px;
+    cursor:pointer;
+}
+.date-filter-btn{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    border:none;
+    background:#eff6ff;
+    color:#2563eb;
+    font-weight:600;
+    padding:10px 16px;
+    border-radius:12px;
+    cursor:pointer;
+    transition:0.2s;
+}
+.date-filter-btn:hover{
+    background:#dbeafe;
+}
+.date-filter-btn .icon{
+    font-size:18px;
+}
+.inventory-layout{
+    display:grid;
+    grid-template-columns:1fr 240px;
+    align-items:center;
+    gap:20px;
+}
+.donut-area{
+
+    display:flex;
+
+    justify-content:center;
+}
+
+.donut-wrap{
+
+    position:relative;
+
+    width:260px;
+    height:260px;
+}
+
+#inventoryDonut{
+
+    width:260px !important;
+    height:260px !important;
+}
+
+.donut-center{
+
+    position:absolute;
+
+    top:50%;
+    left:50%;
+
+    transform:
+        translate(-50%,-50%);
+
+    text-align:center;
+}
+
+.donut-label{
+
+    font-size:14px;
+
+    color:#64748b;
+
+    margin-bottom:10px;
+}
+
+.donut-total{
+    font-size:40px;
+    font-weight:800;
+    color:#0f172a;
+}
+
+.composition-list{
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:24px;
+}
+
+.comp-row{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding-bottom:18px;
+
+    border-bottom:
+        1px solid #eef2f7;
+}
+
+.comp-left{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    white-space:nowrap;
+    font-size:16px;
+    font-weight:700;
+}
+
+.comp-right{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    white-space:nowrap;
+    gap:4px;
+}
+
+.comp-right strong{
+
+    font-size:22px;
+
+    color:#0f172a;
+}
+
+.comp-right span{
+
+    font-size:17px;
+    font-weight: 700;
+    color:#94a3b8;
+}
+
+.dot{
+
+    width:12px;
+    height:12px;
+
+    border-radius:50%;
+}
+
+.dot.semi{
+    background:#3b82f6;
+}
+
+.dot.product{
+    background:#8b5cf6;
+}
+
+.dot.raw{
+    background:#06b6d4;
+}
+</style>
+
+<h2 class="page-title">
+    Dashboard
+</h2>
+
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-product">
+            총 품목 수
+        </div>
+
+        <div class="kpi-value in">
+            {{ total_items }}
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-product">
+            총 재고
+        </div>
+
+        <div class="kpi-value in">
+            {{ "{:,}".format(total_qty) }}
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-product">
+            입고
+        </div>
+
+        <div class="kpi-value in">
+            {{ "{:,}".format(today_in) }}
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-product">
+            출고
+        </div>
+
+        <div class="kpi-value out">
+            {{ "{:,}".format(today_out) }}
+        </div>
+    </div>
+</div>
+
+<div class="chart-grid">
+
+    <div class="chart-card equal-height">
+
+        <div class="chart-header">
+            <div class="chart-title">
+                재고 구성 현황
+            </div>
+        </div>
+
+        <div class="inventory-layout">
+
+            <!-- LEFT -->
+
+            <div class="donut-area">
+
+                <div class="donut-wrap">
+
+                    <canvas id="inventoryDonut"></canvas>
+
+                    <div class="donut-center">
+
+                        <div class="donut-label">
+                            총 재고
+                        </div>
+
+                        <div class="donut-total">
+                            {{ "{:,}".format(total_qty) }}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- RIGHT -->
+
+            <div class="composition-list">
+
+                <div class="comp-row">
+
+                    <div class="comp-left">
+
+                        <span class="dot semi"></span>
+
+                        <span>반제품</span>
+
+                    </div>
+
+                    <div class="comp-right">
+
+                        <strong>
+                            {{ "{:,}".format(category_qtys[0]) }}
+                        </strong>
+
+                        <span>
+                            {{ "%.1f"|format((category_qtys[0] / total_qty * 100) if total_qty else 0) }}%
+                        </span>
+
+                    </div>
+
+                </div>
+
+                <div class="comp-row">
+
+                    <div class="comp-left">
+
+                        <span class="dot product"></span>
+
+                        <span>제품</span>
+
+                    </div>
+
+                    <div class="comp-right">
+
+                        <strong>
+                            {{ "{:,}".format(category_qtys[1]) }}
+                        </strong>
+
+                        <span>
+                            {{ "%.1f"|format((category_qtys[1] / total_qty * 100) if total_qty else 0) }}%
+                        </span>
+
+                    </div>
+
+                </div>
+
+                <div class="comp-row">
+
+                    <div class="comp-left">
+
+                        <span class="dot raw"></span>
+
+                        <span>원자재</span>
+
+                    </div>
+
+                    <div class="comp-right">
+
+                        <strong>
+                            {{ "{:,}".format(category_qtys[2]) }}
+                        </strong>
+
+                        <span>
+                            {{ "%.1f"|format((category_qtys[2] / total_qty * 100) if total_qty else 0) }}%
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="chart-card equal-height">
+
+        <div class="chart-header">
+            <div class="chart-title">
+                재고 구성 현황 (Detail)
+            </div>
+        </div>
+
+        <div class="inventory-section">
+
+            <div class="inventory-section-title">
+                반제품
+            </div>
+
+            <div class="inventory-grid">
+
+                <div class="inventory-card">
+
+                    <div class="inventory-name">
+                        RING
+                    </div>
+
+                    <div class="inventory-value">
+                        {{ "{:,}".format(semi_qtys[0]) }}
+                    </div>
+
+                </div>
+
+                <div class="inventory-card">
+
+                    <div class="inventory-name">
+                        CRADLE
+                    </div>
+
+                    <div class="inventory-value">
+                        {{ "{:,}".format(semi_qtys[1]) }}
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <hr style="
+            border:none;
+            border-top:1px solid #e2e8f0;
+            margin:24px 0;
+        ">
+
+        <div class="inventory-section">
+
+            <div class="inventory-section-title">
+                원자재
+            </div>
+
+            <div class="inventory-grid">
+
+                {% for i in range(raw_labels|length) %}
+
+                <div class="inventory-card">
+
+                    <div class="inventory-name">
+                        {{ raw_labels[i] }}
+                    </div>
+
+                    <div class="inventory-value">
+                        {{ "{:,}".format(raw_qtys[i]) }}
+                    </div>
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="chart-card movement-card">
+        <div class="chart-header">
+            <div class="chart-title">
+                재고 구성별 입/출고 현황
+            </div>
+
+            <div class="filter-wrap">
+                <button
+                    id="dateFilterBtn"
+                    class="date-filter-btn"
+                    type="button"
+                >
+                    <span class="icon">
+                        🗓️
+                    </span>
+
+                    <span>
+                        기간 조회
+                    </span>
+                </button>
+
+                <div
+                    id="dateFilterPopup"
+                    class="date-popup"
+                >
+                    <form
+                        method="get"
+                        action="/inventory/dashboard"
+                    >
+                        <div class="popup-title">
+                            기간 선택
+                        </div>
+
+                        <div class="date-row">
+                            <input
+                                type="date"
+                                name="start"
+                            >
+
+                            <span>~</span>
+
+                            <input
+                                type="date"
+                                name="end"
+                            >
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="apply-btn"
+                        >
+                            적용
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <canvas id="movementChart"></canvas>
+    </div>
+</div>
+
+<script>
+Chart.register(ChartDataLabels);
+
+new Chart(
+    document.getElementById(
+        "inventoryDonut"
+    ),
+    {
+        type:"doughnut",
+
+        data:{
+            labels:
+                {{ category_labels|tojson }},
+
+            datasets:[
+                {
+                    data:
+                        {{ category_qtys|tojson }},
+
+                    backgroundColor:[
+                        "#3b82f6",
+                        "#8b5cf6",
+                        "#06b6d4"
+                    ],
+
+                    borderWidth:0,
+
+                    borderRadius:8
+                }
+            ]
+        },
+
+        options:{
+            responsive:true,
+
+            maintainAspectRatio:false,
+
+            cutout:"68%",
+
+            plugins:{
+
+                legend:{
+                    display:false
+                },
+
+                datalabels:{
+
+                    color:"#ffffff",
+
+                    font:{
+                        size:14,
+                        weight:"bold"
+                    },
+
+                    formatter:function(value){
+
+                        return value.toLocaleString();
+
+                    }
+                }
+            }
+        },
+
+        plugins:[
+            ChartDataLabels
+        ]
+    }
+);
+
+new Chart(
+    document.getElementById(
+        "movementChart"
+    ),
+    {
+        data:{
+            labels:
+                {{ movement_labels|tojson }},
+
+            datasets:[
+                {
+                    type:"bar",
+                    label:"입고",
+                    data:
+                        {{ movement_in|tojson }},
+                    backgroundColor:
+                        "rgba(59,130,246,0.8)",
+                    borderRadius:8,
+                    maxBarThickness:80,
+                    datalabels:{
+                        color:"#2563eb",
+                        anchor:"end",
+                        align:"top",
+                        offset:4,
+                        font:{
+                            weight:"bold",
+                            size:15
+                        },
+                        formatter:function(value){
+
+                            return value.toLocaleString();
+
+                        }
+                    }
+                },
+
+                {
+                    type:"line",
+                    label:"출고",
+                    data:
+                        {{ movement_out|tojson }},
+                    borderColor:"#ef4444",
+                    backgroundColor:
+                        "rgba(239,68,68,0.15)",
+                    fill:true,
+                    tension:0.4,
+                    pointRadius:5,
+                    pointHoverRadius:7,
+                    borderWidth:3,
+                    datalabels:{
+                        color:"#ef4444",
+                        anchor:"end",
+                        align:"top",
+                        offset:4,
+                        font:{
+                            weight:"bold",
+                            size:15
+                        },
+                        formatter:function(value){
+                            return value.toLocaleString();
+                        }
+                    }
+                }
+            ]
+        },
+
+        options:{
+            responsive:true,
+            maintainAspectRatio:false,
+            interaction:{
+                mode:"index",
+                intersect:false
+            },
+
+            scales:{
+                y:{
+                    beginAtZero:true,
+                    ticks:{
+                        callback:function(value){
+                            return value.toLocaleString();
+                        }
+                    }
+                }
+            },
+
+            plugins:{
+                legend:{
+                    position:"top"
+                },
+
+                tooltip:{
+                    callbacks:{
+                        label:function(context){
+                            return (
+                                context.dataset.label +
+                                " : " +
+                                context.raw.toLocaleString()
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+);
+
+const btn =
+    document.getElementById(
+        "dateFilterBtn"
+    );
+
+const popup =
+    document.getElementById(
+        "dateFilterPopup"
+    );
+
+btn.addEventListener(
+    "click",
+    () => {
+        popup.classList.toggle(
+            "show"
+        );
+    }
+);
+
+document.addEventListener(
+    "click",
+    (e) => {
+        if(
+            !btn.contains(e.target)
+            &&
+            !popup.contains(e.target)
+        ){
+            popup.classList.remove(
+                "show"
+            );
+        }
+    }
+);
+</script>
+{% endblock %}

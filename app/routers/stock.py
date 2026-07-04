@@ -767,7 +767,7 @@ def download_history_excel(
             "작업자":
                 row.user,
 
-            "출처":
+            "비고":
                 row.source
         })
 
