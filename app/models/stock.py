@@ -9,5 +9,5 @@ class Stock(Base):
     item_name = Column(String, nullable=False)
     grade = Column(String)
     rev = Column(String)
-    category = Column(String, nullable=False)
+    category = Column(String, nullable=False, index=True)
     qty = Column(Integer, default=0)

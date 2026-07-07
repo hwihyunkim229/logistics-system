@@ -188,7 +188,27 @@ def _fallback_answer(result):
             ("item_master", "품목 기준정보"),
         ]:
             rows = result.get(key, [])
-            if rows:
+            if not rows:
+                continue
+
+            # book_stock/inventory rows carry qty - showing the summed
+            # total here (not just a row count) means this fallback is
+            # still a real, correct answer to "수량 알려줘" even when
+            # the AI synthesis call above fails or times out. Only sum
+            # when every row belongs to the SAME item_code - a loose
+            # keyword can match several different items (e.g. "Ring_9"
+            # matching both "CART-I Ring_size_9" and "Hermes_RING size
+            # 9"), and adding their quantities together would produce a
+            # number that isn't the true total for either item.
+            item_codes = {row.get("item_code") for row in rows if isinstance(row, dict)}
+            if (
+                key in ("book_stock", "inventory")
+                and len(item_codes) == 1
+                and all(isinstance(row, dict) and "qty" in row for row in rows)
+            ):
+                total_qty = sum(row.get("qty") or 0 for row in rows)
+                sections.append(f"- {label}: {len(rows)}건, 합계 수량 {total_qty}개")
+            else:
                 sections.append(f"- {label}: {len(rows)}건")
 
         if not sections:

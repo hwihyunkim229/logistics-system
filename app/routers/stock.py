@@ -21,7 +21,7 @@ from app.models.item_master_history import ItemMasterHistory
 from fastapi import UploadFile, File
 import tempfile
 from math import ceil
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from app.models.bom import BOM
 from app.models.inventory import Inventory
 from app.models.material_master import MaterialMaster
@@ -128,22 +128,17 @@ def inventory_dashboard(
         ceil(total_count / per_page)
     )
 
-    all_items = db.query(Stock).all()
-
-    semi_qty = sum(
-        x.qty for x in all_items
-        if x.category == "반제품"
+    # 전체 Stock 행을 다 불러와 Python에서 카테고리별로 더하던 것을,
+    # SQL GROUP BY 합산 한 번으로 대체 - 결과(카테고리별 합계)는 동일.
+    category_totals = dict(
+        db.query(Stock.category, func.sum(Stock.qty))
+        .group_by(Stock.category)
+        .all()
     )
 
-    product_qty = sum(
-        x.qty for x in all_items
-        if x.category == "제품"
-    )
-
-    raw_qty = sum(
-        x.qty for x in all_items
-        if x.category == "원자재"
-    )
+    semi_qty = category_totals.get("반제품", 0) or 0
+    product_qty = category_totals.get("제품", 0) or 0
+    raw_qty = category_totals.get("원자재", 0) or 0
 
     return templates.TemplateResponse(
         request=request,

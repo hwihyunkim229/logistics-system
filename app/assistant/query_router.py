@@ -408,16 +408,23 @@ def extract_keyword(question):
         flags=re.IGNORECASE
     )
 
-    # 실제 품목코드/품명 토큰은 항상 숫자를 포함한다(SL-H-AS-00010,
-    # Ring_size_7 등). 이 조건이 없으면 "CART-I Ring_size_7"처럼 코드
-    # 형태로 시작하는 다단어 품명에서 앞쪽 "CART-I"만 잡고 뒤에 붙은
-    # 진짜 식별자("Ring_size_7")를 놓치는 문제가 있었다.
+    # 실제 품목코드/품명은 "CART-I Ring_size_7"처럼 영숫자 토큰이 공백으로
+    # 이어진 다단어 형태가 많고, 그 안 어딘가에는 항상 숫자가 있다
+    # (SL-H-AS-00010, Ring_size_7 등). 토큰 하나만 뽑으면 "CART-I"만
+    # 잡고 뒤에 붙은 진짜 식별자("Ring_size_7")를 놓치거나, 반대로
+    # "Ring_size_7"만 잡고 앞의 "CART-I"를 놓쳐 다른 품목과 뒤섞여
+    # 매칭되는 문제가 있었다 - 공백으로 이어진 영숫자 토큰 구간 전체를
+    # 하나의 후보로 잡고, 그 구간 어딘가에 숫자가 있으면 그 구간
+    # 전체를 키워드로 쓴다(한글 조사/불용어가 자연스러운 경계가 됨).
     code = [
-        c for c in re.findall(r"\b[A-Za-z0-9][A-Za-z0-9_\-./]{2,}\b", code_source)
-        if re.search(r"\d", c)
+        c for c in re.findall(
+            r"\b[A-Za-z0-9][A-Za-z0-9_\-./]*(?:\s+[A-Za-z0-9][A-Za-z0-9_\-./]*)*\b",
+            code_source,
+        )
+        if re.search(r"\d", c) and len(c) >= 3
     ]
     if code:
-        return code[0].strip()
+        return max(code, key=len).strip()
 
     cleaned = re.sub(r"[?.,!<>()]", " ", translate_product_terms(text))
 

@@ -13,7 +13,8 @@ class Outbound(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(
             ZoneInfo("Asia/Seoul")
-        )
+        ),
+        index=True
     )
     product = Column(String)
     category = Column(String)

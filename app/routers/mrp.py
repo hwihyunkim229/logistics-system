@@ -126,16 +126,30 @@ def get_week_label(dt):
 
     return f"{dt.month}월 1주"
 
-def calculate_mrp(db, year=None, month=None, week=None):
-
-    all_plans = (
-        db.query(ProductionPlan)
-        .order_by(
-            ProductionPlan.plan_date,
-            ProductionPlan.product_name
+def calculate_mrp(
+    db,
+    year=None,
+    month=None,
+    week=None,
+    all_plans=None,
+    bom_rows=None,
+    inventory_rows=None,
+    material_rows=None,
+    note_rows=None,
+):
+    # all_plans/bom_rows/inventory_rows/material_rows/note_rows는 호출자가
+    # 이미 조회해둔 데이터가 있으면 그대로 재사용하기 위한 선택 인자다 -
+    # 넘기지 않으면(None) 예전과 동일하게 이 함수가 직접 조회한다. 계산
+    # 로직은 그대로고, 같은 테이블을 여러 번 중복 조회하지 않기 위함.
+    if all_plans is None:
+        all_plans = (
+            db.query(ProductionPlan)
+            .order_by(
+                ProductionPlan.plan_date,
+                ProductionPlan.product_name
+            )
+            .all()
         )
-        .all()
-    )
 
     def matches_period(plan):
         if year and plan.plan_date.year != year:
@@ -165,15 +179,21 @@ def calculate_mrp(db, year=None, month=None, week=None):
         for p in all_plans
     }
 
-    bom_rows = (
-        db.query(BOM)
-        .filter(
-            BOM.product_name.in_(products)
+    if bom_rows is None:
+        bom_rows = (
+            db.query(BOM)
+            .filter(
+                BOM.product_name.in_(products)
+            )
+            .all()
+            if products
+            else []
         )
-        .all()
-        if products
-        else []
-    )
+    else:
+        bom_rows = [
+            bom for bom in bom_rows
+            if bom.product_name in products
+        ]
 
     bom_by_product = defaultdict(list)
 
@@ -239,11 +259,14 @@ def calculate_mrp(db, year=None, month=None, week=None):
             key=lambda x: x["date"]
         )
 
-    inventory_rows = db.query(Inventory).all()
+    if inventory_rows is None:
+        inventory_rows = db.query(Inventory).all()
 
-    material_rows = db.query(MaterialMaster).all()
+    if material_rows is None:
+        material_rows = db.query(MaterialMaster).all()
 
-    note_rows = db.query(MaterialNote).all()
+    if note_rows is None:
+        note_rows = db.query(MaterialNote).all()
 
     material_map = {
         row.item_code: row
@@ -635,11 +658,17 @@ def build_week_dashboard_summary(
     plans,
     year=None,
     month=None,
-    week=None
+    week=None,
+    inventory_rows=None,
+    bom_rows=None,
 ):
 
-    inventory_rows = db.query(Inventory).all()
-    bom_rows = db.query(BOM).all()
+    if inventory_rows is None:
+        inventory_rows = db.query(Inventory).all()
+
+    if bom_rows is None:
+        bom_rows = db.query(BOM).all()
+
     remain_inventory = defaultdict(float)
 
     for inv in inventory_rows:
@@ -835,13 +864,28 @@ def build_mrp_dashboard_context(
     shortage_count,
     week_summary,
     selected_year=None,
-    selected_month=None
+    selected_month=None,
+    inventory_rows=None,
+    bom_rows=None,
+    material_rows=None,
+    note_rows=None,
 ):
-    
-    inventory_rows = db.query(Inventory).all()
-    bom_rows = db.query(BOM).all()
-    material_rows = db.query(MaterialMaster).all()
-    note_count = db.query(MaterialNote).count()
+
+    if inventory_rows is None:
+        inventory_rows = db.query(Inventory).all()
+
+    if bom_rows is None:
+        bom_rows = db.query(BOM).all()
+
+    if material_rows is None:
+        material_rows = db.query(MaterialMaster).all()
+
+    note_count = (
+        db.query(MaterialNote).count()
+        if note_rows is None
+        else len(note_rows)
+    )
+
     inventory_count = len(inventory_rows)
     summary = build_mrp_summary(
         plans,
@@ -1174,19 +1218,45 @@ def mrp_dashboard(
 
     year = int(year) if year else None
     month = int(month) if month else None
-    
+
+    # 이 페이지는 calculate_mrp -> build_week_dashboard_summary ->
+    # build_mrp_dashboard_context를 연달아 호출하는데, 셋 다 각자
+    # ProductionPlan/Inventory/BOM/MaterialMaster/MaterialNote를 따로
+    # 또 조회해서 같은 테이블을 최대 3번까지 중복으로 읽고 있었다.
+    # 한 번씩만 가져와 세 함수에 그대로 넘겨 재사용한다 - 계산 로직과
+    # 결과는 동일하고 중복 조회만 없앤다.
+    all_plans = (
+        db.query(ProductionPlan)
+        .order_by(
+            ProductionPlan.plan_date,
+            ProductionPlan.product_name
+        )
+        .all()
+    )
+    inventory_rows = db.query(Inventory).all()
+    bom_rows = db.query(BOM).all()
+    material_rows = db.query(MaterialMaster).all()
+    note_rows = db.query(MaterialNote).all()
+
     plans, rows, shortage_count, _ = calculate_mrp(
         db,
         year=year,
-        month=month
+        month=month,
+        all_plans=all_plans,
+        bom_rows=bom_rows,
+        inventory_rows=inventory_rows,
+        material_rows=material_rows,
+        note_rows=note_rows,
     )
-    plans_for_filter = db.query(ProductionPlan).all()
+    plans_for_filter = all_plans
 
     dashboard_week_summary = build_week_dashboard_summary(
         db,
         plans_for_filter,
         year=year,
-        month=month
+        month=month,
+        inventory_rows=inventory_rows,
+        bom_rows=bom_rows,
     )
     context = build_mrp_dashboard_context(
         db,
@@ -1195,7 +1265,11 @@ def mrp_dashboard(
         shortage_count,
         dashboard_week_summary,
         selected_year=year,
-        selected_month=month
+        selected_month=month,
+        inventory_rows=inventory_rows,
+        bom_rows=bom_rows,
+        material_rows=material_rows,
+        note_rows=note_rows,
     )
 
     years = sorted(

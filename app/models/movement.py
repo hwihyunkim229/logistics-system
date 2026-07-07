@@ -8,9 +8,9 @@ class Movement(Base):
 
     id = Column(Integer, primary_key=True)
     serial = Column(String, index=True)
-    product = Column(String)
+    product = Column(String, index=True)
 
-    type = Column(String)
+    type = Column(String, index=True)
     source = Column(String)
 
     client = Column(String, nullable=True)
@@ -22,4 +22,4 @@ class Movement(Base):
             ZoneInfo("Asia/Seoul")
         )
 
-    created_at = Column(DateTime(timezone=True), default=korea_time)
+    created_at = Column(DateTime(timezone=True), default=korea_time, index=True)

@@ -32,13 +32,18 @@ ADMIN_ONLY_TOOLS = {
     "activity.login_summary",
 }
 
-# resolve_tool() never returns None - it always ends in one of these two
-# catch-alls once none of its specific keyword branches match. That is
-# the signal that the deterministic router genuinely couldn't tell what
-# the user meant, so it's the only case worth spending an AI call on.
+# resolve_tool() never returns None - it always ends in a catch-all once
+# none of its specific keyword branches match. Only "general.chat" (no
+# keyword at all) is a real "I don't know what this means" signal worth
+# an AI call. "global.search" already found a concrete keyword and
+# searched every domain table for it - that IS the correct, complete
+# answer for an ambiguous item/quantity question, so handing it to the
+# AI planner here would be a downgrade: the planner has to guess a
+# single specific tool (e.g. inventory.search) and often picks the
+# wrong domain, reporting that domain's qty (sometimes 0) as if it were
+# the item's only stock, when other domains for the same item have data.
 GENERIC_FALLBACK_TOOLS = {
     "general.chat",
-    "global.search",
 }
 
 

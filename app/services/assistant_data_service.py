@@ -1,5 +1,6 @@
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
+from types import SimpleNamespace
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 from app.routers.mrp import calculate_mrp
@@ -543,60 +544,109 @@ def stock_summary(
     order: str = "asc",
     limit: int = MAX_ROWS,
 ):
-    query = db.query(Stock)
-
-    if category:
-        query = query.filter(Stock.category == category)
-
     keyword = _keyword(item)
 
-    if keyword:
-        pattern = _like(keyword)
-        query = query.filter(
-            or_(
-                func.lower(Stock.item_code).like(pattern),
-                func.lower(Stock.item_name).like(pattern),
-                func.lower(Stock.category).like(pattern),
+    def apply_scope(q):
+        if category:
+            q = q.filter(Stock.category == category)
+
+        if keyword:
+            pattern = _like(keyword)
+            q = q.filter(
+                or_(
+                    func.lower(Stock.item_code).like(pattern),
+                    func.lower(Stock.item_name).like(pattern),
+                    func.lower(Stock.category).like(pattern),
+                )
             )
-        )
+
+        return q
 
     if sort == "qty":
 
-        if order == "desc":
-            query = query.order_by(Stock.qty.desc())
+        # 창고재고와 같은 방식으로 품목코드마다 A/B/F 등급이 항상 세
+        # 행으로 나뉘어 저장돼 있다. 개별 행을 qty로 정렬하면 "가장
+        # 많은 품목"이 실제로는 어느 한 등급 한 행일 뿐이라 다른
+        # 등급을 합친 진짜 총 재고량과 다른 값이 나온다 - 품목코드
+        # 단위로 등급을 합산한 뒤 정렬해야 한다.
+        grouped = apply_scope(
+            db.query(
+                Stock.item_code,
+                Stock.item_name,
+                Stock.category,
+                Stock.rev,
+                func.sum(Stock.qty).label("qty"),
+            ).group_by(
+                Stock.item_code,
+                Stock.item_name,
+                Stock.category,
+                Stock.rev,
+            )
+        )
 
-        else:
-            query = query.order_by(Stock.qty.asc())
+        grouped = grouped.order_by(
+            func.sum(Stock.qty).desc() if order == "desc" else func.sum(Stock.qty).asc()
+        )
 
-    elif sort == "item_name":
+        grouped_rows = grouped.limit(limit + 1).all()
+        total_rows = apply_scope(
+            db.query(Stock.item_code).distinct()
+        ).count()
 
-        if order == "desc":
-            query = query.order_by(Stock.item_name.desc())
+        rows = [
+            SimpleNamespace(
+                item_code=row.item_code,
+                item_name=row.item_name,
+                category=row.category,
+                # grade는 A/B/F 등급을 합산한 값이라 특정 등급 하나로
+                # 표시할 수 없다 - null이 아니라 빈 문자열로 둬서(다른
+                # tool들의 "해당 없음" 관례와 동일하게) 응답 생성 AI가
+                # null을 보고 "데이터 없음"으로 오해해 답변을 얼버무리는
+                # 것을 방지한다.
+                grade="",
+                rev=row.rev,
+                qty=row.qty or 0,
+            )
+            for row in grouped_rows
+        ]
 
-        else:
-            query = query.order_by(Stock.item_name.asc())
+        total_qty = apply_scope(
+            db.query(func.coalesce(func.sum(Stock.qty), 0))
+        ).scalar() or 0
 
     else:
 
-        query = query.order_by(
-            Stock.category,
-            Stock.item_name,
-            Stock.item_code,
+        query = apply_scope(db.query(Stock))
+
+        if sort == "item_name":
+
+            if order == "desc":
+                query = query.order_by(Stock.item_name.desc())
+
+            else:
+                query = query.order_by(Stock.item_name.asc())
+
+        else:
+
+            query = query.order_by(
+                Stock.category,
+                Stock.item_name,
+                Stock.item_code,
+            )
+
+        rows = query.limit(limit + 1).all()
+        total_rows = query.count()
+
+        # order_by() must be cleared before collapsing to a bare aggregate -
+        # Postgres rejects ORDER BY columns that aren't grouped/aggregated
+        # when the SELECT list is aggregate-only (SQLite silently allows it,
+        # which is why this only surfaced against the Postgres/Neon DB).
+        total_qty = (
+            query.order_by(None)
+            .with_entities(func.coalesce(func.sum(Stock.qty), 0))
+            .scalar()
+            or 0
         )
-
-    rows = query.limit(limit + 1).all()
-    total_rows = query.count()
-
-    # order_by() must be cleared before collapsing to a bare aggregate -
-    # Postgres rejects ORDER BY columns that aren't grouped/aggregated
-    # when the SELECT list is aggregate-only (SQLite silently allows it,
-    # which is why this only surfaced against the Postgres/Neon DB).
-    total_qty = (
-        query.order_by(None)
-        .with_entities(func.coalesce(func.sum(Stock.qty), 0))
-        .scalar()
-        or 0
-    )
 
     category_rows = (
         db.query(

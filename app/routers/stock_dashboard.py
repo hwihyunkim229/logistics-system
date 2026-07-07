@@ -81,29 +81,18 @@ def stock_dashboard(
         StockMovement.movement_type == "OUT"
     ).scalar() or 0
 
-    category_labels = []
-    category_qtys = []
+    # 카테고리 3개를 하나씩 따로 조회하던 것을 GROUP BY 한 번으로 대체.
+    category_qty_totals = dict(
+        db.query(Stock.category, func.sum(Stock.qty))
+        .group_by(Stock.category)
+        .all()
+    )
 
-    for category in [
-        "반제품",
-        "제품",
-        "원자재"
-    ]:
-
-        qty = db.query(
-            func.sum(Stock.qty)
-        ).filter(
-            Stock.category == category
-        ).scalar() or 0
-
-        category_labels.append(category)
-        category_qtys.append(qty)
-
-    raw_items = db.query(
-        Stock
-    ).filter(
-        Stock.category == "원자재"
-    ).all()
+    category_labels = ["반제품", "제품", "원자재"]
+    category_qtys = [
+        category_qty_totals.get(c, 0) or 0
+        for c in category_labels
+    ]
 
     semi_data = {
         "RING": 0,
@@ -199,8 +188,12 @@ def stock_dashboard(
         }
     }
 
+    # 전체 StockMovement 행을 가져와 Python에서 category/type별로
+    # 더하던 것을 GROUP BY 합산으로 대체 - 결과는 동일.
     movement_query = db.query(
-        StockMovement
+        StockMovement.category,
+        StockMovement.movement_type,
+        func.sum(StockMovement.qty)
     )
 
     if start and end:
@@ -220,12 +213,12 @@ def stock_dashboard(
             StockMovement.created_at <= end_date
         )
 
-    movements = movement_query.all()
+    movement_totals = movement_query.group_by(
+        StockMovement.category,
+        StockMovement.movement_type
+    ).all()
 
-    for move in movements:
-
-        category = move.category
-        movement_type = move.movement_type
+    for category, movement_type, qty in movement_totals:
 
         if (
             category in movement_chart
@@ -233,8 +226,7 @@ def stock_dashboard(
         ):
             movement_chart[
                 category
-            ][movement_type] += move.qty
-            
+            ][movement_type] += (qty or 0)
 
     db.close()
 

@@ -149,6 +149,32 @@ def dashboard_overview(
         end_date
     )
 
+    # 구간(day/week/month)마다 Outbound/Inbound를 따로 조회하던 것을,
+    # 전체 기간 생성일시를 한 번만 가져와 Python에서 구간별로 나누는
+    # 방식으로 바꿨다 - 결과(구간별 건수)는 동일하고 DB 왕복만 줄어든다.
+    out_all_dates = [
+        row[0] for row in db.query(Outbound.created_at).filter(
+            Outbound.created_at >= start_datetime,
+            Outbound.created_at <= end_datetime
+        ).all()
+    ]
+
+    in_all_dates = [
+        row[0] for row in db.query(Inbound.created_at).filter(
+            Inbound.created_at >= start_datetime,
+            Inbound.created_at <= end_datetime
+        ).all()
+    ]
+
+    def _count_in_range(dates, range_start, range_end):
+        return sum(
+            1 for d in dates
+            if range_start <= _naive(d) < range_end
+        )
+
+    def _naive(d):
+        return d.replace(tzinfo=None) if d.tzinfo else d
+
     if group_mode == "day":
 
         current = start_date
@@ -157,15 +183,11 @@ def dashboard_overview(
 
             next_day = current + timedelta(days=1)
 
-            out_count = db.query(Outbound).filter(
-                Outbound.created_at >= current,
-                Outbound.created_at < next_day
-            ).count()
+            bucket_start = datetime.combine(current, datetime.min.time())
+            bucket_end = datetime.combine(next_day, datetime.min.time())
 
-            in_count = db.query(Inbound).filter(
-                Inbound.created_at >= current,
-                Inbound.created_at < next_day
-            ).count()
+            out_count = _count_in_range(out_all_dates, bucket_start, bucket_end)
+            in_count = _count_in_range(in_all_dates, bucket_start, bucket_end)
 
             trend_labels.append(
                 current.strftime("%m-%d")
@@ -184,15 +206,11 @@ def dashboard_overview(
 
             next_week = current + timedelta(days=7)
 
-            out_count = db.query(Outbound).filter(
-                Outbound.created_at >= current,
-                Outbound.created_at < next_week
-            ).count()
+            bucket_start = datetime.combine(current, datetime.min.time())
+            bucket_end = datetime.combine(next_week, datetime.min.time())
 
-            in_count = db.query(Inbound).filter(
-                Inbound.created_at >= current,
-                Inbound.created_at < next_week
-            ).count()
+            out_count = _count_in_range(out_all_dates, bucket_start, bucket_end)
+            in_count = _count_in_range(in_all_dates, bucket_start, bucket_end)
 
             trend_labels.append(
                 f"{current.strftime('%m-%d')}"
@@ -229,15 +247,11 @@ def dashboard_overview(
                     1
                 )
 
-            out_count = db.query(Outbound).filter(
-                Outbound.created_at >= current,
-                Outbound.created_at < next_month
-            ).count()
+            bucket_start = datetime.combine(current, datetime.min.time())
+            bucket_end = datetime.combine(next_month, datetime.min.time())
 
-            in_count = db.query(Inbound).filter(
-                Inbound.created_at >= current,
-                Inbound.created_at < next_month
-            ).count()
+            out_count = _count_in_range(out_all_dates, bucket_start, bucket_end)
+            in_count = _count_in_range(in_all_dates, bucket_start, bucket_end)
 
             trend_labels.append(
                 current.strftime("%Y-%m")
@@ -250,25 +264,29 @@ def dashboard_overview(
 
     size_labels = ["7", "8", "9", "10", "11", "12", "13"]
 
-    size_in = []
-    size_out = []
-
-    for s in ["7", "8", "9", "10", "11", "12", "13"]:
-
-        in_count = db.query(Inbound).filter(
-            Inbound.size == s,
+    # 사이즈별 반복 조회(사이즈 수 x 2쿼리) 대신 GROUP BY 한 번으로 집계.
+    in_size_counts = dict(
+        db.query(Inbound.size, func.count(Inbound.id))
+        .filter(
             Inbound.created_at >= start_datetime,
             Inbound.created_at <= end_datetime
-        ).count()
+        )
+        .group_by(Inbound.size)
+        .all()
+    )
 
-        out_count = db.query(Outbound).filter(
-            Outbound.size == s,
+    out_size_counts = dict(
+        db.query(Outbound.size, func.count(Outbound.id))
+        .filter(
             Outbound.created_at >= start_datetime,
             Outbound.created_at <= end_datetime
-        ).count()
+        )
+        .group_by(Outbound.size)
+        .all()
+    )
 
-        size_in.append(in_count)
-        size_out.append(out_count)
+    size_in = [in_size_counts.get(s, 0) for s in size_labels]
+    size_out = [out_size_counts.get(s, 0) for s in size_labels]
 
     db.close()
 
@@ -368,6 +386,32 @@ def dashboard_trend(
         Inbound.created_at <= end_datetime
     ).count()
 
+    # 서비스(7개) x 구간마다 따로 조회하던 것을, (product, created_at)만
+    # 한 번씩 가져와 Python에서 서비스/구간별로 나누는 방식으로 대체 -
+    # 구간별 건수 결과는 동일하고 DB 왕복만 크게 줄어든다.
+    out_rows = db.query(
+        Outbound.product, Outbound.created_at
+    ).filter(
+        Outbound.created_at >= start_datetime,
+        Outbound.created_at <= end_datetime
+    ).all()
+
+    in_rows = db.query(
+        Inbound.product, Inbound.created_at
+    ).filter(
+        Inbound.created_at >= start_datetime,
+        Inbound.created_at <= end_datetime
+    ).all()
+
+    def _naive(d):
+        return d.replace(tzinfo=None) if d.tzinfo else d
+
+    def _count_in_range(rows, service, range_start, range_end):
+        return sum(
+            1 for product, created_at in rows
+            if product == service and range_start <= _naive(created_at) < range_end
+        )
+
     for service in SERVICES:
 
         labels = []
@@ -398,21 +442,13 @@ def dashboard_trend(
                     current.strftime("%m-%d")
                 )
 
-                out_count = db.query(Outbound).filter(
-                    Outbound.product == service,
-                    Outbound.created_at >= current_start,
-                    Outbound.created_at < next_day_start
-                ).count()
+                out_counts.append(
+                    _count_in_range(out_rows, service, current_start, next_day_start)
+                )
 
-                in_count = db.query(Inbound).filter(
-                    Inbound.product == service,
-                    Inbound.created_at >= current_start,
-                    Inbound.created_at < next_day_start
-                ).count()
-
-                out_counts.append(out_count)
-
-                in_counts.append(in_count)
+                in_counts.append(
+                    _count_in_range(in_rows, service, current_start, next_day_start)
+                )
 
                 current = next_day
 
@@ -440,21 +476,13 @@ def dashboard_trend(
                     current.strftime("%m-%d")
                 )
 
-                out_count = db.query(Outbound).filter(
-                    Outbound.product == service,
-                    Outbound.created_at >= current_start,
-                    Outbound.created_at < next_week_start
-                ).count()
+                out_counts.append(
+                    _count_in_range(out_rows, service, current_start, next_week_start)
+                )
 
-                in_count = db.query(Inbound).filter(
-                    Inbound.product == service,
-                    Inbound.created_at >= current_start,
-                    Inbound.created_at < next_week_start
-                ).count()
-
-                out_counts.append(out_count)
-
-                in_counts.append(in_count)
+                in_counts.append(
+                    _count_in_range(in_rows, service, current_start, next_week_start)
+                )
 
                 current = next_week
 
@@ -497,21 +525,13 @@ def dashboard_trend(
                     current.strftime("%Y-%m")
                 )
 
-                out_count = db.query(Outbound).filter(
-                    Outbound.product == service,
-                    Outbound.created_at >= month_start,
-                    Outbound.created_at < next_month_start
-                ).count()
+                out_counts.append(
+                    _count_in_range(out_rows, service, month_start, next_month_start)
+                )
 
-                in_count = db.query(Inbound).filter(
-                    Inbound.product == service,
-                    Inbound.created_at >= month_start,
-                    Inbound.created_at < next_month_start
-                ).count()
-
-                out_counts.append(out_count)
-
-                in_counts.append(in_count)
+                in_counts.append(
+                    _count_in_range(in_rows, service, month_start, next_month_start)
+                )
 
                 current = next_month
 
@@ -556,27 +576,32 @@ def dashboard_size(request: Request):
 
     charts = []
 
+    # 서비스 x 사이즈(7x7)만큼 반복 조회하던 것을, (product, size)별
+    # GROUP BY 집계 2번(입고/출고)으로 대체 - 결과는 동일.
+    in_size_totals = {
+        (product, size): count
+        for product, size, count in db.query(
+            Inbound.product, Inbound.size, func.count(Inbound.id)
+        ).group_by(Inbound.product, Inbound.size).all()
+    }
+
+    out_size_totals = {
+        (product, size): count
+        for product, size, count in db.query(
+            Outbound.product, Outbound.size, func.count(Outbound.id)
+        ).group_by(Outbound.product, Outbound.size).all()
+    }
+
     for service in SERVICES:
 
         labels = ["7", "8", "9", "10", "11", "12", "13"]
 
-        in_counts = []
-        out_counts = []
-
-        for s in ["7","8","9","10","11","12","13"]:
-
-            in_count = db.query(Inbound).filter(
-                Inbound.product == service,
-                Inbound.size == s
-            ).count()
-
-            out_count = db.query(Outbound).filter(
-                Outbound.product == service,
-                Outbound.size == s
-            ).count()
-
-            in_counts.append(in_count)
-            out_counts.append(out_count)
+        in_counts = [
+            in_size_totals.get((service, s), 0) for s in labels
+        ]
+        out_counts = [
+            out_size_totals.get((service, s), 0) for s in labels
+        ]
 
         if max(out_counts) == 0:
             top_out_size = "-"
@@ -660,32 +685,29 @@ def dashboard_activity(
         Movement.created_at.asc()
     ).all()
 
-    total_logs = db.query(Movement).filter(
+    # total_logs는 records와 완전히 동일한 조건이라 다시 조회할 필요가
+    # 없다 - 이미 불러온 records 길이를 그대로 쓴다.
+    total_logs = len(records)
+
+    # today_in/today_out/missing_client/service_stats/일별 서비스별
+    # 집계가 전부 "같은 기간의 Movement"를 서로 다른 각도로 세던 것이라,
+    # (type, product, client, created_at)만 한 번 가져와 Python에서
+    # 전부 계산한다 - 결과는 기존과 동일하고 반복 조회만 없앤다.
+    period_rows = db.query(
+        Movement.type, Movement.product, Movement.client, Movement.created_at
+    ).filter(
         Movement.created_at >= start_datetime,
         Movement.created_at <= end_datetime
-    ).count()
+    ).all()
 
-    today_in = db.query(Movement).filter(
-        Movement.created_at >= start_datetime,
-        Movement.created_at <= end_datetime,
-        Movement.type == "IN"
-    ).count()
+    today_in = sum(1 for t, p, c, d in period_rows if t == "IN")
 
-    today_out = db.query(Movement).filter(
-        Movement.created_at >= start_datetime,
-        Movement.created_at <= end_datetime,
-        Movement.type == "OUT"
-    ).count()
+    today_out = sum(1 for t, p, c, d in period_rows if t == "OUT")
 
-    missing_client = db.query(Movement).filter(
-        Movement.created_at >= start_datetime,
-        Movement.created_at <= end_datetime,
-        Movement.type == "OUT",
-        or_(
-            Movement.client == None,
-            Movement.client == ""
-        )
-    ).count()
+    missing_client = sum(
+        1 for t, p, c, d in period_rows
+        if t == "OUT" and (c is None or c == "")
+    )
 
     recent_hour = db.query(Movement).filter(
         Movement.created_at >= (
@@ -695,20 +717,16 @@ def dashboard_activity(
         )
     ).count()
 
-    service_stats = []
-
-    for service in SERVICES:
-
-        count = db.query(Movement).filter(
-            Movement.product == service,
-            Movement.created_at >= start_datetime,
-            Movement.created_at <= end_datetime
-        ).count()
-
-        service_stats.append({
+    service_stats = [
+        {
             "name": SERVICE_NAMES[service],
-            "count": count
-        })
+            "count": sum(1 for t, p, c, d in period_rows if p == service)
+        }
+        for service in SERVICES
+    ]
+
+    def _naive(d):
+        return d.replace(tzinfo=None) if d.tzinfo else d
 
     labels = []
 
@@ -738,74 +756,37 @@ def dashboard_activity(
 
         labels.append(current.strftime("%m-%d"))
 
-        cart_bp_pro_count = db.query(Movement).filter(
-            Movement.product == "cart_bp_pro",
-            Movement.created_at >= current_start,
-            Movement.created_at < next_day_start
-        ).count()
+        day_rows = [
+            (t, p) for t, p, c, d in period_rows
+            if current_start <= _naive(d) < next_day_start
+        ]
 
         activity_cart_bp_pro.append(
-            cart_bp_pro_count
+            sum(1 for t, p in day_rows if p == "cart_bp_pro")
         )
-
-        cart_bp_count = db.query(Movement).filter(
-            Movement.product == "cart_bp",
-            Movement.created_at >= current_start,
-            Movement.created_at < next_day_start
-        ).count()
 
         activity_cart_bp.append(
-            cart_bp_count
+            sum(1 for t, p in day_rows if p == "cart_bp")
         )
-
-        cart_on_count = db.query(Movement).filter(
-            Movement.product == "cart_on",
-            Movement.created_at >= current_start,
-            Movement.created_at < next_day_start
-        ).count()
 
         activity_cart_on.append(
-            cart_on_count
+            sum(1 for t, p in day_rows if p == "cart_on")
         )
-
-        hanbang_count = db.query(Movement).filter(
-            Movement.product == "hanbang",
-            Movement.created_at >= current_start,
-            Movement.created_at < next_day_start
-        ).count()
 
         activity_hanbang.append(
-            hanbang_count
+            sum(1 for t, p in day_rows if p == "hanbang")
         )
-
-        cart_platform_count = db.query(Movement).filter(
-            Movement.product == "cart_platform",
-            Movement.created_at >= current_start,
-            Movement.created_at < next_day_start
-        ).count()
 
         activity_cart_platform.append(
-            cart_platform_count
+            sum(1 for t, p in day_rows if p == "cart_platform")
         )
-
-        cart_ring_count = db.query(Movement).filter(
-            Movement.product == "cart_ring",
-            Movement.created_at >= current_start,
-            Movement.created_at < next_day_start
-        ).count()
 
         activity_cart_ring.append(
-            cart_ring_count
+            sum(1 for t, p in day_rows if p == "cart_ring")
         )
 
-        cart_o2_count = db.query(Movement).filter(
-            Movement.product == "cart_o2",
-            Movement.created_at >= current_start,
-            Movement.created_at < next_day_start
-        ).count()
-
         activity_cart_o2.append(
-            cart_o2_count
+            sum(1 for t, p in day_rows if p == "cart_o2")
         )
 
         current = next_day

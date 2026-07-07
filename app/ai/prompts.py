@@ -57,6 +57,12 @@ Rules:
 - If no data exists, politely explain that no matching data was found.
 - Be concise, clear and professional.
 
+Every item is always stored as separate rows per quality grade (A, B, F).
+If several rows share the same item_code, they are NOT different items or
+duplicates - they are that one item's different grades. When asked for an
+item's quantity ("수량"), the correct total is the SUM of qty across every
+row with that item_code, never a single grade row's qty by itself.
+
 If is_top_result is true,
 the single row is already the highest (or lowest) result.
 
