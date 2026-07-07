@@ -7,14 +7,8 @@ from app.assistant.router import ToolRouter
 import app.assistant.tools
 from app.ai.planner import ai_resolve_tool
 
-# Demonstrative references to "the thing just shown" ("거기", "그거"),
-# used the same way "1번"/"2번째" are - resolved against the last saved
-# result, defaulting to the first (usually only, or top-ranked) item.
 FOLLOW_UP_PRONOUNS = ("거기", "그거", "그것", "저기", "그 품목", "그 항목")
 
-# References to the SCREEN itself ("그 페이지로 이동") rather than a
-# specific row on it ("거기로 이동해줘") - resolved to a plain page.move
-# via TOOL_TO_PAGE instead of a page.find row lookup.
 PAGE_FOLLOW_UP_PRONOUNS = ("그 페이지", "이 페이지", "그 화면", "이 화면")
 
 TOOL_TO_PAGE = {
@@ -38,6 +32,15 @@ ADMIN_ONLY_TOOLS = {
     "activity.login_summary",
 }
 
+# resolve_tool() never returns None - it always ends in one of these two
+# catch-alls once none of its specific keyword branches match. That is
+# the signal that the deterministic router genuinely couldn't tell what
+# the user meant, so it's the only case worth spending an AI call on.
+GENERIC_FALLBACK_TOOLS = {
+    "general.chat",
+    "global.search",
+}
+
 
 class AssistantAgent:
 
@@ -52,17 +55,20 @@ class AssistantAgent:
 
         if selected_tool is None:
 
-            # The AI understands natural phrasing (word order, casual
-            # endings like "뭐야", typos) far more reliably than the
-            # keyword router below, so it gets first try. The keyword
-            # router is a deterministic safety net for when the AI is
-            # unavailable (rate limit, network error) or returns
-            # something outside the tool whitelist.
-            selected_tool = ai_resolve_tool(question)
-
-        if selected_tool is None:
-
+            # The deterministic keyword router costs zero AI tokens and
+            # already covers the vast majority of real questions - only
+            # fall through to the AI planner when it lands on a generic
+            # catch-all, which is its way of saying "I don't know what
+            # this means". This keeps the free-tier token budget for the
+            # questions that actually need it instead of spending it on
+            # every single message regardless of how simple it is.
             selected_tool = resolve_tool(question)
+
+            if selected_tool.get("tool") in GENERIC_FALLBACK_TOOLS:
+                ai_tool = ai_resolve_tool(question)
+
+                if ai_tool is not None:
+                    selected_tool = ai_tool
 
         if selected_tool.get("tool") in ADMIN_ONLY_TOOLS and role != "admin":
             return {
@@ -112,8 +118,6 @@ class AssistantAgent:
             resolved = self._resolve_page_choice(text, saved["items"])
 
             if resolved is not None:
-                # One-shot - don't let this linger and hijack an
-                # unrelated later "1번"/"거기" reply.
                 memory.clear(session_id)
 
             return resolved
@@ -153,12 +157,6 @@ class AssistantAgent:
             or ""
         )
 
-        # "거기로 이동해줘" wants navigation to the item, not another
-        # round of the same data query - page.find's generic fallback
-        # search (_find_page_matches) finds the right page for any item
-        # code/name without needing to know which module it belongs to.
-        # If the code exists in more than one module, page.find itself
-        # asks the user which one via status="need_page_choice" below.
         if wants_move(text):
             return {
                 "tool": "page.find",

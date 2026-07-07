@@ -47,6 +47,10 @@ def make_answer(question, result):
         "flow_count",
         "users",
         "login_summary",
+        "logistics_dashboard",
+        "inventory_dashboard",
+        "stock_dashboard",
+        "mrp_dashboard",
     }
 
     if result.get("status") not in AI_REQUIRED:
@@ -89,6 +93,21 @@ def _fallback_answer(result):
 
     if status == "login_summary":
         return _login_summary_answer(result)
+
+    if status == "logistics_dashboard":
+        return _logistics_dashboard_answer(result)
+
+    if status == "inventory_dashboard":
+        return _inventory_dashboard_answer(result)
+
+    if status == "stock_dashboard":
+        return _stock_dashboard_answer(result)
+
+    if status == "mrp_dashboard":
+        return _mrp_dashboard_answer(result)
+
+    if status == "none":
+        return result.get("message", "조회된 데이터가 없습니다.")
 
     if status == "account_action":
         return result.get("message", "관리자 화면에서 처리해 주세요.")
@@ -302,6 +321,87 @@ def _login_summary_answer(result):
     return "\n".join(lines)
 
 
+def _logistics_dashboard_answer(result):
+    period = PERIOD_LABELS.get(result.get("period"), "전체 기간")
+
+    return (
+        f"제품 물류 현황입니다.\n\n"
+        f"- 전체 누적 입고: {result.get('total_in', 0):,}건\n"
+        f"- 전체 누적 출고: {result.get('total_out', 0):,}건\n"
+        f"- {period} 입고: {result.get('period_in', 0):,}건\n"
+        f"- {period} 출고: {result.get('period_out', 0):,}건\n"
+        f"- 출고 정보 미입력: {result.get('missing', 0):,}건"
+    )
+
+
+def _inventory_dashboard_answer(result):
+    lines = [
+        "수불 재고(창고재고) 현황입니다.",
+        "",
+        f"- 품목 수: {result.get('total_items', 0):,}건",
+        f"- 총 수량: {result.get('total_qty', 0):,} EA",
+        f"- 입고: {result.get('today_in', 0):,} EA",
+        f"- 출고: {result.get('today_out', 0):,} EA",
+    ]
+
+    category_summary = result.get("category_summary", [])
+    if category_summary:
+        lines.append("")
+        lines.append("구분별 수량:")
+        lines.extend(
+            f"- {row['category']}: {row['qty']:,} EA"
+            for row in category_summary
+        )
+
+    return "\n".join(lines)
+
+
+def _stock_dashboard_answer(result):
+    lines = [
+        "가계상 재고 현황입니다.",
+        "",
+        f"- 품목 수: {result.get('total_items', 0):,}건",
+        f"- 총 수량: {result.get('total_qty', 0):,} EA",
+        f"- 입고: {result.get('today_in', 0):,} EA",
+        f"- 출고: {result.get('today_out', 0):,} EA",
+    ]
+
+    category_summary = result.get("category_summary", [])
+    if category_summary:
+        lines.append("")
+        lines.append("카테고리별 수량:")
+        lines.extend(
+            f"- {row['category']}: {row['qty']:,} EA"
+            for row in category_summary
+        )
+
+    return "\n".join(lines)
+
+
+def _mrp_dashboard_answer(result):
+    lines = [
+        "MRP 대시보드 요약입니다.",
+        "",
+        f"- 전체 품목: {result.get('total_items', 0):,}건",
+        f"- 부족 품목: {result.get('shortage_count', 0):,}건",
+        f"- 총 소요량: {result.get('total_required', 0):,}",
+        f"- 총 가용재고: {result.get('total_stock', 0):,}",
+        f"- 총 부족수량: {result.get('total_shortage', 0):,}",
+        f"- 부족률: {result.get('shortage_rate', 0)}%",
+    ]
+
+    top_shortages = result.get("top_shortages", [])
+    if top_shortages:
+        lines.append("")
+        lines.append("부족 수량 상위 품목:")
+        lines.extend(
+            f"- {row['item_name']} ({row['item_code']}): 부족 {row['shortage_qty']:,}"
+            for row in top_shortages
+        )
+
+    return "\n".join(lines)
+
+
 def _knowledge_answer(result):
     question = (result.get("question") or "").lower()
     facts = result.get("facts", {})
@@ -370,7 +470,11 @@ def _domain_label(domain):
         "production_plan": "생산계획",
         "material_master": "자재 기준정보",
         "item_master": "품목 기준정보",
+        "item_master_history": "품목 변경 이력",
         "activity": "활동 로그",
+        "inventory_movement": "수불 재고 입출고 이력",
+        "stock_movement": "가계상 재고 입출고 이력",
+        "mrp_result": "MRP 부족 수량",
     }.get(domain, "데이터")
 
 
@@ -423,6 +527,27 @@ def _format_row(domain, row):
         return (
             f"{row['created_at']} {row.get('user') or '-'} "
             f"{row.get('action') or '-'} {row.get('product') or ''} {row.get('serial') or ''}".strip()
+        )
+
+    if domain in ("inventory_movement", "stock_movement"):
+        warehouse = f" {row['warehouse_type']}" if row.get("warehouse_type") else ""
+        return (
+            f"{row['created_at']} {row['item_name']} ({row['item_code']}){warehouse} "
+            f"{row.get('movement_type') or '-'} {row.get('qty', 0):,} EA ({row.get('user') or '-'})"
+        )
+
+    if domain == "mrp_result":
+        return (
+            f"{row['item_name']} ({row['item_code']}) 부족 {row.get('shortage_qty', 0):,}, "
+            f"권장발주 {row.get('recommended_order_qty', 0):,}, "
+            f"필요일 {row.get('need_date') or '-'}, 업체 {row.get('supplier') or '-'}"
+        )
+
+    if domain == "item_master_history":
+        return (
+            f"{row['created_at']} {row.get('old_code') or '-'}->{row.get('new_code') or '-'} "
+            f"({row.get('old_name') or '-'}->{row.get('new_name') or '-'}), "
+            f"Rev {row.get('old_rev') or '-'}->{row.get('new_rev') or '-'} ({row.get('user') or '-'})"
         )
 
     return ", ".join(f"{key}: {value}" for key, value in row.items())

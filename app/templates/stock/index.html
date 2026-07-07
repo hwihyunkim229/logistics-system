@@ -502,25 +502,11 @@ th input[type="checkbox"]{
                         전체 Rev
                     </option>
 
-                    <option value="REV.0" {% if current_rev == 'REV.0' %}selected{% endif %}>
-                        REV.0
+                    {% for r in revs %}
+                    <option value="{{ r }}" {% if current_rev == r %}selected{% endif %}>
+                        {{ r }}
                     </option>
-
-                    <option value="REV.1" {% if current_rev == 'REV.1' %}selected{% endif %}>
-                        REV.1
-                    </option>
-
-                    <option value="REV.2" {% if current_rev == 'REV.2' %}selected{% endif %}>
-                        REV.2
-                    </option>
-
-                    <option value="REV.2D" {% if current_rev == 'REV.2D' %}selected{% endif %}>
-                        REV.2D
-                    </option>
-
-                    <option value="COMMON" {% if current_rev == 'COMMON' %}selected{% endif %}>
-                        COMMON
-                    </option>
+                    {% endfor %}
                 </select>
             </div>
 

@@ -68,6 +68,8 @@ def inventory_dashboard(
     category: str = "반제품",
     page: int = 1,
     keyword: str = "",
+    grade: str = "",
+    rev: str = "",
     db: Session = Depends(get_db)
 ):
 
@@ -88,6 +90,23 @@ def inventory_dashboard(
                 Stock.item_name.contains(keyword)
             )
         )
+
+    # Rev 드롭다운 선택지는 grade/rev 필터를 적용하기 전, category/
+    # keyword 범위에서만 뽑는다 - 그래야 등급을 선택해도 다른 Rev
+    # 선택지가 사라지지 않는다. 새 Rev 값이 등록되면 하드코딩 없이
+    # 자동으로 목록에 반영된다. "COMMON"은 실제 데이터가 없어도 항상
+    # 선택 가능해야 하는 공통 Rev라 목록에 고정으로 포함한다.
+    scoped_rows = query.all()
+
+    revs = sorted(
+        {row.rev for row in scoped_rows if row.rev} | {"COMMON"}
+    )
+
+    if grade:
+        query = query.filter(Stock.grade == grade)
+
+    if rev:
+        query = query.filter(Stock.rev == rev)
 
     total_count = query.count()
 
@@ -134,6 +153,9 @@ def inventory_dashboard(
             "current_category": category,
             "page": page,
             "keyword": keyword,
+            "current_grade": grade,
+            "current_rev": rev,
+            "revs": revs,
             "total_pages": total_pages,
             "semi_qty": semi_qty,
             "product_qty": product_qty,
@@ -482,8 +504,8 @@ def get_item_master(
         "rev": item.rev
     }
 
-@router.post("/stock/upload-excel")
-async def upload_stock_excel(
+@router.post("/stock/init-excel")
+async def init_stock_excel(
     request: Request,
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
@@ -542,15 +564,18 @@ async def upload_stock_excel(
                 )
             )
 
-        created += 1
+            created += 1
 
     db.commit()
 
     save_log(
         user=current_user(request),
         product=STOCK_LOG_PRODUCT,
-        action="STOCK_UPLOAD_EXCEL",
-        detail=f"가계상 재고 엑셀 업로드: 신규 {created}건 / 제외 {skipped}건"
+        action="STOCK_INIT_EXCEL",
+        detail=(
+            f"초기 품목 생성 "
+            f"(신규 {created}건 / 제외 {skipped}건)"
+        )
     )
 
     return JSONResponse(
@@ -560,6 +585,106 @@ async def upload_stock_excel(
             "skipped": skipped,
             "message":
                 f"신규 {created}건 / 제외 {skipped}건"
+        }
+    )
+
+@router.post("/stock/upload-excel")
+async def upload_stock_excel(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+
+    df = pd.read_excel(file.file)
+
+    created = 0
+    updated = 0
+    skipped = 0
+
+    for _, row in df.iterrows():
+
+        item_code = str(
+            row["품목코드"]
+        ).strip()
+
+        category = str(
+            row["구분"]
+        ).strip()
+
+        grade = str(
+            row["등급"]
+        ).strip()
+
+        qty = int(
+            row["수량"]
+        ) if pd.notna(row["수량"]) else 0
+
+        master = (
+            db.query(ItemMaster)
+            .filter(
+                ItemMaster.item_code == item_code
+            )
+            .first()
+        )
+
+        if not master:
+
+            skipped += 1
+            continue
+
+        stock = (
+            db.query(Stock)
+            .filter(
+                Stock.item_code == item_code,
+                Stock.grade == grade
+            )
+            .first()
+        )
+
+        if stock:
+
+            stock.item_name = master.item_name
+            stock.rev = master.rev
+            stock.category = category
+            stock.qty = qty
+
+            updated += 1
+
+        else:
+
+            db.add(
+                Stock(
+                    item_code=item_code,
+                    item_name=master.item_name,
+                    grade=grade,
+                    rev=master.rev,
+                    category=category,
+                    qty=qty
+                )
+            )
+
+            created += 1
+
+    db.commit()
+
+    save_log(
+        user=current_user(request),
+        product=STOCK_LOG_PRODUCT,
+        action="STOCK_UPLOAD_EXCEL",
+        detail=(
+            f"가계상 재고 업로드 "
+            f"(신규 {created}건 / 수정 {updated}건 / 제외 {skipped}건)"
+        )
+    )
+
+    return JSONResponse(
+        {
+            "status": "success",
+            "created": created,
+            "updated": updated,
+            "skipped": skipped,
+            "message":
+                f"신규 {created}건 / 수정 {updated}건 / 제외 {skipped}건"
         }
     )
 

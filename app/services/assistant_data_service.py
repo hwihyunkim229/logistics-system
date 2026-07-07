@@ -3,15 +3,17 @@ from datetime import date, datetime, timedelta
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 from app.routers.mrp import calculate_mrp
-from sqlalchemy import func, or_
+from sqlalchemy import distinct, func, or_
 
 from app.assistant.registry import tool
 from app.models.activity_log import ActivityLog
 from app.models.bom import BOM
 from app.models.inbound import Inbound
 from app.models.inventory import Inventory
+from app.models.inventory_movement import InventoryMovement
 from app.models.item import Item
 from app.models.item_master import ItemMaster
+from app.models.item_master_history import ItemMasterHistory
 from app.models.material_master import MaterialMaster
 from app.models.material_note import MaterialNote
 from app.models.movement import Movement
@@ -308,6 +310,10 @@ def knowledge_answer(db, question: str = "", topic: str = ""):
                 "제품 물류는 시리얼 단위 입고/출고 흐름입니다. "
                 "Inbound, Outbound, Movement 테이블을 기준으로 제품, 시리얼, 사이즈, 고객, 일시를 추적합니다."
             ),
+            "MRP 결과": (
+                "MRP 결과는 품목별 소요량, 가용재고, 부족수량, 권장발주수량, 발주 필요일을 계산해 보여주는 "
+                "화면입니다. 부족수량이 0보다 크면 상태가 SHORT로 표시됩니다."
+            ),
             "MRP": (
                 "MRP는 생산계획과 BOM, 수불 재고, 자재 기준정보를 조합해 필요 수량, 부족 수량, "
                 "발주 필요일, 권장 발주 수량을 계산하는 영역입니다."
@@ -319,6 +325,53 @@ def knowledge_answer(db, question: str = "", topic: str = ""):
             "LOT": (
                 "LOT은 수불 재고의 로트 표기이며 제품/반제품에만 있는 개념입니다(원자재는 LOT이 없습니다). "
                 "F25, G23처럼 있는 그대로의 문자열로 취급되며 별도로 해석하거나 변환하지 않습니다."
+            ),
+            "창고재고": (
+                "창고재고는 수불 재고 중 자사 창고 보관분입니다. "
+                "구분(반제품/제품/원자재)과 등급(A/B/F)으로 나뉘고, LOT은 제품/반제품에만 있습니다."
+            ),
+            "제공재고": (
+                "제공재고는 수불 재고 중 외부(고객/협력사)에 제공되어 보관 중인 재고입니다. "
+                "창고재고와 달리 구분/등급 개념이 없습니다."
+            ),
+            "외주재고": (
+                "외주재고는 수불 재고 중 외주 업체에 보내 가공 중인 재고입니다. "
+                "창고재고와 달리 구분/등급 개념이 없습니다."
+            ),
+            "품목 관리": (
+                "품목 관리(Item Master)는 품목코드, 품목명, Revision을 관리하는 기준정보입니다. "
+                "SL-H-AS-00010처럼 표기되는 코드를 사용하며, 코드/명칭/Rev가 바뀌면 변경 이력이 남습니다."
+            ),
+            "자재 기준정보": (
+                "자재 기준정보(Material Master)는 원자재별 공급사, MOQ(최소발주수량), Lead Time을 관리합니다. "
+                "MRP가 발주 필요일과 권장 발주 수량을 계산할 때 이 정보를 사용합니다."
+            ),
+            "생산계획": (
+                "생산계획(Production Plan)은 날짜별로 어떤 제품을 얼마나 생산할지 정한 계획입니다. "
+                "MRP는 이 생산계획과 BOM을 곱해 자재 소요량을 계산합니다."
+            ),
+            "활동 로그": (
+                "활동 로그는 로그인/등록/수정/삭제/업로드/다운로드 등 시스템에서 발생한 모든 작업 이력입니다. "
+                "관리자만 조회할 수 있습니다."
+            ),
+            "계정 관리": (
+                "계정 관리는 사용자 계정 생성/삭제/비밀번호 초기화를 처리하는 관리자 전용 화면입니다."
+            ),
+            "대시보드": (
+                "대시보드는 각 모듈(제품 물류/수불 재고/가계상 재고/MRP)의 현재 상태를 요약해서 보여주는 화면입니다. "
+                "누적 수량, 기간별 입출고, 부족 현황 등을 한눈에 볼 수 있습니다."
+            ),
+            "등급": (
+                "등급(Grade)은 창고재고에만 있는 A/B/F 3단계 분류입니다. "
+                "품목코드+LOT 조합마다 A/B/F 세 등급이 항상 함께 존재합니다."
+            ),
+            "Rev": (
+                "Rev(Revision)는 품목의 설계/사양 버전입니다. 품목 기준정보와 재고 조회 모두에서 "
+                "같은 품목코드라도 Rev가 다르면 별도 행으로 관리됩니다."
+            ),
+            "이동 이력": (
+                "이동 이력은 시리얼 단위 이동(Movement)과 재고 입출고(가계상/수불 재고 각각의 Movement 테이블)를 "
+                "함께 아우르는 용어입니다. 어느 재고인지에 따라 조회되는 테이블이 다릅니다."
             ),
         }
     }
@@ -443,6 +496,44 @@ def logistics_flow_count(
     }
 
 
+@tool("logistics.dashboard")
+def logistics_dashboard(db, period: str = "all"):
+    total_in = db.query(Inbound).count()
+    total_out = db.query(Outbound).count()
+
+    query_in = db.query(Inbound)
+    query_out = db.query(Outbound)
+
+    start, end = _period_range(period)
+
+    if start and end:
+        query_in = query_in.filter(
+            Inbound.created_at >= start,
+            Inbound.created_at < end,
+        )
+        query_out = query_out.filter(
+            Outbound.created_at >= start,
+            Outbound.created_at < end,
+        )
+
+    period_in = query_in.count()
+    period_out = query_out.count()
+
+    missing = query_out.filter(
+        or_(Outbound.category.is_(None), Outbound.client.is_(None))
+    ).count()
+
+    return {
+        "status": "logistics_dashboard",
+        "period": period,
+        "total_in": total_in,
+        "total_out": total_out,
+        "period_in": period_in,
+        "period_out": period_out,
+        "missing": missing,
+    }
+
+
 @tool("stock.summary")
 def stock_summary(
     db,
@@ -552,6 +643,94 @@ def stock_summary(
                 "qty": row.qty or 0,
             }
             for row in rows[:limit]
+        ],
+    }
+
+
+@tool("stock.dashboard")
+def stock_dashboard_summary(db):
+    total_items = db.query(
+        func.count(distinct(Stock.item_code))
+    ).scalar() or 0
+
+    total_qty = db.query(
+        func.coalesce(func.sum(Stock.qty), 0)
+    ).scalar() or 0
+
+    today_in = db.query(
+        func.coalesce(func.sum(StockMovement.qty), 0)
+    ).filter(StockMovement.movement_type == "IN").scalar() or 0
+
+    today_out = db.query(
+        func.coalesce(func.sum(StockMovement.qty), 0)
+    ).filter(StockMovement.movement_type == "OUT").scalar() or 0
+
+    category_summary = []
+
+    for category in ("반제품", "제품", "원자재"):
+        qty = db.query(
+            func.coalesce(func.sum(Stock.qty), 0)
+        ).filter(Stock.category == category).scalar() or 0
+
+        category_summary.append({"category": category, "qty": int(qty)})
+
+    return {
+        "status": "stock_dashboard",
+        "total_items": int(total_items),
+        "total_qty": int(total_qty),
+        "today_in": int(today_in),
+        "today_out": int(today_out),
+        "category_summary": category_summary,
+    }
+
+
+@tool("stock.movement_search")
+def stock_movement_search(
+    db,
+    item: str = "",
+    movement_type: str = "",
+    period: str = "all",
+):
+    keyword = _keyword(item)
+    query = db.query(StockMovement)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(
+            or_(
+                func.lower(StockMovement.item_code).like(pattern),
+                func.lower(StockMovement.item_name).like(pattern),
+            )
+        )
+
+    if movement_type in ("IN", "OUT"):
+        query = query.filter(StockMovement.movement_type == movement_type)
+
+    start, end = _period_range(period)
+
+    if start and end:
+        query = query.filter(
+            StockMovement.created_at >= start,
+            StockMovement.created_at < end,
+        )
+
+    rows = query.order_by(StockMovement.id.desc()).limit(MAX_ROWS + 1).all()
+
+    return {
+        "status": "rows",
+        "domain": "stock_movement",
+        "keyword": keyword,
+        "truncated": len(rows) > MAX_ROWS,
+        "rows": [
+            {
+                "created_at": _fmt_dt(row.created_at),
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "movement_type": row.movement_type,
+                "qty": row.qty or 0,
+                "user": row.user,
+            }
+            for row in rows[:MAX_ROWS]
         ],
     }
 
@@ -709,6 +888,107 @@ def inventory_search(
     }
 
 
+@tool("inventory.dashboard")
+def inventory_dashboard_summary(db):
+    warehouse_filter = Inventory.warehouse_type == "창고재고"
+
+    total_items = db.query(
+        func.count(distinct(Inventory.item_code))
+    ).filter(warehouse_filter).scalar() or 0
+
+    total_qty = db.query(
+        func.coalesce(func.sum(Inventory.qty), 0)
+    ).filter(warehouse_filter).scalar() or 0
+
+    today_in = db.query(
+        func.coalesce(func.sum(InventoryMovement.qty), 0)
+    ).filter(
+        InventoryMovement.movement_type == "IN",
+        InventoryMovement.warehouse_type == "창고재고",
+    ).scalar() or 0
+
+    today_out = db.query(
+        func.coalesce(func.sum(InventoryMovement.qty), 0)
+    ).filter(
+        InventoryMovement.movement_type == "OUT",
+        InventoryMovement.warehouse_type == "창고재고",
+    ).scalar() or 0
+
+    category_summary = []
+
+    for category in ("반제품", "제품", "원자재"):
+        qty = db.query(
+            func.coalesce(func.sum(Inventory.qty), 0)
+        ).filter(warehouse_filter, Inventory.category == category).scalar() or 0
+
+        category_summary.append({"category": category, "qty": int(qty)})
+
+    return {
+        "status": "inventory_dashboard",
+        "total_items": int(total_items),
+        "total_qty": int(total_qty),
+        "today_in": int(today_in),
+        "today_out": int(today_out),
+        "category_summary": category_summary,
+    }
+
+
+@tool("inventory.movement_search")
+def inventory_movement_search(
+    db,
+    item: str = "",
+    warehouse_type: str = "",
+    movement_type: str = "",
+    period: str = "all",
+):
+    keyword = _keyword(item)
+    query = db.query(InventoryMovement)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(
+            or_(
+                func.lower(InventoryMovement.item_code).like(pattern),
+                func.lower(InventoryMovement.item_name).like(pattern),
+            )
+        )
+
+    if warehouse_type in ("창고재고", "제공재고", "외주재고"):
+        query = query.filter(InventoryMovement.warehouse_type == warehouse_type)
+
+    if movement_type in ("IN", "OUT"):
+        query = query.filter(InventoryMovement.movement_type == movement_type)
+
+    start, end = _period_range(period)
+
+    if start and end:
+        query = query.filter(
+            InventoryMovement.created_at >= start,
+            InventoryMovement.created_at < end,
+        )
+
+    rows = query.order_by(InventoryMovement.id.desc()).limit(MAX_ROWS + 1).all()
+
+    return {
+        "status": "rows",
+        "domain": "inventory_movement",
+        "keyword": keyword,
+        "truncated": len(rows) > MAX_ROWS,
+        "rows": [
+            {
+                "created_at": _fmt_dt(row.created_at),
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "warehouse_type": row.warehouse_type,
+                "movement_type": row.movement_type,
+                "qty": row.qty or 0,
+                "user": row.user,
+            }
+            for row in rows[:MAX_ROWS]
+        ],
+    }
+
+
 @tool("bom.detail")
 def bom_detail(db, item: str = ""):
     keyword = _keyword(item)
@@ -744,7 +1024,14 @@ def bom_detail(db, item: str = ""):
 
 
 @tool("production.plan")
-def production_plan(db, item: str = ""):
+def production_plan(
+    db,
+    item: str = "",
+    period: str = "all",
+    sort: str = "",
+    order: str = "asc",
+    limit: int = MAX_ROWS,
+):
     keyword = _keyword(item)
     query = db.query(ProductionPlan)
 
@@ -752,26 +1039,53 @@ def production_plan(db, item: str = ""):
         pattern = _like(keyword)
         query = query.filter(func.lower(ProductionPlan.product_name).like(pattern))
 
-    rows = query.order_by(ProductionPlan.plan_date, ProductionPlan.product_name).limit(MAX_ROWS + 1).all()
+    start, end = _period_range(period)
+
+    if start and end:
+        query = query.filter(
+            ProductionPlan.plan_date >= start.date(),
+            ProductionPlan.plan_date < end.date(),
+        )
+
+    try:
+        limit = max(1, min(int(limit), MAX_ROWS))
+    except (TypeError, ValueError):
+        limit = MAX_ROWS
+
+    if sort == "qty":
+        query = query.order_by(
+            ProductionPlan.plan_qty.desc() if order == "desc" else ProductionPlan.plan_qty.asc()
+        )
+    else:
+        query = query.order_by(ProductionPlan.plan_date, ProductionPlan.product_name)
+
+    rows = query.limit(limit + 1).all()
 
     return {
         "status": "rows",
         "domain": "production_plan",
         "keyword": keyword,
-        "truncated": len(rows) > MAX_ROWS,
+        "period": period,
+        "truncated": len(rows) > limit,
         "rows": [
             {
                 "plan_date": _fmt_date(row.plan_date),
                 "product_name": row.product_name,
                 "plan_qty": row.plan_qty or 0,
             }
-            for row in rows[:MAX_ROWS]
+            for row in rows[:limit]
         ],
     }
 
 
 @tool("material.master")
-def material_master(db, item: str = ""):
+def material_master(
+    db,
+    item: str = "",
+    sort: str = "",
+    order: str = "desc",
+    limit: int = MAX_ROWS,
+):
     keyword = _keyword(item)
     query = db.query(MaterialMaster)
 
@@ -785,11 +1099,27 @@ def material_master(db, item: str = ""):
             )
         )
 
-    rows = query.order_by(MaterialMaster.item_code).limit(MAX_ROWS + 1).all()
+    try:
+        limit = max(1, min(int(limit), MAX_ROWS))
+    except (TypeError, ValueError):
+        limit = MAX_ROWS
+
+    if sort == "lead_time":
+        query = query.order_by(
+            MaterialMaster.lead_time_week.desc() if order == "desc" else MaterialMaster.lead_time_week.asc()
+        )
+    elif sort == "moq":
+        query = query.order_by(
+            MaterialMaster.moq.desc() if order == "desc" else MaterialMaster.moq.asc()
+        )
+    else:
+        query = query.order_by(MaterialMaster.item_code)
+
+    rows = query.limit(limit + 1).all()
     notes = {
         note.item_code: note.note
         for note in db.query(MaterialNote).filter(
-            MaterialNote.item_code.in_([row.item_code for row in rows[:MAX_ROWS]])
+            MaterialNote.item_code.in_([row.item_code for row in rows[:limit]])
         ).all()
     } if rows else {}
 
@@ -797,7 +1127,7 @@ def material_master(db, item: str = ""):
         "status": "rows",
         "domain": "material_master",
         "keyword": keyword,
-        "truncated": len(rows) > MAX_ROWS,
+        "truncated": len(rows) > limit,
         "rows": [
             {
                 "item_code": row.item_code,
@@ -807,7 +1137,7 @@ def material_master(db, item: str = ""):
                 "moq": row.moq or 0,
                 "note": notes.get(row.item_code, ""),
             }
-            for row in rows[:MAX_ROWS]
+            for row in rows[:limit]
         ],
     }
 
@@ -839,6 +1169,45 @@ def item_master(db, item: str = ""):
                 "item_code": row.item_code,
                 "item_name": row.item_name,
                 "rev": row.rev,
+            }
+            for row in rows[:MAX_ROWS]
+        ],
+    }
+
+
+@tool("item.master_history")
+def item_master_history(db, item: str = ""):
+    keyword = _keyword(item)
+    query = db.query(ItemMasterHistory)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(
+            or_(
+                func.lower(ItemMasterHistory.old_code).like(pattern),
+                func.lower(ItemMasterHistory.new_code).like(pattern),
+                func.lower(ItemMasterHistory.old_name).like(pattern),
+                func.lower(ItemMasterHistory.new_name).like(pattern),
+            )
+        )
+
+    rows = query.order_by(ItemMasterHistory.id.desc()).limit(MAX_ROWS + 1).all()
+
+    return {
+        "status": "rows",
+        "domain": "item_master_history",
+        "keyword": keyword,
+        "truncated": len(rows) > MAX_ROWS,
+        "rows": [
+            {
+                "created_at": _fmt_dt(row.created_at),
+                "old_code": row.old_code,
+                "new_code": row.new_code,
+                "old_name": row.old_name,
+                "new_name": row.new_name,
+                "old_rev": row.old_rev,
+                "new_rev": row.new_rev,
+                "user": row.user,
             }
             for row in rows[:MAX_ROWS]
         ],
@@ -1216,4 +1585,90 @@ def mrp_shortage_min(db):
         "status": "success",
         "url": f"/mrp/result?highlight={_encoded(row['item_code'])}",
         "message": message,
+    }
+
+
+@tool("mrp.shortage_search")
+def mrp_shortage_search(db, sort: str = "desc", limit: int = 5):
+
+    _, results, _, _ = calculate_mrp(db)
+
+    if not results:
+        return {
+            "status": "none",
+            "message": "MRP 결과가 없습니다."
+        }
+
+    try:
+        limit = max(1, min(int(limit), MAX_ROWS))
+    except (TypeError, ValueError):
+        limit = 5
+
+    ordered = sorted(
+        results,
+        key=lambda r: r.get("shortage_qty", 0),
+        reverse=(sort != "asc"),
+    )
+
+    return {
+        "status": "rows",
+        "domain": "mrp_result",
+        "truncated": len(ordered) > limit,
+        "rows": [
+            {
+                "item_code": row["item_code"],
+                "item_name": row["item_name"],
+                "shortage_qty": row.get("shortage_qty", 0),
+                "recommended_order_qty": row.get("recommended_order_qty", 0),
+                "need_date": _fmt_date(row.get("need_date")),
+                "supplier": row.get("supplier") or "",
+            }
+            for row in ordered[:limit]
+        ],
+    }
+
+
+@tool("mrp.dashboard")
+def mrp_dashboard_summary(db):
+
+    _, results, shortage_count, _ = calculate_mrp(db)
+
+    if not results:
+        return {
+            "status": "none",
+            "message": "MRP 결과가 없습니다."
+        }
+
+    total_required = sum(row.get("required_qty", 0) for row in results)
+    total_stock = sum(row.get("stock_qty", 0) for row in results)
+    total_shortage = sum(row.get("shortage_qty", 0) for row in results)
+
+    shortage_rate = (
+        round(total_shortage / total_required * 100, 1)
+        if total_required
+        else 0
+    )
+
+    top_shortages = sorted(
+        (row for row in results if row.get("shortage_qty", 0) > 0),
+        key=lambda r: r["shortage_qty"],
+        reverse=True,
+    )[:5]
+
+    return {
+        "status": "mrp_dashboard",
+        "total_items": len(results),
+        "shortage_count": shortage_count,
+        "total_required": total_required,
+        "total_stock": total_stock,
+        "total_shortage": total_shortage,
+        "shortage_rate": shortage_rate,
+        "top_shortages": [
+            {
+                "item_code": row["item_code"],
+                "item_name": row["item_name"],
+                "shortage_qty": row["shortage_qty"],
+            }
+            for row in top_shortages
+        ],
     }

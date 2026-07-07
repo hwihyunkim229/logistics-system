@@ -213,9 +213,6 @@ def inventory_page(
             )
         )
 
-    # 등급/LOT/Rev/비고 드롭다운 선택지는 grade/lot/rev/note 필터를
-    # 적용하기 전, warehouse_type/category/keyword 범위에서만 뽑는다 -
-    # 그래야 다른 필터를 걸어도 선택지 자체가 줄어들지 않는다.
     scoped_rows = query.all()
 
     lots = sorted(
@@ -304,7 +301,6 @@ async def add_inventory(
     note = (data.get("note") or "").strip()
     item_name = (data.get("item_name") or "").strip()
 
-    # 필수: 품목코드, 창고구분. 나머지는 전부 optional.
     if not item_code:
         return JSONResponse(
             {"status": "error", "message": "품목코드를 입력하세요."},
@@ -337,13 +333,9 @@ async def add_inventory(
         rev = rev or auto_rev
         category = category or auto_category
 
-    # LOT은 제품/반제품에만 있는 개념 - 원자재는 항상 공란.
     if category == "원자재":
         lot = ""
 
-    # 가계상 재고와 동일하게: 창고재고에서 등급을 지정하지 않으면
-    # 특정 등급 하나를 만드는 게 아니라 A/B/F 전체를 수량 0으로
-    # 자동 생성한다 (품목코드+LOT 단위 카탈로그 등록).
     if warehouse_type == "창고재고" and not grade:
 
         ensure_grade_siblings(db, item_code, warehouse_type, lot, category, item_name, rev)
@@ -394,8 +386,6 @@ async def add_inventory(
         )
     )
 
-    # 가계상 재고처럼 창고재고는 항상 A/B/F 세 등급이 함께 존재해야
-    # 하므로, 지금 입력한 등급 외 나머지를 수량 0으로 자동 생성한다.
     ensure_grade_siblings(db, item_code, warehouse_type, lot, category, item_name, rev)
 
     db.commit()
@@ -550,15 +540,12 @@ async def update_inventory_field(
 
     field = data.get("field")
 
-    # 화면에서 수정 가능한 필드는 수량/LOT/비고뿐이다. 나머지(품명,
-    # 등급, Rev, 재고구분)는 신규 등록/엑셀 업로드로만 정해진다.
     if field not in ("qty", "lot", "note"):
         return JSONResponse({"status": "error", "message": "잘못된 필드입니다."}, status_code=400)
 
     value = data.get("value", "")
     old_value = getattr(item, field)
 
-    # LOT은 제품/반제품에만 있는 개념 - 원자재는 항상 공란.
     if field == "lot" and item.category == "원자재" and value.strip():
         return JSONResponse(
             {"status": "error", "message": "원자재는 LOT을 사용하지 않습니다."},
@@ -689,8 +676,6 @@ async def bulk_update_inventory_lot(
 
     items = db.query(Inventory).filter(Inventory.id.in_(ids)).all()
 
-    # LOT은 제품/반제품에만 있는 개념 - 원자재 행은 일괄 적용 대상에서
-    # 제외한다(값을 강제로 지우지도, 채우지도 않는다).
     applied = [item for item in items if item.category != "원자재"]
     skipped = len(items) - len(applied)
 
@@ -827,10 +812,6 @@ def inventory_dashboard(
     end: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    # 가계상 재고 Dashboard와 동일한 UI/집계 방식. 제공재고/외주재고는
-    # 등급 개념이 없는 별도 축이라 이 대시보드에는 반영하지 않고,
-    # 창고재고만 대상으로 한다 (가계상 재고에 warehouse_type 자체가
-    # 없는 것과 동일한 취급).
 
     warehouse_filter = Inventory.warehouse_type == "창고재고"
     movement_filter = InventoryMovement.warehouse_type == "창고재고"
@@ -1013,6 +994,167 @@ def download_inventory_excel(request: Request, db: Session = Depends(get_db)):
         headers={"Content-Disposition": "attachment; filename=inventory.xlsx"}
     )
 
+@router.post("/inventory/init-excel")
+async def init_inventory_excel(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+
+    df = pd.read_excel(file.file)
+
+    created = 0
+    skipped = 0
+
+    required = ["품목코드", "창고구분"]
+
+    for col in required:
+        if col not in df.columns:
+            return JSONResponse(
+                {
+                    "status": "error",
+                    "message": f"{col} 컬럼이 없습니다."
+                },
+                status_code=400
+            )
+
+    has_category_col = "구분" in df.columns
+    has_lot_col = "LOT" in df.columns
+    has_note_col = "비고" in df.columns
+
+    for _, row in df.iterrows():
+
+        item_code = str(
+            row["품목코드"]
+        ).strip()
+
+        warehouse_type = str(
+            row["창고구분"]
+        ).strip()
+
+        lot = (
+            str(row["LOT"]).strip()
+            if has_lot_col and pd.notna(row["LOT"])
+            else ""
+        )
+
+        note = (
+            str(row["비고"]).strip()
+            if has_note_col and pd.notna(row["비고"])
+            else ""
+        )
+
+        given_category = (
+            str(row["구분"]).strip()
+            if has_category_col and pd.notna(row["구분"])
+            else ""
+        )
+
+        item_name, rev, auto_category = lookup_item_defaults(
+            db,
+            item_code
+        )
+
+        if not item_name:
+            skipped += 1
+            continue
+
+        category = (
+            given_category
+            if given_category in CATEGORIES
+            else auto_category
+        )
+
+        if category == "원자재":
+            lot = ""
+
+        # 창고재고 → A/B/F 자동 생성
+        if warehouse_type == "창고재고":
+
+            for grade in GRADES:
+
+                exists = (
+                    db.query(Inventory)
+                    .filter(
+                        Inventory.item_code == item_code,
+                        Inventory.warehouse_type == warehouse_type,
+                        Inventory.lot == lot,
+                        Inventory.grade == grade
+                    )
+                    .first()
+                )
+
+                if exists:
+                    continue
+
+                db.add(
+                    Inventory(
+                        item_code=item_code,
+                        item_name=item_name,
+                        category=category,
+                        warehouse_type=warehouse_type,
+                        lot=lot,
+                        grade=grade,
+                        rev=rev,
+                        note=note,
+                        qty=0
+                    )
+                )
+
+                created += 1
+
+        # 제공재고 / 외주재고 → 1행만 생성
+        else:
+
+            exists = (
+                db.query(Inventory)
+                .filter(
+                    Inventory.item_code == item_code,
+                    Inventory.warehouse_type == warehouse_type
+                )
+                .first()
+            )
+
+            if exists:
+                continue
+
+            db.add(
+                Inventory(
+                    item_code=item_code,
+                    item_name=item_name,
+                    category=category,
+                    warehouse_type=warehouse_type,
+                    lot="",
+                    grade="",
+                    rev=rev,
+                    note=note,
+                    qty=0
+                )
+            )
+
+            created += 1
+
+    db.commit()
+
+    save_log(
+        user=current_user(request),
+        product=INVENTORY_LOG_PRODUCT,
+        action="INVENTORY_INIT_EXCEL",
+        detail=(
+            f"수불 재고 초기 생성 "
+            f"(신규 {created}건 / 제외 {skipped}건)"
+        )
+    )
+
+    return JSONResponse(
+        {
+            "status": "success",
+            "created": created,
+            "skipped": skipped,
+            "message":
+                f"신규 {created}건 / 제외 {skipped}건"
+        }
+    )
 
 @router.post("/inventory/upload")
 async def upload_inventory_excel(
@@ -1034,6 +1176,7 @@ async def upload_inventory_excel(
 
     created = 0
     updated = 0
+    skipped = 0
 
     has_note_col = "비고" in df.columns
     has_category_col = "구분" in df.columns
@@ -1070,9 +1213,6 @@ async def upload_inventory_excel(
             else ""
         )
 
-        # "구분"은 선택 컬럼 - 직접 지정하면 그 값을 쓰고, 없으면
-        # ItemMaster/가계상 재고에서 자동 조회한다. 둘 다 없으면
-        # 공란으로 두고 화면에서 직접 입력하게 한다.
         given_category = (
             str(row["구분"]).strip()
             if has_category_col and pd.notna(row["구분"])
@@ -1080,15 +1220,17 @@ async def upload_inventory_excel(
         )
 
         item_name, rev, auto_category = lookup_item_defaults(db, item_code)
+
+        if not item_name:
+
+            skipped += 1
+            continue
+
         category = given_category if given_category in CATEGORIES else auto_category
 
-        # LOT은 제품/반제품에만 있는 개념 - 원자재는 항상 공란.
         if category == "원자재":
             lot = ""
 
-        # 가계상 재고와 동일하게: 창고재고 행에 등급을 비워두면 특정
-        # 등급 하나가 아니라 A/B/F 전체를 수량 0으로 자동 생성한다
-        # (수량 컬럼은 이 경우 등급 대상이 없어 사용하지 않는다).
         if warehouse_type == "창고재고" and not grade:
             ensure_grade_siblings(db, item_code, warehouse_type, lot, category, item_name, rev)
             created += 1
@@ -1106,11 +1248,15 @@ async def upload_inventory_excel(
         )
 
         if existing:
+
+            existing.item_name = item_name
+            existing.category = category
+            existing.rev = rev
+            existing.note = note
             existing.qty = qty
-            if note:
-                existing.note = note
+
             updated += 1
-            item_name, rev, category = existing.item_name, existing.rev, existing.category
+
         else:
             db.add(
                 Inventory(
@@ -1128,14 +1274,15 @@ async def upload_inventory_excel(
 
             created += 1
 
-        # 가계상 재고처럼 창고재고는 품목코드+LOT마다 A/B/F 세 등급이
-        # 항상 함께 존재해야 하므로, 업로드된 등급 외 나머지를 수량
-        # 0으로 자동 생성한다.
         ensure_grade_siblings(db, item_code, warehouse_type, lot, category, item_name, rev)
 
     db.commit()
 
-    message = f"신규 {created}건 / 갱신 {updated}건"
+    message = (
+        f"신규 {created}건 "
+        f"/ 수정 {updated}건 "
+        f"/ 제외 {skipped}건"
+    )
 
     save_log(
         user=current_user(request),
@@ -1145,12 +1292,13 @@ async def upload_inventory_excel(
     )
 
     return JSONResponse(
-        {
-            "status": "success",
-            "created": created,
-            "updated": updated,
-            "message": message
-        }
+    {
+        "status":"success",
+        "created":created,
+        "updated":updated,
+        "skipped":skipped,
+        "message":message
+    }
     )
 
 

@@ -67,6 +67,7 @@ STOPWORDS = {
     "얼마",
     "뭐",
     "등급",
+    "물류",
 }
 
 
@@ -88,12 +89,6 @@ PRODUCT_ALIASES = {
     "한방": "hanbang",
 }
 
-# BOM/stock/material/item tables store product names in plain uppercase
-# English ("CART BP PRO_REV2_7호"), not the "cart_bp_pro" slug used by
-# Inbound/Outbound.product. A Korean alias like "카트 bp pro" has to be
-# rewritten to this display form (not just stripped) or an item/BOM
-# text search for it silently matches zero rows. Longer/more specific
-# aliases are listed first so "카트 bp pro" matches before "카트 bp".
 PRODUCT_SEARCH_TERMS = {
     "cart bp pro": "CART BP PRO",
     "cart bp프로": "CART BP PRO",
@@ -120,10 +115,6 @@ PAGE_KEYWORDS = [
     (("품목 관리", "item master"), "item_master"),
     (("활동 로그", "로그"), "activity"),
     (("계정", "사용자", "유저"), "users"),
-    # Substring traps, most-specific first: "가계상 재고 X" contains
-    # "계상 재고 X", and "계상 재고 입출고"/"수불 재고 입출고" contains
-    # "재고 입출고" - so 가계상-prefixed entries come first, then
-    # 수불/계상-prefixed, then the generic 재고 forms as fallback.
     (("가계상 재고 입출고",), "stock_history"),
     (("가계상 재고 dashboard", "가계상 재고 대시보드"), "stock_dashboard"),
     (("수불 재고 입출고", "수불재고 입출고", "계상 재고 입출고", "계상재고 입출고"), "inventory_history"),
@@ -290,6 +281,12 @@ def extract_period(text):
 def extract_flow_type(text):
     lowered = normalize(text)
 
+    # "입출고" contains "출고" as a substring, so it must be checked
+    # first - otherwise "입출고 알려줘" (both directions) would wrongly
+    # resolve to "outbound" only.
+    if "입출고" in lowered:
+        return "both"
+
     if "출고" in lowered or "outbound" in lowered:
         return "outbound"
 
@@ -297,6 +294,25 @@ def extract_flow_type(text):
         return "inbound"
 
     return "both"
+
+
+def extract_movement_type(text):
+    """Same substring trap as extract_flow_type, but for the IN/OUT
+    values InventoryMovement/StockMovement store (vs "inbound"/
+    "outbound" for the Inbound/Outbound tables)."""
+
+    lowered = normalize(text)
+
+    if "입출고" in lowered:
+        return ""
+
+    if "출고" in lowered:
+        return "OUT"
+
+    if "입고" in lowered:
+        return "IN"
+
+    return ""
 
 
 def extract_stock_category(text):
@@ -316,9 +332,6 @@ def extract_stock_category(text):
 def extract_sort(text):
     lowered = normalize(text)
 
-    # Match the direction word on its own (not just as an exact phrase
-    # like "가장 적은") so word orders like "가장 수량이 적은" or
-    # "수량이 가장 많은" are still recognized.
     if any(word in lowered for word in ("적은", "최소")):
         return "qty", "asc"
 
@@ -352,6 +365,14 @@ def extract_number(text):
     return match.group(0).replace(",", "") if match else ""
 
 
+# Routing keywords are normally just phrasing, not real filter values,
+# so extract_keyword() strips them before hunting for a literal code.
+# "admin" is the exception - it's also this app's actual admin
+# username, so "admin 로그인 이력" should still be able to search by it
+# instead of losing it to the same stripping that "관리자"/"사용자" get.
+CODE_SEARCH_EXCEPTIONS = {"admin"}
+
+
 def extract_keyword(question):
     text = question or ""
 
@@ -371,6 +392,8 @@ def extract_keyword(question):
     code_source = alias_removed
     for keywords, _ in PAGE_KEYWORDS + DOMAIN_KEYWORDS:
         for keyword in keywords:
+            if keyword in CODE_SEARCH_EXCEPTIONS:
+                continue
             code_source = re.sub(
                 re.escape(keyword),
                 " ",
@@ -385,18 +408,17 @@ def extract_keyword(question):
         flags=re.IGNORECASE
     )
 
-    code = re.findall(r"\b[A-Za-z0-9][A-Za-z0-9_\-./]{2,}\b", code_source)
+    # 실제 품목코드/품명 토큰은 항상 숫자를 포함한다(SL-H-AS-00010,
+    # Ring_size_7 등). 이 조건이 없으면 "CART-I Ring_size_7"처럼 코드
+    # 형태로 시작하는 다단어 품명에서 앞쪽 "CART-I"만 잡고 뒤에 붙은
+    # 진짜 식별자("Ring_size_7")를 놓치는 문제가 있었다.
+    code = [
+        c for c in re.findall(r"\b[A-Za-z0-9][A-Za-z0-9_\-./]{2,}\b", code_source)
+        if re.search(r"\d", c)
+    ]
     if code:
         return code[0].strip()
 
-    # Built from the raw text (not alias_removed) - a product name like
-    # "카트 BP pro" needs to survive here, since for tools like
-    # bom.detail/material.master the product name IS the search term,
-    # not noise to discard (alias_removed exists only to keep short
-    # alias fragments like "bp"/"pro" from being mistaken for an item
-    # code above). Korean aliases are rewritten to the uppercase English
-    # form the database actually stores ("카트 bp pro" -> "CART BP PRO"),
-    # not just stripped, or the resulting search would match zero rows.
     cleaned = re.sub(r"[?.,!<>()]", " ", translate_product_terms(text))
 
     for word in sorted(STOPWORDS, key=len, reverse=True):
@@ -409,10 +431,6 @@ def extract_keyword(question):
         for keyword in keywords:
             cleaned = re.sub(re.escape(keyword), " ", cleaned, flags=re.IGNORECASE)
 
-    # Particles ("이", "가", ...) attach directly to the preceding word
-    # with no space ("BOM이"), so this has to run after the keyword/
-    # domain-word removal above frees them up as standalone tokens -
-    # doing it earlier leaves them glued to whatever came before them.
     cleaned = PARTICLE_PATTERN.sub(" ", cleaned)
 
     compact = " ".join(cleaned.split())
@@ -424,10 +442,21 @@ def resolve_tool(question):
     text = normalize(question)
 
     if "mrp" in text and "부족" in text:
-        # "가장" alone does not say which direction - "가장 부족한
-        # 품목" (most shortage) and "가장 부족 수량이 없는 품목" (least/
-        # no shortage) both contain "가장", so the min/max word has to
-        # be checked, not just whether a superlative is present at all.
+
+        # "top5"/"부족 5개"/"부족 목록" 같은 여러 건 요청은 shortage_max/
+        # min(단일 항목, 화면 이동)이 아니라 shortage_search(목록 조회)로
+        # 보낸다.
+        number = extract_number(question)
+
+        if number and contains_any(text, ("top", "개", "목록", "리스트")):
+            return {
+                "tool": "mrp.shortage_search",
+                "arguments": {
+                    "sort": "desc",
+                    "limit": int(number.replace(",", "")),
+                }
+            }
+
         if contains_any(text, ("적은", "최소", "없는", "낮은")):
             return {
                 "tool": "mrp.shortage_min",
@@ -477,13 +506,6 @@ def resolve_tool(question):
         page = extract_page(question)
         target = extract_keyword(question)
 
-        # "OO 화면에서 X인 행으로 이동" (a value in some column, not an
-        # item code/name) leaves cleanup noise around the number
-        # regardless of which page - a clean single-token result (an
-        # actual item code/name, e.g. "SL-H-RM-00096") never contains a
-        # space, so only override when the leftover clearly isn't one
-        # and the destination page is known (a bare number is too
-        # broad to search for without a specific page/table in mind).
         if page and target and " " in target.strip():
             number = extract_number(question)
             if number:
@@ -514,10 +536,74 @@ def resolve_tool(question):
             }
         }
 
+    # 대시보드 요약 조회 - "열어줘"/"이동" 같은 wants_move 표현이 없을 때만
+    # 여기 도달한다(있으면 위 page.move/page.find가 이미 처리함).
+    if contains_any(text, ("대시보드", "dashboard")):
+
+        if "가계상" in text:
+            return {
+                "tool": "stock.dashboard",
+                "arguments": {}
+            }
+
+        if contains_any(
+            text,
+            ("수불 재고", "수불재고", "계상 재고", "계상재고", "창고재고", "제공재고", "외주재고")
+        ):
+            return {
+                "tool": "inventory.dashboard",
+                "arguments": {}
+            }
+
+        if "mrp" in text:
+            return {
+                "tool": "mrp.dashboard",
+                "arguments": {}
+            }
+
+        if contains_any(text, ("입고", "출고", "제품 물류", "물류")):
+            return {
+                "tool": "logistics.dashboard",
+                "arguments": {
+                    "period": extract_period(question)
+                }
+            }
+
+    # 재고 입출고 "이력/내역" 조회 - "입출고"는 "출고"를 부분 문자열로
+    # 포함하므로, 아래 flow_count 분기보다 먼저 확인해야 한다.
+    if contains_any(text, ("이력", "내역")):
+
+        if "가계상" in text:
+            return {
+                "tool": "stock.movement_search",
+                "arguments": {
+                    "item": extract_keyword(question),
+                    "movement_type": extract_movement_type(text),
+                    "period": extract_period(question),
+                }
+            }
+
+        if contains_any(
+            text,
+            ("수불 재고", "수불재고", "계상 재고", "계상재고", "창고재고", "제공재고", "외주재고")
+        ):
+            warehouse_type = ""
+            for wt in ("창고재고", "제공재고", "외주재고"):
+                if wt in text:
+                    warehouse_type = wt
+                    break
+
+            return {
+                "tool": "inventory.movement_search",
+                "arguments": {
+                    "item": extract_keyword(question),
+                    "warehouse_type": warehouse_type,
+                    "movement_type": extract_movement_type(text),
+                    "period": extract_period(question),
+                }
+            }
+
     def _meaning_or(matched_keywords, data_result):
-        # "뭐야"/"의미" endings are ambiguous - only treat them as a
-        # request to define the term when nothing else (product name,
-        # item code, sort word, etc) is attached to the question.
         if wants_meaning(text) and not has_specific_target(text, matched_keywords):
             return {
                 "tool": "knowledge.answer",
@@ -532,13 +618,21 @@ def resolve_tool(question):
     if contains_any(text, ("입고", "출고", "inbound", "outbound")):
         matched = [kw for kw in ("입고", "출고", "inbound", "outbound") if kw in text]
 
+        # product가 잡히면 그걸로 이미 충분히 특정된 것이라 keyword를
+        # 같이 넘기면 안 된다 - extract_keyword()는 "cart bp pro"처럼
+        # 사람이 읽는 형태를 돌려주는데, DB의 product 컬럼은
+        # "cart_bp_pro"(언더스코어)로 저장돼 있어서 이 keyword가 별도
+        # LIKE 필터로 함께 걸리면 실제로는 매칭될 수 없는 조건이
+        # AND로 붙어 항상 0건이 되는 버그가 있었다.
+        product = extract_product(question)
+
         return _meaning_or(matched, {
             "tool": "logistics.flow_count",
             "arguments": {
                 "flow_type": extract_flow_type(question),
-                "product": extract_product(question),
+                "product": product,
                 "period": extract_period(question),
-                "keyword": extract_keyword(question),
+                "keyword": "" if product else extract_keyword(question),
             }
         })
 
@@ -552,10 +646,6 @@ def resolve_tool(question):
 
         }
 
-    # "계상 재고"(현재 명칭: 수불 재고)는 "가계상 재고"의 부분 문자열이라
-    # 아래 stock.summary 분기("재고" 키워드)에 먼저 잡히므로, "가계상"이
-    # 없는 수불/계상 재고 질문(창고재고/제공재고/외주재고 포함)을 여기서
-    # 먼저 처리한다.
     if "가계상" not in text and contains_any(
         text,
         ("수불 재고", "수불재고", "계상 재고", "계상재고", "창고재고", "제공재고", "외주재고")
@@ -581,9 +671,6 @@ def resolve_tool(question):
         if lot_match:
             lot = lot_match.group(1)
 
-        # 등급/LOT 표현은 이미 구조화된 인자로 뽑았으므로 키워드 추출
-        # 전에 걷어낸다 - 안 그러면 "A등급"의 "A"나 "LOT" 같은 파편이
-        # item에 남아 LIKE 검색을 0건으로 만든다.
         scrubbed = re.sub(
             r"(?i)[ABF]\s*등급|등급\s*[ABF]|lot\s*[A-Za-z]*\d*",
             " ",

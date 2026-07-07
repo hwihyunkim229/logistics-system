@@ -3,62 +3,6 @@ from app.ai.client import ask_ai
 from app.ai.domain import DOMAIN_KNOWLEDGE
 
 PLANNER_PROMPT = DOMAIN_KNOWLEDGE + """
-Before selecting a tool,
-always analyze the user's request.
-
-Think about these steps internally.
-
-1. What is the user's intent?
-
-Examples
-
-Search
-Summary
-Navigation
-Comparison
-Top N
-Bottom N
-Meaning
-Statistics
-
-2. Which ERP module is involved?
-
-Book Stock
-MRP Inventory
-MRP Result
-BOM
-Production Plan
-Material Master
-Item Master
-Movement
-Dashboard
-
-3. Does the user specify
-
-Category
-
-원자재
-반제품
-제품
-
-4. Does the user request sorting?
-
-largest
-smallest
-highest
-lowest
-top
-bottom
-
-5. Does the user specify a number?
-
-Top 1
-Top 5
-Top 10
-
-Only after completing these steps,
-return ONE JSON object.
-
 You are the planning AI for a Korean Logistics ERP.
 
 Your job is NOT to answer the user.
@@ -72,9 +16,9 @@ Never answer.
 Never use markdown.
 Never wrap JSON inside ```.
 
---------------------------------------------------
+---
 SYSTEM DESCRIPTION
---------------------------------------------------
+---
 
 This ERP manages:
 
@@ -109,9 +53,9 @@ return
     }
 }
 
---------------------------------------------------
+---
 TOOLS
---------------------------------------------------
+---
 
 stock.summary
 
@@ -153,7 +97,7 @@ desc
 limit
 integer
 
---------------------------------------------------
+---
 
 inventory.search
 
@@ -201,7 +145,7 @@ lot
 string - exact LOT string like "F25". Only meaningful for 제품/반제품
 (원자재 has no LOT). "" for all.
 
---------------------------------------------------
+---
 
 bom.detail
 
@@ -220,7 +164,7 @@ Arguments
 
 item
 
---------------------------------------------------
+---
 
 production.plan
 
@@ -238,7 +182,7 @@ Arguments
 
 item
 
---------------------------------------------------
+---
 
 material.master
 
@@ -258,7 +202,7 @@ Arguments
 
 item
 
---------------------------------------------------
+---
 
 item.master
 
@@ -277,7 +221,7 @@ Arguments
 
 item
 
---------------------------------------------------
+---
 
 movement.search
 
@@ -295,7 +239,223 @@ Arguments
 
 item
 
---------------------------------------------------
+---
+
+logistics.dashboard
+
+Description
+
+제품 물류(Inbound/Outbound) 전체 현황 - 누적/기간 건수, 미입력 건수.
+
+Use when asking
+
+제품 물류 현황
+입출고 현황
+입출고 대시보드
+
+Arguments
+
+period
+today / yesterday / this_week / this_month / all
+
+---
+
+inventory.dashboard
+
+Description
+
+수불 재고 Dashboard - 창고재고 품목수/수량/입출고/구분별 수량.
+
+Use when asking
+
+수불 재고 대시보드
+수불 재고 현황 요약
+
+Arguments
+
+(none)
+
+---
+
+inventory.movement_search
+
+Description
+
+수불 재고 입출고 이력 (InventoryMovement).
+
+Use when asking
+
+수불 재고 입출고 이력
+수불 재고 입고/출고 내역
+
+Arguments
+
+item, warehouse_type(창고재고/제공재고/외주재고/""), movement_type(IN/OUT/""), period
+
+---
+
+stock.dashboard
+
+Description
+
+가계상 재고 Dashboard - 품목수/수량/입출고/카테고리별 수량.
+
+Use when asking
+
+가계상 재고 대시보드
+가계상 재고 현황 요약
+
+Arguments
+
+(none)
+
+---
+
+stock.movement_search
+
+Description
+
+가계상 재고 입출고 이력 (StockMovement).
+
+Use when asking
+
+가계상 재고 입출고 이력
+가계상 재고 입고/출고 내역
+
+Arguments
+
+item, movement_type(IN/OUT/""), period
+
+---
+
+mrp.shortage_search
+
+Description
+
+MRP 부족 수량 Top-N 목록 (mrp.shortage_max/min은 1건 이동용, 이건 여러 건 조회용).
+
+Use when asking - a NUMBER or LIST of shortage items
+
+부족 수량 top5
+부족한 품목들 목록
+
+Arguments
+
+sort(asc/desc, default desc), limit(default 5)
+
+---
+
+mrp.dashboard
+
+Description
+
+MRP 대시보드 요약 - 부족 품목수, 총 소요/가용/부족 수량, 부족률, 상위 부족 품목.
+CRITICAL: any question about materials/items being 부족/모자라다/빠듯하다/
+scarce/short/tight - even vague ones without the word "MRP" - belongs
+here or mrp.shortage_search/max/min, NEVER item.master_history (that
+tool is ONLY for code/name/rev change history, unrelated to shortage).
+
+Use when asking
+
+MRP 대시보드
+MRP 현황 요약
+자재가 부족한지/빠듯한지/모자란지 (막연한 질문 포함)
+
+Arguments
+
+(none)
+
+---
+
+item.master_history
+
+Description
+
+품목코드/품명/Rev가 "바뀐 기록"(변경 이력)만 다룬다. 재고 부족/수량 문제와는
+무관하다 - 그런 질문은 mrp.dashboard/mrp.shortage_search로.
+
+Use when asking
+
+품목 코드/이름/Rev가 바뀐 이력
+품번 변경 내역
+
+Arguments
+
+item
+
+---
+
+activity.search
+
+Description
+
+활동 로그 검색 (관리자 전용).
+
+Arguments
+
+item
+
+---
+
+activity.login_summary
+
+Description
+
+로그인 이력 요약 (관리자 전용).
+
+Arguments
+
+period, keyword
+
+---
+
+admin.user_summary
+
+Description
+
+사용자 계정 목록/역할별 통계 (관리자 전용).
+
+Arguments
+
+item
+
+---
+
+logistics.flow_count
+
+Description
+
+제품별/기간별 입출고 건수 + 최근 5건 (per-product 상세는 이 tool).
+
+Arguments
+
+flow_type(both/inbound/outbound), product, period, keyword
+
+---
+
+mrp.shortage_max
+
+Description
+
+부족 수량이 가장 많은 품목 1건으로 이동.
+
+Arguments
+
+(none)
+
+---
+
+mrp.shortage_min
+
+Description
+
+부족 수량이 가장 적은 품목 1건으로 이동.
+
+Arguments
+
+(none)
+
+---
 
 page.move
 
@@ -329,25 +489,11 @@ inventory_history = 수불 재고 입출고 현황 page
 inventory_dashboard = 수불 재고 Dashboard page
 stock = 가계상 재고 현황 page
 
-global.search is the LAST choice.
+global.search is the LAST choice - use it only when stock.summary,
+inventory.search, bom.detail, material.master and production.plan
+all fail to match.
 
-Use global.search only when no specific tool matches.
-
-Always prefer
-
-stock.summary
-
-inventory.search
-
-bom.detail
-
-material.master
-
-production.plan
-
-before using global.search.
-
---------------------------------------------------
+---
 
 page.find
 
@@ -359,7 +505,7 @@ page
 
 target
 
---------------------------------------------------
+---
 
 global.search
 
@@ -369,25 +515,25 @@ Arguments
 
 item
 
---------------------------------------------------
+---
 
 system.summary
 
 Overall ERP summary.
 
---------------------------------------------------
+---
 
 knowledge.answer
 
 Business meaning only.
 
---------------------------------------------------
+---
 
 general.chat
 
 Use only when no tool matches.
 
---------------------------------------------------
+---
 
 Examples
 
@@ -423,21 +569,6 @@ Return
 }
 
 User:
-반제품 TOP10
-
-Return
-
-{
-    "tool":"stock.summary",
-    "arguments":{
-        "category":"반제품",
-        "sort":"qty",
-        "order":"desc",
-        "limit":10
-    }
-}
-
-User:
 BOM 열어줘
 
 Return
@@ -446,18 +577,6 @@ Return
     "tool":"page.move",
     "arguments":{
         "page":"bom"
-    }
-}
-
-User:
-생산계획 보여줘
-
-Return
-
-{
-    "tool":"page.move",
-    "arguments":{
-        "page":"production_plan"
     }
 }
 
@@ -506,22 +625,6 @@ Return
 }
 
 User:
-제공재고 현황 알려줘
-
-Return
-
-{
-    "tool":"inventory.search",
-    "arguments":{
-        "item":"",
-        "warehouse_type":"제공재고",
-        "category":"",
-        "grade":"",
-        "lot":""
-    }
-}
-
-User:
 LOT F25 창고재고 알려줘
 
 Return
@@ -546,18 +649,6 @@ Return
     "tool":"page.move",
     "arguments":{
         "page":"inventory"
-    }
-}
-
-User:
-수불 재고 입출고 현황으로 이동
-
-Return
-
-{
-    "tool":"page.move",
-    "arguments":{
-        "page":"inventory_history"
     }
 }
 
@@ -589,6 +680,20 @@ ALLOWED_TOOLS = {
     "system.summary",
     "knowledge.answer",
     "general.chat",
+    "logistics.dashboard",
+    "inventory.dashboard",
+    "inventory.movement_search",
+    "stock.dashboard",
+    "stock.movement_search",
+    "mrp.shortage_search",
+    "mrp.dashboard",
+    "item.master_history",
+    "activity.search",
+    "activity.login_summary",
+    "admin.user_summary",
+    "logistics.flow_count",
+    "mrp.shortage_max",
+    "mrp.shortage_min",
 }
 
 
@@ -614,9 +719,6 @@ def ai_resolve_tool(question):
     if tool not in ALLOWED_TOOLS:
         return None
 
-    # LLM이 "수불 재고"(구 계상 재고)와 "가계상 재고"를 자주 혼동하므로,
-    # 프롬프트에만 의존하지 않고 코드에서 교차 선택을 차단한다. None을
-    # 반환하면 결정적 키워드 라우터(query_router)가 올바르게 처리한다.
     q = question or ""
     inventory_terms = (
         "수불 재고", "수불재고", "계상 재고", "계상재고",
@@ -625,10 +727,15 @@ def ai_resolve_tool(question):
     asks_inventory = "가계상" not in q and any(t in q for t in inventory_terms)
     asks_book_stock = "가계상" in q
 
-    if asks_inventory and tool in ("stock.summary", "stock.book", "stock.select"):
+    if asks_inventory and tool in (
+        "stock.summary", "stock.book", "stock.select",
+        "stock.dashboard", "stock.movement_search",
+    ):
         return None
 
-    if asks_book_stock and tool == "inventory.search":
+    if asks_book_stock and tool in (
+        "inventory.search", "inventory.dashboard", "inventory.movement_search",
+    ):
         return None
 
     args = result.get("arguments", {})
@@ -636,9 +743,6 @@ def ai_resolve_tool(question):
     if not isinstance(args, dict):
         args = {}
 
-    # -------------------------
-    # stock.summary 검증
-    # -------------------------
 
     if tool == "stock.summary":
 
@@ -671,10 +775,6 @@ def ai_resolve_tool(question):
         limit = max(1, min(limit, 20))
 
         args["limit"] = limit
-
-    # -------------------------
-    # inventory.search 검증
-    # -------------------------
 
     if tool == "inventory.search":
 

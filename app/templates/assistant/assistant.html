@@ -5,6 +5,9 @@
     bottom:26px;
     width:60px;
     height:60px;
+    min-width:0;
+    min-height:0;
+    padding:0;
     border:0;
     border-radius:50%;
     background:linear-gradient(135deg,#2563eb,#1d4ed8);
@@ -27,6 +30,7 @@
 #assistant-btn svg{
     width:26px;
     height:26px;
+    flex-shrink:0;
 }
 #assistant-btn .assistant-btn-badge{
     position:absolute;
@@ -76,6 +80,8 @@
 #assistant-header .assistant-avatar{
     width:36px;
     height:36px;
+    min-width:0;
+    min-height:0;
     border-radius:50%;
     background:rgba(255,255,255,.18);
     display:flex;
@@ -86,6 +92,7 @@
 #assistant-header .assistant-avatar svg{
     width:20px;
     height:20px;
+    flex-shrink:0;
 }
 #assistant-header .assistant-title-block{
     flex:1;
@@ -118,6 +125,9 @@
     color:white;
     width:28px;
     height:28px;
+    min-width:0;
+    min-height:0;
+    padding:0;
     border-radius:50%;
     cursor:pointer;
     display:flex;
@@ -125,6 +135,16 @@
     justify-content:center;
     flex-shrink:0;
     transition:background .15s ease;
+}
+/* Missing size + flex-shrink here let this icon's SVG (a replaced
+   element with no width/height attributes, only a viewBox) fall back
+   to the browser's default intrinsic sizing and get treated as a
+   shrinkable flex item - it was silently stretching the button box
+   and rendering invisibly instead of drawing the X. */
+#assistant-close svg{
+    width:14px;
+    height:14px;
+    flex-shrink:0;
 }
 #assistant-close:hover{
     background:rgba(255,255,255,.26);
@@ -254,6 +274,9 @@
 #assistant-send{
     width:38px;
     height:38px;
+    min-width:0;
+    min-height:0;
+    padding:0;
     flex-shrink:0;
     border:0;
     border-radius:50%;
@@ -278,6 +301,7 @@
 #assistant-send svg{
     width:16px;
     height:16px;
+    flex-shrink:0;
 }
 </style>
 
