@@ -275,6 +275,23 @@ def _flow_count_answer(result):
 
 
 def _stock_summary_answer(result):
+    # AI가 쉬거나(요청 실패, rate limit) 응답이 깨졌을 때 이 결정론적
+    # 답변이 그대로 사용자에게 나간다 - "가장 많은/적은 품목" 질문인데
+    # is_top_result를 반영 안 하면 전체 목록 요약만 나가서 정작 질문에
+    # 대한 답(어떤 품목인지)이 빠지게 된다.
+    if result.get("is_top_result"):
+        rows = result.get("rows", [])
+        if rows:
+            row = rows[0]
+            label = "가장 많은" if result.get("order") != "asc" else "가장 적은"
+            title = "가계상 재고"
+            if result.get("category"):
+                title += f" {result['category']}"
+            return (
+                f"{title}에서 {label} 품목은 {row['item_name']} "
+                f"({row['item_code']})이며, 수량은 {row['qty']:,}개입니다."
+            )
+
     category = result.get("category")
     keyword = result.get("keyword")
 
@@ -447,7 +464,30 @@ def _rows_answer(result):
     domain = result.get("domain", "data")
     rows = result.get("rows", [])
     label = _domain_label(domain)
-    lines = [f"{label} 조회 결과 {len(rows)}건입니다.", ""]
+
+    # stock.summary와 동일한 이유(is_top_result 무시 -> "가장 많은/적은
+    # 품목" 질문에 목록만 나가는 문제)로, "rows" 상태를 쓰는 모든 도메인
+    # (inventory.search 등)에 공통으로 적용한다 - 특정 tool 하나만
+    # 고치면 같은 종류의 tool에서 똑같은 문제가 반복된다.
+    if result.get("is_top_result") and rows:
+        row = rows[0]
+        item_label = row.get("item_name") or row.get("item_code")
+        if item_label and "qty" in row:
+            top_label = "가장 많은" if result.get("order") != "asc" else "가장 적은"
+            return (
+                f"{label}에서 {top_label} 품목은 {row['item_name']} "
+                f"({row['item_code']})이며, 수량은 {row['qty']:,}개입니다."
+            )
+
+    header = f"{label} 조회 결과 {len(rows)}건입니다."
+
+    # "총 수량/총 재고" 같은 질문은 개별 행 목록이 아니라 합계 숫자
+    # 하나가 답인데, total_qty가 있는 tool(inventory.search 등)인데도
+    # 이 답변에서 빠지면 정작 사용자가 물어본 숫자가 안 나가게 된다.
+    if "total_qty" in result:
+        header += f" 총 수량은 {result['total_qty']:,}개입니다."
+
+    lines = [header, ""]
 
     for index, row in enumerate(rows, 1):
         lines.append(f"{index}. {_format_row(domain, row)}")

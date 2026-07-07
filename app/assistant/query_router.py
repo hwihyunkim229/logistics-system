@@ -68,6 +68,8 @@ STOPWORDS = {
     "뭐",
     "등급",
     "물류",
+    "있는",
+    "어떤",
 }
 
 
@@ -428,10 +430,11 @@ def extract_keyword(question):
 
     cleaned = re.sub(r"[?.,!<>()]", " ", translate_product_terms(text))
 
-    for word in sorted(STOPWORDS, key=len, reverse=True):
-        cleaned = re.sub(re.escape(word), " ", cleaned, flags=re.IGNORECASE)
-
-    for word in MEANING_WORDS:
+    # 길이 내림차순으로 한 번에 처리한다 - 예를 들어 "뭐"(STOPWORDS)를
+    # "뭐야"(MEANING_WORDS)보다 먼저 지우면 "뭐야"의 앞글자가 없어져서
+    # 고아 글자 "야"만 남는 것처럼, 짧은 단어가 긴 단어의 일부일 때
+    # 순서에 따라 엉뚱한 글자가 남는 문제가 있었다.
+    for word in sorted(set(STOPWORDS) | set(MEANING_WORDS), key=len, reverse=True):
         cleaned = re.sub(re.escape(word), " ", cleaned, flags=re.IGNORECASE)
 
     for keywords, _ in PAGE_KEYWORDS + DOMAIN_KEYWORDS:
@@ -684,14 +687,24 @@ def resolve_tool(question):
             question or ""
         )
 
+        # stock.summary(가계상 재고)와 동일하게 "가장 많은/적은" 정렬
+        # 의도를 감지한다 - 이게 없으면 수불 재고는 "가장 많은 품목"
+        # 질문을 절대 top-N 조회로 못 받고 매번 일반 목록 조회로만
+        # 빠진다.
+        sort, order = extract_sort(question)
+        item = "" if sort else extract_keyword(scrubbed)
+
         return _meaning_or(matched, {
             "tool": "inventory.search",
             "arguments": {
-                "item": extract_keyword(scrubbed),
+                "item": item,
                 "warehouse_type": warehouse_type,
                 "category": extract_stock_category(question),
                 "grade": grade,
                 "lot": lot,
+                "sort": sort,
+                "order": order,
+                "limit": 1 if sort else 15,
             }
         })
 

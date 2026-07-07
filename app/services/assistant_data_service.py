@@ -876,39 +876,108 @@ def inventory_search(
     category: str = "",
     grade: str = "",
     lot: str = "",
+    sort: str = "",
+    order: str = "asc",
+    limit: int = MAX_ROWS,
 ):
     keyword = _keyword(item)
-    query = db.query(Inventory)
+    lot = (lot or "").strip()
 
-    if keyword:
-        pattern = _like(keyword)
-        query = query.filter(
-            or_(
-                func.lower(Inventory.item_code).like(pattern),
-                func.lower(Inventory.item_name).like(pattern),
-                func.lower(Inventory.warehouse_type).like(pattern),
+    def apply_scope(q):
+        if keyword:
+            pattern = _like(keyword)
+            q = q.filter(
+                or_(
+                    func.lower(Inventory.item_code).like(pattern),
+                    func.lower(Inventory.item_name).like(pattern),
+                    func.lower(Inventory.warehouse_type).like(pattern),
+                )
+            )
+
+        if warehouse_type in ("창고재고", "제공재고", "외주재고"):
+            q = q.filter(Inventory.warehouse_type == warehouse_type)
+
+        if category in ("반제품", "제품", "원자재"):
+            q = q.filter(Inventory.category == category)
+
+        if grade in ("A", "B", "F"):
+            q = q.filter(Inventory.grade == grade)
+
+        if lot:
+            q = q.filter(func.lower(Inventory.lot) == lot.lower())
+
+        return q
+
+    if sort == "qty":
+
+        # stock.summary와 같은 이유: 품목코드 하나가 창고재고/제공재고/
+        # 외주재고, 등급(A/B/F)별로 여러 행에 나뉘어 저장돼 있어서,
+        # 개별 행을 qty로 정렬하면 "가장 많은 품목"이 실제로는 그중
+        # 한 행일 뿐이라 품목 전체 합계와 다른 값이 나온다 - 품목코드
+        # 단위로 합산한 뒤 정렬해야 한다.
+        grouped = apply_scope(
+            db.query(
+                Inventory.item_code,
+                Inventory.item_name,
+                Inventory.category,
+                Inventory.rev,
+                func.sum(Inventory.qty).label("qty"),
+            ).group_by(
+                Inventory.item_code,
+                Inventory.item_name,
+                Inventory.category,
+                Inventory.rev,
             )
         )
 
-    if warehouse_type in ("창고재고", "제공재고", "외주재고"):
-        query = query.filter(Inventory.warehouse_type == warehouse_type)
+        grouped = grouped.order_by(
+            func.sum(Inventory.qty).desc() if order == "desc" else func.sum(Inventory.qty).asc()
+        )
 
-    if category in ("반제품", "제품", "원자재"):
-        query = query.filter(Inventory.category == category)
+        grouped_rows = grouped.limit(limit + 1).all()
+        total_rows = apply_scope(
+            db.query(Inventory.item_code).distinct()
+        ).count()
 
-    if grade in ("A", "B", "F"):
-        query = query.filter(Inventory.grade == grade)
+        rows = [
+            SimpleNamespace(
+                item_code=row.item_code,
+                item_name=row.item_name,
+                category=row.category,
+                warehouse_type="",
+                lot="",
+                grade="",
+                rev=row.rev,
+                note="",
+                qty=row.qty or 0,
+            )
+            for row in grouped_rows
+        ]
 
-    rows = query.order_by(Inventory.item_code, Inventory.warehouse_type).all()
+        total_qty = apply_scope(
+            db.query(func.coalesce(func.sum(Inventory.qty), 0))
+        ).scalar() or 0
 
-    # LOT은 있는 그대로의 문자열이다 - 파싱/변환 없이 대소문자 무시 정확
-    # 일치로만 비교한다.
-    lot = (lot or "").strip()
+    else:
 
-    if lot:
-        rows = [row for row in rows if (row.lot or "").strip().lower() == lot.lower()]
+        query = apply_scope(
+            db.query(Inventory).order_by(
+                Inventory.item_code,
+                Inventory.warehouse_type
+            )
+        )
 
-    total_qty = sum(row.qty or 0 for row in rows)
+        rows = query.limit(limit + 1).all()
+        total_rows = query.count()
+
+        # order_by()는 Postgres에서 집계 전용 SELECT와 함께 쓸 수 없다 -
+        # stock_summary와 동일한 이유로 총합 계산 전에 제거해야 한다.
+        total_qty = (
+            query.order_by(None)
+            .with_entities(func.coalesce(func.sum(Inventory.qty), 0))
+            .scalar()
+            or 0
+        )
 
     return {
         "status": "rows",
@@ -918,9 +987,15 @@ def inventory_search(
         "category": category,
         "grade": grade,
         "lot": lot,
-        "total_rows": len(rows),
-        "total_qty": total_qty,
-        "truncated": len(rows) > MAX_ROWS,
+        "sort": sort,
+        "order": order,
+        "total_rows": total_rows,
+        "total_qty": int(total_qty),
+        "is_top_result": (
+            sort == "qty"
+            and limit == 1
+        ),
+        "truncated": len(rows) > limit,
         "rows": [
             {
                 "item_code": row.item_code,
@@ -933,7 +1008,7 @@ def inventory_search(
                 "note": row.note,
                 "qty": row.qty or 0,
             }
-            for row in rows[:MAX_ROWS]
+            for row in rows[:limit]
         ],
     }
 
