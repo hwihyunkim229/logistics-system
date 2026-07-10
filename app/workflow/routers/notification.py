@@ -101,12 +101,10 @@ def todo(
                 "link": f"/workflow/{team}",
             })
 
-    # 구매팀: 등록만 되고 아직 검사 의뢰를 안 보낸 항목
     rows = _stage_items(WorkflowStage.PURCHASE_RECEIVED)
     _add("purchase", "입고 검사 의뢰 필요", rows,
          sum(i.qty or 0 for i in rows))
 
-    # 품질팀: 입고 승인 대기 / 입고 검사 대기 / 공정 검사 대기
     reqs = _waiting_requests(WorkflowStage.QUALITY_REQUEST)
     _add("quality", "입고 검사 승인 대기", reqs,
          sum(r.request_qty or 0 for r in reqs))
@@ -119,7 +117,6 @@ def todo(
     _add("quality", "공정 검사 진행 필요", rows,
          sum(i.qty or 0 for i in rows))
 
-    # 자재팀: 확인/승인 대기 / 다음 요청 대기 / 출고 대기
     rows = _stage_items(
         WorkflowStage.QUALITY_INSPECTION,
         WorkflowStage.PRODUCTION_COMPLETE,
@@ -141,7 +138,6 @@ def todo(
     _add("material", "제품 출고 대기", rows,
          sum(i.qty or 0 for i in rows))
 
-    # 생산팀: 생산 승인 대기 / 생산 완료 대기 / 포장 완료 대기
     reqs = _waiting_requests(WorkflowStage.PRODUCTION_REQUEST)
     _add("production", "생산 승인 대기", reqs,
          sum(r.request_qty or 0 for r in reqs))
@@ -176,7 +172,6 @@ def todo(
         "items": result,
     })
 
-
 @router.post("/read")
 def read_notification(
     notification_id: int = Form(...),
@@ -188,7 +183,6 @@ def read_notification(
         "/workflow/notification",
         status_code=303,
     )
-
 
 @router.post("/read-all")
 def read_all_notifications(

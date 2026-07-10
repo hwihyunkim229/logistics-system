@@ -1,11 +1,9 @@
 import os
 from urllib.parse import quote
-
 from fastapi import APIRouter, Depends, Form, File, Request, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-
 from app.workflow.utils import get_db
 from app.workflow.services.workflow_service import WorkflowService
 from app.workflow.services.inspection_service import (

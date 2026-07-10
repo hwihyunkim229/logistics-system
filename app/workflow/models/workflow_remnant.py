@@ -8,7 +8,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from app.database import Base
 
-
 class WorkflowRemnant(Base):
     """잔존 자재 - 단계를 넘어가지 못하고 남은 수량의 기록.
 
@@ -23,17 +22,12 @@ class WorkflowRemnant(Base):
 
     id = Column(Integer, primary_key=True)
     workflow_no = Column(String, index=True)
-    # 잔량이 발생한 단계 (반려로 해당 단계를 재작업할 때 이 값으로
-    # 찾아서 삭제한다)
     stage = Column(Integer)
-    # 잔량이 남아 있는 부서 (purchase/quality/material/production)
     department = Column(String, index=True)
     item_code = Column(String)
     item_name = Column(String)
     lot = Column(String)
     qty = Column(Integer, default=0)
-    # PARTIAL_APPROVAL(부분 승인) / DEFECT(불량) /
-    # PARTIAL_REQUEST(부분 요청) / PARTIAL_SHIP(부분 출고)
     reason = Column(String)
     created_at = Column(
         DateTime(timezone=True),

@@ -7,7 +7,7 @@ from app.workflow.services.remnant_service import (
     add_remnant,
     clear_remnants,
     remnant_qty_by_item,
-    clear_remnants_by_item,
+    consume_remnant_pool,
 )
 from app.workflow.config import (
     PRODUCTION_TRANSFORM,
@@ -19,6 +19,7 @@ from app.workflow.models.workflow_item import WorkflowItem
 from app.workflow.models.workflow_request import WorkflowRequest
 from app.workflow.models.workflow_inspection import WorkflowInspection
 from app.workflow.models.workflow_history import WorkflowHistory
+from app.workflow.models.workflow_counter import WorkflowCounter
 from app.workflow.models.workflow_stage import (
     WorkflowStage,
     get_stage_name,
@@ -55,6 +56,30 @@ class WorkflowService:
 
     def __init__(self, db: Session):
         self.db = db
+
+    def _next_workflow_seq(self):
+        """
+        workflow_no에 쓸 다음 시퀀스 번호를 발급한다. WorkflowItem.id는
+        행이 삭제되면 SQLite가 재사용할 수 있어 그걸로 workflow_no를
+        만들면 예전에 지워진 품목과 새 품목이 같은 번호를 갖는 충돌이
+        생긴다 - 이 카운터는 삭제와 무관하게 계속 증가만 한다.
+        """
+
+        counter = (
+            self.db.query(WorkflowCounter)
+            .filter(WorkflowCounter.key == "workflow_no")
+            .first()
+        )
+
+        if counter is None:
+            counter = WorkflowCounter(key="workflow_no", value=0)
+            self.db.add(counter)
+            self.db.flush()
+
+        counter.value += 1
+        self.db.flush()
+
+        return counter.value
 
     def _get_item(self, workflow_no: str):
         item = (
@@ -234,8 +259,9 @@ class WorkflowService:
 
         self.db.flush()
 
+        seq = self._next_workflow_seq()
         today = datetime.now().strftime("%Y%m%d")
-        item.workflow_no = f"WF-{today}-{item.id:06d}"
+        item.workflow_no = f"WF-{today}-{seq:06d}"
 
         add_history(
             self.db,
@@ -380,6 +406,43 @@ class WorkflowService:
             int(WorkflowStage.PRODUCTION_COMPLETE),
             int(WorkflowStage.PACKAGING_COMPLETE),
         ):
+            def _restore_pool_consumption(wf_no, item_code, item_name, lot):
+                """
+                이 생산/포장에서 기존 잔존 풀을 끌어다 썼다면(아래
+                _complete_set의 POOL_CONSUME 이력 참고) 반려 시 그
+                소모분을 잔존 풀에 다시 채워 넣는다.
+                """
+
+                pool_history = (
+                    self.db.query(WorkflowHistory)
+                    .filter(
+                        WorkflowHistory.workflow_no == wf_no,
+                        WorkflowHistory.stage == redone_stage,
+                        WorkflowHistory.action == "POOL_CONSUME",
+                    )
+                    .order_by(WorkflowHistory.id.desc())
+                    .first()
+                )
+
+                if pool_history and pool_history.before_qty:
+                    add_remnant(
+                        self.db,
+                        workflow_no=wf_no,
+                        stage=redone_stage,
+                        department="production",
+                        item_code=item_code,
+                        item_name=item_name,
+                        lot=lot,
+                        qty=pool_history.before_qty,
+                        reason="SET_LEFTOVER",
+                    )
+
+            # primary는 변환되기 전 원래 품목코드로 풀을 소모했으므로,
+            # prev_item_code를 지우기 전에 복원용 코드로 먼저 챙긴다.
+            original_code = item.prev_item_code or item.item_code
+            original_name = item.prev_item_name or item.item_name
+            original_lot = item.prev_lot or item.lot
+
             if item.prev_item_code:
                 item.item_code = item.prev_item_code
                 item.item_name = item.prev_item_name
@@ -387,6 +450,10 @@ class WorkflowService:
                 item.prev_item_code = None
                 item.prev_item_name = None
                 item.prev_lot = None
+
+            _restore_pool_consumption(
+                workflow_no, original_code, original_name, original_lot
+            )
 
             merged_components = (
                 self.db.query(WorkflowItem)
@@ -422,6 +489,13 @@ class WorkflowService:
                 comp.updated_at = datetime.now(ZoneInfo("Asia/Seoul"))
 
                 clear_remnants(self.db, comp.workflow_no, redone_stage)
+
+                _restore_pool_consumption(
+                    comp.workflow_no,
+                    comp.item_code,
+                    comp.item_name,
+                    comp.lot,
+                )
 
                 if redone_stage == int(WorkflowStage.PACKAGING_COMPLETE):
                     comp_request = (
@@ -887,7 +961,9 @@ class WorkflowService:
 
         for comp in picked:
             defect = int(defects.get(comp.workflow_no, 0) or 0)
-            leftover = usable[comp.workflow_no] - produced_qty
+            own_available = comp.qty - defect
+            own_leftover = max(0, own_available - produced_qty)
+            pool_needed = max(0, produced_qty - own_available)
 
             add_remnant(
                 self.db,
@@ -901,13 +977,11 @@ class WorkflowService:
                 reason="DEFECT",
             )
 
-            clear_remnants_by_item(
-                self.db,
-                department="production",
-                reason="SET_LEFTOVER",
-                item_code=comp.item_code,
-            )
-
+            # 이번에 새로 도착한 수량 중 못 쓴 만큼만 잔존으로 남긴다.
+            # 기존에 쌓여 있던 잔존 풀은 필요한 만큼만(pool_needed)
+            # 아래에서 소모하고, 나머지는 그대로 건드리지 않는다 -
+            # 그래야 이 생산이 반려됐을 때 원래 잔존 기록이 그대로
+            # 남아있어 복원이 필요 없다.
             add_remnant(
                 self.db,
                 workflow_no=comp.workflow_no,
@@ -916,9 +990,36 @@ class WorkflowService:
                 item_code=comp.item_code,
                 item_name=comp.item_name,
                 lot=comp.lot,
-                qty=leftover,
+                qty=own_leftover,
                 reason="SET_LEFTOVER",
             )
+
+            if pool_needed > 0:
+                pool_consumed = consume_remnant_pool(
+                    self.db,
+                    department="production",
+                    reason="SET_LEFTOVER",
+                    item_code=comp.item_code,
+                    qty=pool_needed,
+                )
+
+                if pool_consumed > 0:
+                    # 반려 시 이 기록을 찾아 소모한 만큼 잔존 풀에
+                    # 다시 채워 넣는다 (material_reject 참고).
+                    add_history(
+                        self.db,
+                        workflow_no=comp.workflow_no,
+                        stage=done_stage,
+                        action="POOL_CONSUME",
+                        user_name=completed_by,
+                        department="production",
+                        before_qty=pool_consumed,
+                        after_qty=0,
+                        remark=(
+                            f"기존 잔존 풀에서 {pool_consumed}개 소모 "
+                            f"({comp.item_code})"
+                        ),
+                    )
 
             if mode == "packaging":
                 waiting = (

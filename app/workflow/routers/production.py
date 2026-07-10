@@ -51,7 +51,6 @@ def production_page(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    # 생산 승인 대기 (6단계 요청)
     approval_rows = (
         db.query(WorkflowRequest, WorkflowItem)
         .join(
@@ -68,7 +67,6 @@ def production_page(
         .all()
     )
 
-    # 생산 완료 등록 대기 (승인 완료 = 7단계 항목, 병합 소모분 제외)
     production_items = (
         db.query(WorkflowItem)
         .filter(
@@ -81,8 +79,6 @@ def production_page(
         .all()
     )
 
-    # 포장 완료 등록 대기 (포장 요청 = 13단계 항목) - 반려 시 포장
-    # 요청을 되돌려야 하므로 대기 중인 요청과 함께 조회한다.
     packaging_rows = (
         db.query(WorkflowRequest, WorkflowItem)
         .join(
@@ -210,7 +206,6 @@ def production_page(
         packaging_items_only, PACKAGING_COMPONENTS, PACKAGING_TRANSFORM
     )
 
-    # 변환 맵에 없는 품목은 기존 개별 완료 경로를 유지한다.
     plain_production_items = [
         item for item in production_items
         if not PRODUCTION_TRANSFORM.get(item.item_code)
@@ -251,7 +246,6 @@ def production_page(
             "error": request.query_params.get("error", ""),
         },
     )
-
 
 @router.post("/complete-production-set")
 async def complete_production_set(

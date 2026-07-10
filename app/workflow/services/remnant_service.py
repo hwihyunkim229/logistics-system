@@ -89,17 +89,30 @@ def remnant_qty_by_item(
     return sum(row.qty or 0 for row in rows)
 
 
-def clear_remnants_by_item(
+def consume_remnant_pool(
     db: Session,
     department: str,
     reason: str,
     item_code: str,
+    qty: int,
 ):
     """
-    특정 부서/사유/품목코드의 잔존 기록을 전부 삭제한다 - 기존 잔존
-    수량 풀을 새 생산 결과로 다시 합쳐 기록할 때, 중복 집계를 막기
-    위해 먼저 지운다. (commit은 호출자가 담당)
+    특정 부서/사유/품목코드의 잔존 풀에서 qty만큼만 소모한다(오래된
+    기록부터). 이번 생산에 새로 도착한 수량만으로 부족해서 기존
+    잔존 풀까지 끌어다 쓸 때 호출한다.
+
+    이전 버전은 풀 전체를 지우고 새 수량으로 한 건만 다시 만들었는데,
+    그러면 실제로 안 건드려도 되는 여분까지 통째로 사라지고, 반려됐을
+    때도 원래 있던 잔존 기록을 되살릴 방법이 없었다 - 필요한 만큼만
+    줄이면 나머지는 그대로 남고, 소모한 만큼은 호출자가 이력에 남겨
+    반려 시 정확히 복원할 수 있다.
+
+    실제로 소모된 수량을 반환한다(풀에 남은 게 부족하면 있는 만큼만).
+    (commit은 호출자가 담당)
     """
+
+    if qty <= 0:
+        return 0
 
     rows = (
         db.query(WorkflowRemnant)
@@ -108,13 +121,26 @@ def clear_remnants_by_item(
             WorkflowRemnant.reason == reason,
             WorkflowRemnant.item_code == item_code,
         )
+        .order_by(WorkflowRemnant.id.asc())
         .all()
     )
 
-    for row in rows:
-        db.delete(row)
+    remaining = qty
+    consumed = 0
 
-    return len(rows)
+    for row in rows:
+        if remaining <= 0:
+            break
+
+        take = min(row.qty or 0, remaining)
+        row.qty = (row.qty or 0) - take
+        remaining -= take
+        consumed += take
+
+        if row.qty <= 0:
+            db.delete(row)
+
+    return consumed
 
 
 def get_remnants(
@@ -178,22 +204,30 @@ def restock_remnant(
         .first()
     )
 
-    service = WorkflowService(db)
+    item_code = remnant.item_code
+    item_name = remnant.item_name
+    lot = remnant.lot or f"RESTOCK-{remnant.id}"
+    qty = remnant.qty
+    service_type = origin_item.service_type if origin_item else ""
 
-    item = service.create_workflow(
-        item_code=remnant.item_code,
-        item_name=remnant.item_name,
-        lot=remnant.lot or f"RESTOCK-{remnant.id}",
-        rev="",
-        qty=remnant.qty,
-        created_by=restocked_by,
-        service_type=origin_item.service_type if origin_item else "",
-    )
-
+    # 잔존 기록을 먼저 지우고 커밋해서 소진 처리한다 - "재입고" 버튼이
+    # 중복 클릭되거나 요청이 겹쳐도, 두 번째 호출은 이미 삭제된
+    # 기록을 찾지 못해 위의 "찾을 수 없습니다" 오류로 안전하게
+    # 끝나므로, 같은 잔량으로 workflow가 두 번 만들어지는 일이 없다.
     db.delete(remnant)
     db.commit()
 
-    return item
+    service = WorkflowService(db)
+
+    return service.create_workflow(
+        item_code=item_code,
+        item_name=item_name,
+        lot=lot,
+        rev="",
+        qty=qty,
+        created_by=restocked_by,
+        service_type=service_type,
+    )
 
 
 def remnant_qty_by_workflow(

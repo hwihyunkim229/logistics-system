@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from app.database import SessionLocal
+from app.workflow.utils import get_db
 from app.workflow.services.workflow_service import WorkflowService
 from app.workflow.models.workflow_item import WorkflowItem
 from app.workflow.models.workflow_request import WorkflowRequest
@@ -24,13 +24,6 @@ router = APIRouter(
 templates = Jinja2Templates(
     directory="app/templates"
 )
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 def _redirect(error: str = ""):
@@ -57,7 +50,6 @@ def _parse_datetime_local(value: str):
     except ValueError:
         raise Exception("입고 일자 형식이 올바르지 않습니다.")
 
-
 @router.get("")
 def purchase_page(
     request: Request,
@@ -83,7 +75,6 @@ def purchase_page(
     inspection_requested_at = {}
 
     for row in request_rows:
-        # 반려 후 재의뢰가 있을 수 있으므로 가장 최근 의뢰 시각을 쓴다.
         inspection_requested_at[row.workflow_no] = row.requested_at
 
     for item in workflow_list:
@@ -93,10 +84,6 @@ def purchase_page(
         item.inspection_requested_at = inspection_requested_at.get(
             item.workflow_no
         )
-        # 구매팀 잔량 = 아직 검사 의뢰/승인이 안 된 정상 재고이므로
-        # (아직 결함이 아니다) 별도 잔존 이슈 기록 없이 최초 입고
-        # 수량과 현재 진행 수량의 차이로 바로 계산한다. 잔존 이슈
-        # 현황(창고)은 생산팀/자재팀 페이지에만 존재한다.
         item.remnant_qty = (item.initial_qty or item.qty) - item.qty
 
     total_count = len(workflow_list)
@@ -199,7 +186,6 @@ def create_workflow(
 ):
 
     user = request.session.get("user")
-
     service = WorkflowService(db)
 
     try:
@@ -263,8 +249,6 @@ def update_item(
     except Exception as e:
         return _redirect(str(e))
 
-    # 품목 코드는 공백을 포함하지 않는 규칙(SL-X-XX-NNNNN)이므로,
-    # 직접 입력 시 실수로 섞여 들어간 공백을 제거한다.
     item.item_code = "".join(item_code.split())
     item.item_name = item_name.strip()
     item.lot = (lot or "").strip()

@@ -35,7 +35,5 @@ class WorkflowInspection(Base):
         Boolean,
         default=False
     )
-    # 검사 성적서 첨부 - 저장 경로(디스크)와 원본 파일명을 각각
-    # 보관한다. 다운로드 시 원본 파일명으로 내려주기 위해 필요하다.
     attachment_path = Column(String)
     attachment_name = Column(String)

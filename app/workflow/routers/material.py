@@ -25,8 +25,6 @@ from app.workflow.models.workflow_stage import (
     get_stage_name,
 )
 
-# 자재 확인 단계 -> 해당 확인이 참조해야 할 검사 종류. 품질 검사
-# 결과를 확인하는 단계(입고검사/공정검사)에서만 성적서 링크를 보여준다.
 CONFIRM_INSPECTION_TYPE = {
     int(WorkflowStage.QUALITY_INSPECTION): "INCOMING",
     int(WorkflowStage.PROCESS_INSPECTION): "PROCESS",
@@ -80,10 +78,6 @@ def material_page(
             MATERIAL_CONFIRM_STAGES[item.current_stage]
         )
 
-        # 품질 검사 결과를 확인하는 단계라면, 첨부된 성적서가 있는
-        # 가장 최근 검사 기록을 찾아 확인 모달에서 다운로드할 수
-        # 있게 한다. 승인 판단에 필요한 수량 내역(양품/불량, A/B/F)도
-        # 함께 만들어 모달에 보여준다.
         item.inspection_attachment_id = None
         item.result_summary = ""
         inspection_type = CONFIRM_INSPECTION_TYPE.get(item.current_stage)
@@ -117,8 +111,6 @@ def material_page(
                         f"불량 {latest_inspection.defect_qty}"
                     )
 
-        # 생산/포장 완료 확인 단계: 양품은 item.qty, 불량은 완료 시점에
-        # 자재팀 불량 창고로 넘어온 잔존 기록(세트 구성품 포함)을 합산.
         elif item.current_stage in (
             int(WorkflowStage.PRODUCTION_COMPLETE),
             int(WorkflowStage.PACKAGING_COMPLETE),
@@ -164,10 +156,6 @@ def material_page(
     for item in request_items:
         item.current_stage_name = get_stage_name(item.current_stage)
 
-        # CRADLE처럼 이미 반제품으로 구매되는 포장 구성품은 생산·
-        # 공정검사가 필요 없어 자재 확인(5단계) 완료 후 곧바로 포장
-        # 요청으로 넘어가야 하므로, 이 경우에만 표시 라벨을 다르게
-        # 준다 (실제 라우팅은 request_next에서 처리).
         if (
             item.current_stage == int(WorkflowStage.MATERIAL_CONFIRM_1)
             and item.item_code in PREMADE_PACKAGING_CODES
@@ -176,7 +164,6 @@ def material_page(
         else:
             item.next_request_label = NEXT_REQUEST_LABELS[item.current_stage]
 
-    # 출고 대기: 최종 확인(15)이 끝난 항목
     ship_items = (
         db.query(WorkflowItem)
         .filter(
@@ -206,9 +193,6 @@ def material_page(
         row.stage_name = get_stage_name(row.stage)
         row.reason_label = REMNANT_REASON_NAMES.get(row.reason, row.reason)
 
-    # 자재팀 창고는 불량과 양품을 분리해서 보여준다 - 불량 자재
-    # 창고(품질/생산에서 넘어온 불량)와 양품 자재 창고(부분 승인/
-    # 부분 요청/부분 출고로 남은 정상 재고).
     defect_remnants = [r for r in remnants if r.reason == "DEFECT"]
     good_remnants = [r for r in remnants if r.reason != "DEFECT"]
 
@@ -235,7 +219,6 @@ def material_page(
         },
     )
 
-
 @router.post("/confirm")
 def confirm(
     request: Request,
@@ -257,7 +240,6 @@ def confirm(
         return _redirect(str(e))
 
     return _redirect()
-
 
 @router.post("/reject-stage")
 def reject_stage(
@@ -319,10 +301,7 @@ def request_next(
             item.current_stage == int(WorkflowStage.MATERIAL_CONFIRM_1)
             and item.item_code in PREMADE_PACKAGING_CODES
         ):
-            # CRADLE처럼 이미 반제품으로 구매되는 포장 구성품은 생산·
-            # 공정검사 단계를 건너뛰고 곧바로 포장 요청으로 넘어간다.
-            # 포장 요청은 별도 승인 절차가 없으므로(생산팀이 바로
-            # 포장 진행) 의뢰 시점에 수량을 확정한다.
+            
             leftover = item.qty - qty
 
             service.request_packaging_direct(
@@ -348,10 +327,7 @@ def request_next(
                 db.commit()
 
         elif item.current_stage == int(WorkflowStage.MATERIAL_CONFIRM_1):
-            # 생산 요청은 생산팀의 별도 승인 절차가 있다 - 여기서 수량을
-            # 미리 확정하지 않고, 승인 시점(approve_request)에 확정해서
-            # "승인 전까지는 기존 수량 유지, 승인 후 확정 수량으로 감소"
-            # 가 지켜지도록 한다.
+
             service.request_production(
                 workflow_no=workflow_no,
                 qty=qty,
@@ -394,8 +370,6 @@ def request_next(
                 remark=remark,
             )
 
-            # 포장 요청도 별도 승인 절차 없이 생산팀이 바로 포장을
-            # 진행하므로 위와 동일하게 의뢰 시점에 확정한다.
             if leftover > 0:
                 item.qty = qty
                 add_remnant(

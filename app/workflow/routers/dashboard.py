@@ -8,7 +8,6 @@ from app.workflow.utils import get_db, department_name
 from app.workflow.models.workflow_item import WorkflowItem
 from app.workflow.models.workflow_request import WorkflowRequest
 from app.workflow.models.workflow_stage import (
-    WorkflowStage,
     STAGE_INFO,
     TOTAL_STAGE,
     get_stage_name,
@@ -67,10 +66,6 @@ def dashboard_page(
     )
     waiting_request_count = len(waiting_requests)
     waiting_request_qty = sum(r.request_qty or 0 for r in waiting_requests)
-
-    # 사이즈(호수)별 서비스 출고 수량 - 출고 완료(COMPLETED) 건만
-    # 집계한다. 호수는 품명의 "size N" 표기(없으면 끝의 _N)에서
-    # 추출하며, 제품 라인업 기준인 8호~13호를 X축에 고정해 보여준다.
     size_shipped = {size: 0 for size in range(8, 14)}
 
     for item in items:
@@ -93,8 +88,6 @@ def dashboard_page(
 
     size_labels = [f"{size}호" for size in size_shipped]
     size_values = list(size_shipped.values())
-
-    # 부서별 대기 작업 (현재 어느 부서 손에 있는지) - 수량 기준
     department_counts = {"purchase": 0, "quality": 0, "material": 0, "production": 0}
     department_qtys = {"purchase": 0, "quality": 0, "material": 0, "production": 0}
 
@@ -113,7 +106,6 @@ def dashboard_page(
         for code, count in department_counts.items()
     ]
 
-    # 16단계 정의 (진행바 헤더용)
     stages = [
         {
             "no": int(stage),
