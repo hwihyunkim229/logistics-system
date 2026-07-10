@@ -63,12 +63,15 @@ from app.workflow.routers import (
 )
 import app.workflow.models
 import time
+from fastapi.responses import JSONResponse, Response
 
 app = FastAPI()
 
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+@app.api_route("/health", methods=["GET", "HEAD"])
+async def health(request: Request):
+    if request.method == "HEAD":
+        return Response(status_code=200)
+    return JSONResponse({"status": "ok"})
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
