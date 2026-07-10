@@ -1,3 +1,4 @@
+import os
 import sys
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -77,6 +78,13 @@ pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto"
 )
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY 환경변수가 설정되지 않았습니다."
+    )
 
 TEAM_WRITE_PREFIXES = {
     "purchase": ["/workflow/purchase"],
@@ -203,7 +211,7 @@ app.add_middleware(
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key="your-secret-key"
+    secret_key=SECRET_KEY
 )
 
 app.mount(
@@ -244,26 +252,3 @@ app.include_router(workflow_notification.router)
 Base.metadata.create_all(
     bind=engine
 )
-
-db = SessionLocal()
-
-admin_user = db.query(User).filter(
-    User.username == "admin"
-).first()
-
-if not admin_user:
-
-    admin = User(
-        username="admin",
-        password=pwd_context.hash(
-            "1234"
-        ),
-        role="admin",
-        must_change_password=False
-    )
-
-    db.add(admin)
-
-    db.commit()
-
-db.close()
