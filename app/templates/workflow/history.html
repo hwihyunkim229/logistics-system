@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<link rel="stylesheet" href="/workflow/static/css/workflow.css">
+
+<div class="workflow-page">
+
+    <div class="page-header">
+        <div>
+            <div class="page-title">
+                Workflow 이력 조회
+            </div>
+
+            <div class="page-subtitle">
+                모든 단계의 요청 · 승인 · 검사 · 완료 · 반려 이력
+            </div>
+        </div>
+    </div>
+
+    <form method="get" action="/workflow/history" class="toolbar">
+        <div class="toolbar-left" style="display:flex;gap:10px;">
+            <div class="search-box">
+                <input
+                    type="text"
+                    name="workflow_no"
+                    value="{{ workflow_no }}"
+                    placeholder="Workflow No 검색">
+            </div>
+
+            <select name="department" class="filter-select">
+                <option value="">전체 부서</option>
+                <option value="purchase" {{ "selected" if department == "purchase" }}>구매팀</option>
+                <option value="quality" {{ "selected" if department == "quality" }}>품질팀</option>
+                <option value="material" {{ "selected" if department == "material" }}>자재팀</option>
+                <option value="production" {{ "selected" if department == "production" }}>생산팀</option>
+            </select>
+
+            <button type="submit" class="btn btn-primary">조회</button>
+        </div>
+    </form>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                이력 목록
+            </div>
+
+            <div class="section-count">
+                {{ total_count }}건
+            </div>
+        </div>
+
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>일시</th>
+                <th>Workflow No</th>
+                <th>단계</th>
+                <th>작업</th>
+                <th>부서</th>
+                <th>담당자</th>
+                <th>수량 변화</th>
+                <th>결과</th>
+                <th>비고</th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for row in histories %}
+            <tr>
+                <td style="white-space:nowrap;">
+                    {{ row.created_at.strftime("%Y-%m-%d %H:%M") if row.created_at else "-" }}
+                </td>
+                <td>{{ row.workflow_no }}</td>
+                <td>{{ row.stage }}. {{ row.stage_name }}</td>
+                <td>
+                    {% if row.action == "REJECT" %}
+                        <span class="badge badge-red">{{ row.action_label }}</span>
+                    {% elif row.action in ("APPROVE", "CONFIRM", "SHIP") %}
+                        <span class="badge badge-green">{{ row.action_label }}</span>
+                    {% elif row.action == "INSPECT" %}
+                        <span class="badge badge-purple">{{ row.action_label }}</span>
+                    {% else %}
+                        <span class="badge badge-blue">{{ row.action_label }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ row.department_label }}</td>
+                <td>{{ row.user_name }}</td>
+                <td>{{ row.before_qty }} → {{ row.after_qty }}</td>
+                <td>
+                    {% if row.result == "REJECTED" %}
+                        <span class="badge badge-red">반려</span>
+                    {% else %}
+                        <span class="badge badge-green">정상</span>
+                    {% endif %}
+                </td>
+                <td class="col-remark">{{ row.remark }}</td>
+            </tr>
+            {% else %}
+            <tr class="empty-row">
+                <td colspan="9">조회된 이력이 없습니다.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

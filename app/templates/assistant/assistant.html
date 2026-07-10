@@ -42,6 +42,87 @@
     background:#22c55e;
     border:2px solid #fff;
 }
+#assistant-widget{
+    position:fixed;
+    right:26px;
+    bottom:26px;
+    z-index:9999;
+}
+#assistant-widget #assistant-btn{
+    position:static;
+}
+#assistant-widget #assistant-window{
+    position:absolute;
+    right:0;
+    bottom:72px;
+}
+#assistant-hide{
+    position:absolute;
+    top:-4px;
+    left:-4px;
+    width:20px;
+    height:20px;
+    min-width:0;
+    min-height:0;
+    padding:0;
+    border:1px solid #e2e6f0;
+    border-radius:50%;
+    background:white;
+    color:#94a3b8;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    box-shadow:0 2px 6px rgba(15,23,42,.12);
+    opacity:0;
+    transform:scale(.85);
+    transition:opacity .15s ease, transform .15s ease, background .15s ease, color .15s ease;
+}
+#assistant-widget:hover #assistant-hide{
+    opacity:1;
+    transform:scale(1);
+}
+#assistant-hide:hover{
+    background:#f1f5f9;
+    color:#475569;
+}
+#assistant-hide svg{
+    width:10px;
+    height:10px;
+    flex-shrink:0;
+}
+
+/* 위젯을 숨기면 대신 화면 한쪽에 붙는 작은 탭 - 클릭하면 다시
+   나타난다. 완전히 없애버리면 되돌릴 방법이 없어지므로 항상 이
+   탭을 통해 복구 가능하게 해둔다. */
+#assistant-restore{
+    position:fixed;
+    right:0;
+    bottom:60px;
+    z-index:9999;
+    display:none;
+    align-items:center;
+    gap:6px;
+    padding:10px 12px 10px 14px;
+    border:1px solid #e2e6f0;
+    border-right:none;
+    border-radius:20px 0 0 20px;
+    background:white;
+    color:#2563eb;
+    cursor:pointer;
+    box-shadow:-2px 2px 10px rgba(15,23,42,.10);
+    font-size:12.5px;
+    font-weight:600;
+    transition:padding-right .15s ease;
+}
+#assistant-restore:hover{
+    padding-right:16px;
+}
+#assistant-restore svg{
+    width:18px;
+    height:18px;
+    flex-shrink:0;
+}
 
 #assistant-window{
     position:fixed;
@@ -305,69 +386,110 @@
 }
 </style>
 
-<button id="assistant-btn" type="button" aria-label="AI Assistant">
-    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 3C7.03 3 3 6.58 3 11c0 2.39 1.19 4.53 3.08 6.02-.1.98-.5 2.2-1.5 3.48a.5.5 0 0 0 .5.8c2.1-.4 3.7-1.2 4.77-1.9A10.9 10.9 0 0 0 12 19c4.97 0 9-3.58 9-8s-4.03-8-9-8Z" fill="white"/>
-        <circle cx="8.5" cy="11" r="1.15" fill="#2563eb"/>
-        <circle cx="12" cy="11" r="1.15" fill="#2563eb"/>
-        <circle cx="15.5" cy="11" r="1.15" fill="#2563eb"/>
-    </svg>
-    <span class="assistant-btn-badge"></span>
-</button>
+<div id="assistant-widget">
+    <button id="assistant-btn" type="button" aria-label="AI Assistant">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 3C7.03 3 3 6.58 3 11c0 2.39 1.19 4.53 3.08 6.02-.1.98-.5 2.2-1.5 3.48a.5.5 0 0 0 .5.8c2.1-.4 3.7-1.2 4.77-1.9A10.9 10.9 0 0 0 12 19c4.97 0 9-3.58 9-8s-4.03-8-9-8Z" fill="white"/>
+            <circle cx="8.5" cy="11" r="1.15" fill="#2563eb"/>
+            <circle cx="12" cy="11" r="1.15" fill="#2563eb"/>
+            <circle cx="15.5" cy="11" r="1.15" fill="#2563eb"/>
+        </svg>
+        <span class="assistant-btn-badge"></span>
+    </button>
 
-<div id="assistant-window">
-    <div id="assistant-header">
-        <div class="assistant-avatar">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 3C7.03 3 3 6.58 3 11c0 2.39 1.19 4.53 3.08 6.02-.1.98-.5 2.2-1.5 3.48a.5.5 0 0 0 .5.8c2.1-.4 3.7-1.2 4.77-1.9A10.9 10.9 0 0 0 12 19c4.97 0 9-3.58 9-8s-4.03-8-9-8Z" fill="white"/>
-                <circle cx="8.5" cy="11" r="1.15" fill="#2563eb"/>
-                <circle cx="12" cy="11" r="1.15" fill="#2563eb"/>
-                <circle cx="15.5" cy="11" r="1.15" fill="#2563eb"/>
-            </svg>
+    <button id="assistant-hide" type="button" aria-label="Assistant 숨기기" title="Assistant 숨기기">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+    </button>
+
+    <div id="assistant-window">
+        <div id="assistant-header">
+            <div class="assistant-avatar">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 3C7.03 3 3 6.58 3 11c0 2.39 1.19 4.53 3.08 6.02-.1.98-.5 2.2-1.5 3.48a.5.5 0 0 0 .5.8c2.1-.4 3.7-1.2 4.77-1.9A10.9 10.9 0 0 0 12 19c4.97 0 9-3.58 9-8s-4.03-8-9-8Z" fill="white"/>
+                    <circle cx="8.5" cy="11" r="1.15" fill="#2563eb"/>
+                    <circle cx="12" cy="11" r="1.15" fill="#2563eb"/>
+                    <circle cx="15.5" cy="11" r="1.15" fill="#2563eb"/>
+                </svg>
+            </div>
+            <div class="assistant-title-block">
+                <div class="assistant-title">Logistics Assistant</div>
+                <div class="assistant-subtitle"><span class="dot"></span>온라인</div>
+            </div>
+            <button id="assistant-close" type="button" aria-label="닫기">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M6 6l12 12M18 6L6 18" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </button>
         </div>
-        <div class="assistant-title-block">
-            <div class="assistant-title">Logistics Assistant</div>
-            <div class="assistant-subtitle"><span class="dot"></span>온라인</div>
+        <div id="assistant-body"></div>
+        <div id="assistant-footer">
+            <input
+                id="assistant-question"
+                type="text"
+                placeholder="질문을 입력하세요"
+                autocomplete="off"
+            >
+            <button id="assistant-send" type="button" aria-label="전송">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 11l18-8-8 18-2.5-7.5L3 11Z" stroke="white" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+                </svg>
+            </button>
         </div>
-        <button id="assistant-close" type="button" aria-label="닫기">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M6 6l12 12M18 6L6 18" stroke="white" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-        </button>
-    </div>
-    <div id="assistant-body"></div>
-    <div id="assistant-footer">
-        <input
-            id="assistant-question"
-            type="text"
-            placeholder="질문을 입력하세요"
-            autocomplete="off"
-        >
-        <button id="assistant-send" type="button" aria-label="전송">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 11l18-8-8 18-2.5-7.5L3 11Z" stroke="white" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
-            </svg>
-        </button>
     </div>
 </div>
+
+<button id="assistant-restore" type="button" aria-label="Assistant 다시 보기" title="Assistant 다시 보기">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 3C7.03 3 3 6.58 3 11c0 2.39 1.19 4.53 3.08 6.02-.1.98-.5 2.2-1.5 3.48a.5.5 0 0 0 .5.8c2.1-.4 3.7-1.2 4.77-1.9A10.9 10.9 0 0 0 12 19c4.97 0 9-3.58 9-8s-4.03-8-9-8Z" fill="#2563eb"/>
+        <circle cx="8.5" cy="11" r="1.15" fill="white"/>
+        <circle cx="12" cy="11" r="1.15" fill="white"/>
+        <circle cx="15.5" cy="11" r="1.15" fill="white"/>
+    </svg>
+    Assistant
+</button>
 
 <script>
 (() => {
     const STORAGE_KEY = "assistant_chat_state::{{ request.session.get('user', '') }}";
     const GREETING = "안녕하세요.\n무엇을 도와드릴까요?";
 
+    const assistantWidget = document.getElementById("assistant-widget");
     const assistantBtn = document.getElementById("assistant-btn");
+    const assistantHide = document.getElementById("assistant-hide");
+    const assistantRestore = document.getElementById("assistant-restore");
     const assistantWindow = document.getElementById("assistant-window");
     const assistantClose = document.getElementById("assistant-close");
     const assistantBody = document.getElementById("assistant-body");
     const assistantQuestion = document.getElementById("assistant-question");
     const assistantSend = document.getElementById("assistant-send");
 
-    // Conversation and open/closed state survive page navigation
-    // (this widget is re-created fresh on every server-rendered page)
-    // and only clear on explicit logout or when the browser's storage
-    // is cleared - not just from toggling the widget or navigating to
-    // another page.
+    const HIDDEN_KEY = "assistant_hidden::{{ request.session.get('user', '') }}";
+
+    function setHidden(hidden){
+        assistantWidget.style.display = hidden ? "none" : "";
+        assistantRestore.style.display = hidden ? "flex" : "none";
+
+        try{
+            localStorage.setItem(HIDDEN_KEY, hidden ? "1" : "0");
+        }catch(err){
+            console.error(err);
+        }
+    }
+
+    assistantHide.onclick = (event) => {
+        // 버튼과 겹쳐 있어서 클릭이 assistant-btn의 열기 동작으로
+        // 번지지 않도록 막는다.
+        event.stopPropagation();
+        setOpen(false);
+        setHidden(true);
+    };
+
+    assistantRestore.onclick = () => setHidden(false);
+
+    setHidden(localStorage.getItem(HIDDEN_KEY) === "1");
+
     function loadState(){
         try{
             const raw = localStorage.getItem(STORAGE_KEY);

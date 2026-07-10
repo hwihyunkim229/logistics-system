@@ -51,14 +51,42 @@ from app.routers import (
     inventory as inventory_router,
     assistant
 )
+from app.workflow.routers import (
+    purchase,
+    quality,
+    material,
+    production,
+    remnant as workflow_remnant,
+    dashboard as workflow_dashboard,
+    history as workflow_history,
+    notification as workflow_notification,
+)
+import app.workflow.models
 import time
 
 app = FastAPI()
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
     deprecated="auto"
 )
+
+TEAM_WRITE_PREFIXES = {
+    "purchase": ["/workflow/purchase"],
+    "quality": ["/workflow/quality"],
+    "material": ["/workflow/material", "/workflow/remnant"],
+    "production": ["/workflow/production"],
+}
+
+TEAM_COMMON_WRITE_PREFIXES = [
+    "/change-password",
+    "/assistant",
+]
+
 
 class AuthMiddleware(BaseHTTPMiddleware):
 
@@ -73,6 +101,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
             path.startswith("/login")
             or path.startswith("/register")
             or path.startswith("/static")
+            or path.startswith("/workflow/static")
+            or path.startswith("/health")
             or path == "/favicon.ico"
         ):
 
@@ -101,7 +131,68 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         request.session["last_activity"] = time.time()
 
-        return await call_next(request)
+        db = SessionLocal()
+
+        try:
+            account = (
+                db.query(User)
+                .filter(User.username == user)
+                .first()
+            )
+        finally:
+            db.close()
+
+        if account is None:
+            request.session.clear()
+            return RedirectResponse("/login")
+
+        team = (account.team or "").strip()
+        role = account.role or "user"
+
+        request.session["team"] = team
+        request.session["role"] = role
+
+        if team and role != "admin":
+            allowed_writes = (
+                TEAM_WRITE_PREFIXES.get(team, [])
+                + TEAM_COMMON_WRITE_PREFIXES
+            )
+
+            is_allowed_write = any(
+                path.startswith(prefix)
+                for prefix in allowed_writes
+            )
+
+            if request.method != "GET" and not is_allowed_write:
+                return RedirectResponse(
+                    f"/workflow/{team}?error="
+                    "%EC%A1%B0%ED%9A%8C%20%EC%A0%84%EC%9A%A9%20"
+                    "%EA%B3%84%EC%A0%95%EC%9E%85%EB%8B%88%EB%8B%A4.",
+                    status_code=303,
+                )
+
+            lowered = path.lower()
+
+            if request.method == "GET" and any(
+                keyword in lowered
+                for keyword in ("download", "export", "backup")
+            ) and not is_allowed_write:
+                return RedirectResponse(
+                    f"/workflow/{team}?error="
+                    "%EB%8B%A4%EC%9A%B4%EB%A1%9C%EB%93%9C%20"
+                    "%EA%B6%8C%ED%95%9C%EC%9D%B4%20"
+                    "%EC%97%86%EC%8A%B5%EB%8B%88%EB%8B%A4.",
+                    status_code=303,
+                )
+
+        response = await call_next(request)
+
+        response.headers["Cache-Control"] = (
+            "no-store, no-cache, must-revalidate"
+        )
+        response.headers["Pragma"] = "no-cache"
+
+        return response
 
 app.add_middleware(
     AuthMiddleware
@@ -120,6 +211,14 @@ app.mount(
     name="static"
 )
 
+app.mount(
+    "/workflow/static",
+    StaticFiles(
+        directory="app/workflow/static"
+    ),
+    name="workflow_static"
+)
+
 app.include_router(scan.router)
 app.include_router(upload.router)
 app.include_router(auth.router)
@@ -130,6 +229,14 @@ app.include_router(stock_dashboard.router)
 app.include_router(mrp.router)
 app.include_router(inventory_router.router)
 app.include_router(assistant.router)
+app.include_router(purchase.router)
+app.include_router(quality.router)
+app.include_router(material.router)
+app.include_router(production.router)
+app.include_router(workflow_remnant.router)
+app.include_router(workflow_dashboard.router)
+app.include_router(workflow_history.router)
+app.include_router(workflow_notification.router)
 
 Base.metadata.create_all(
     bind=engine

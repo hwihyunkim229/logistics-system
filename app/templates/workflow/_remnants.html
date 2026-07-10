@@ -1,0 +1,91 @@
+{# 잔존 자재 현황 - 부분 승인/불량/부분 요청/부분 출고/세트 미사용
+   으로 남은 수량. 각 부서 페이지에서 remnants / remnant_count 와
+   함께 include. title로 섹션 제목을 바꿀 수 있고, show_restock을
+   false로 주면 재입고 버튼 없이 표시만 한다(생산팀의 잔존 양품처럼
+   수동 조치 없이 다음 생산에 자동으로 합쳐지는 경우). #}
+<div class="section-card">
+    <div class="section-header">
+        <div class="section-title">
+            {{ title|default("잔존 자재 현황") }}
+        </div>
+
+        <div class="section-count">
+            {{ remnant_count|default(0) }}건
+        </div>
+    </div>
+
+    <div class="table-scroll">
+    <table class="workflow-table">
+        <thead>
+        <tr>
+            <th>Workflow No</th>
+            <th>품목코드</th>
+            <th>품명</th>
+            <th>LOT</th>
+            <th>잔량</th>
+            <th>사유</th>
+            <th>발생 단계</th>
+            <th>발생일시</th>
+            {% if show_restock|default(true) %}<th></th>{% endif %}
+        </tr>
+        </thead>
+
+        <tbody>
+        {% for row in remnants %}
+        <tr>
+            <td>{{ row.workflow_no }}</td>
+            <td>{{ row.item_code }}</td>
+            <td>{{ row.item_name }}</td>
+            <td>{{ row.lot or "-" }}</td>
+            <td>{{ row.qty }}</td>
+            <td>
+                {% if row.reason == "DEFECT" %}
+                    <span class="badge badge-red">{{ row.reason_label }}</span>
+                {% else %}
+                    <span class="badge badge-gray">{{ row.reason_label }}</span>
+                {% endif %}
+            </td>
+            <td>{{ row.stage }}. {{ row.stage_name }}</td>
+            <td>{{ row.created_at.strftime("%Y-%m-%d %H:%M") if row.created_at else "-" }}</td>
+            {% if show_restock|default(true) %}
+            <td style="white-space:nowrap;">
+                <form
+                    method="post"
+                    action="/workflow/remnant/{{ row.id }}/restock"
+                    onsubmit="return confirmRestock(event, {{ row.qty }})">
+                    <input
+                        type="hidden"
+                        name="redirect_to"
+                        value="/workflow/{{ row.department }}">
+                    <button type="submit" class="btn btn-secondary btn-sm">재입고</button>
+                </form>
+            </td>
+            {% endif %}
+        </tr>
+        {% else %}
+        <tr class="empty-row">
+            <td colspan="{{ 9 if show_restock|default(true) else 8 }}">잔존 자재가 없습니다.</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+</div>
+
+<script>
+async function confirmRestock(e, qty){
+    e.preventDefault();
+
+    const form = e.target;
+
+    const confirmed = await wfConfirm(
+        "이 잔량(" + qty + " EA)을 새 Workflow(구매 입고 단계)로 재입고하시겠습니까?",
+        "잔량 재입고",
+        "재입고"
+    );
+
+    if (confirmed) form.submit();
+
+    return false;
+}
+</script>

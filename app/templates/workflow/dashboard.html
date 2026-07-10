@@ -1,0 +1,364 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<link rel="stylesheet" href="/workflow/static/css/workflow.css">
+
+<div class="workflow-page">
+
+    <div class="page-header">
+        <div>
+            <div class="page-title">
+                Workflow Dashboard
+            </div>
+
+            <div class="page-subtitle">
+                구매 → 품질 → 자재 → 생산 → 출고 전체 진행 현황 (실시간)
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-icon info"><i class="fa-solid fa-layer-group"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">총 입고 수량</div>
+                <div class="kpi-value">{{ total_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ total_count|default(0) }}건 · 등록된 전체 Workflow</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon warning"><i class="fa-solid fa-arrows-rotate"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">진행 중 수량</div>
+                <div class="kpi-value">{{ progress_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ progress_count|default(0) }}건 · 현재 진행 중</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon"><i class="fa-solid fa-clock"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">승인 대기 수량</div>
+                <div class="kpi-value">{{ waiting_request_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ waiting_request_count|default(0) }}건 · 부서 승인 필요</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon success"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">출고 완료 수량</div>
+                <div class="kpi-value">{{ completed_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ completed_count|default(0) }}건 · 제품 출고 완료</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        {% for dept in department_summary %}
+        <div class="kpi-card">
+            <div class="kpi-icon"><i class="fa-solid fa-building"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">{{ dept.name }} 대기 수량</div>
+                <div class="kpi-value">{{ dept.qty }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ dept.count }}건 · 현재 {{ dept.name }} 처리 중</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                사이즈별 서비스 출고 현황
+            </div>
+
+            <div class="section-count">
+                출고 완료 건 기준
+            </div>
+        </div>
+
+        <div style="height:320px;padding:12px 16px 16px;">
+            <canvas id="sizeShipChart"></canvas>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                전체 진행 현황
+            </div>
+
+            <div class="section-count">
+                {{ total_stage }}단계 프로세스
+            </div>
+        </div>
+
+        <div class="stage-legend">
+            {% for stage in stages %}
+            <div class="stage-legend-item">
+                <span class="stage-legend-no">{{ stage.no }}</span>
+                {{ stage.name }}
+                <span style="color:#94a3b8;">({{ stage.department }})</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>Workflow No</th>
+                <th>품목코드</th>
+                <th>품명</th>
+                <th>수량</th>
+                <th>현재 단계</th>
+                <th>담당 부서</th>
+                <th>진행률</th>
+                <th>진행 단계</th>
+                <th>상태</th>
+            </tr>
+            </thead>
+
+            <tbody id="workflowTable">
+            {% for item in items %}
+            <tr>
+                <td>{{ item.workflow_no }}</td>
+                <td>{{ item.item_code }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.qty }}</td>
+                <td>
+                    <span class="badge badge-blue">
+                        {{ item.current_stage }}. {{ item.current_stage_name }}
+                    </span>
+                </td>
+                <td>{{ item.department_name }}</td>
+                <td style="white-space:nowrap;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <div class="progress-bar-wrap">
+                            <div class="progress-bar-fill" style="width:{{ item.progress_percent }}%;"></div>
+                        </div>
+                        <span style="font-size:12px;color:#64748b;">{{ item.progress_percent }}%</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="progress-track">
+                        {% for stage in stages %}
+                        <span
+                            class="progress-step
+                                {% if stage.no < item.current_stage or item.status == 'COMPLETED' %}done
+                                {% elif stage.no == item.current_stage %}current{% endif %}"
+                            title="{{ stage.no }}. {{ stage.name }} ({{ stage.department }})">
+                            {{ stage.no }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </td>
+                <td>
+                    {% if item.status == "COMPLETED" %}
+                        <span class="badge badge-green">완료</span>
+                    {% elif item.status == "MERGED" %}
+                        <span class="badge badge-gray">세트 병합</span>
+                    {% else %}
+                        <span class="badge badge-yellow">진행중</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr class="empty-row">
+                <td colspan="9">등록된 Workflow가 없습니다.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                최근 활동
+            </div>
+
+            <div class="section-count">
+                <a href="/workflow/history" style="color:#2563eb;text-decoration:none;">전체 이력 보기 →</a>
+            </div>
+        </div>
+
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>일시</th>
+                <th>Workflow No</th>
+                <th>단계</th>
+                <th>작업</th>
+                <th>부서</th>
+                <th>담당자</th>
+                <th>수량 변화</th>
+                <th>비고</th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for row in recent_histories %}
+            <tr>
+                <td>{{ row.created_at.strftime("%Y-%m-%d %H:%M") if row.created_at else "-" }}</td>
+                <td>{{ row.workflow_no }}</td>
+                <td>{{ row.stage }}. {{ row.stage_name }}</td>
+                <td>
+                    {% if row.action == "REJECT" %}
+                        <span class="badge badge-red">반려</span>
+                    {% elif row.action in ("APPROVE", "CONFIRM") %}
+                        <span class="badge badge-green">{{ row.action }}</span>
+                    {% else %}
+                        <span class="badge badge-blue">{{ row.action }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ row.department_label }}</td>
+                <td>{{ row.user_name }}</td>
+                <td>{{ row.before_qty }} → {{ row.after_qty }}</td>
+                <td class="col-remark">{{ row.remark }}</td>
+            </tr>
+            {% else %}
+            <tr class="empty-row">
+                <td colspan="8">활동 이력이 없습니다.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+<script>
+/* 사이즈별 서비스 출고 차트 - MRP Dashboard의 막대 차트(gapChart)와
+   동일한 스타일(파란 그라데이션 막대 + 데이터 라벨). Y축은 Chart.js
+   기본 동작으로 데이터 최대값에 맞춰 자동 스케일링된다. */
+Chart.register(ChartDataLabels);
+
+const chartColors = {
+    text: "#475569",
+    grid: "rgba(148,163,184,.15)",
+    border: "#E2E8F0"
+};
+
+const sizeCtx = document.getElementById("sizeShipChart").getContext("2d");
+
+const sizeGradient = sizeCtx.createLinearGradient(0, 0, 0, 400);
+sizeGradient.addColorStop(0, "rgba(74,144,226,.45)");
+sizeGradient.addColorStop(1, "rgba(74,144,226,.06)");
+
+new Chart(sizeCtx, {
+    type: "bar",
+    data: {
+        labels: {{ size_labels|tojson }},
+        datasets: [{
+            label: "출고 수량",
+            data: {{ size_values|tojson }},
+            backgroundColor: sizeGradient,
+            borderColor: "rgba(74,144,226,.55)",
+            borderWidth: 1.5,
+            borderRadius: 10,
+            borderSkipped: false,
+            maxBarThickness: 38,
+            datalabels: {
+                anchor: "end",
+                align: "top",
+                offset: 4,
+                // 최대값 막대 위에서도 라벨이 차트 영역 밖으로
+                // 밀려 잘리지 않도록 클램프한다.
+                clamp: true,
+                clip: false,
+                color: "#356FC7",
+                backgroundColor: "white",
+                borderColor: "#D6E8FF",
+                borderWidth: 1,
+                borderRadius: 6,
+                padding: 5,
+                font: {
+                    size: 11,
+                    weight: "700"
+                },
+                formatter: value => value.toLocaleString()
+            }
+        }]
+    },
+
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        // 상단 여백을 확보해 값 라벨이 잘리지 않게 한다.
+        layout: {
+            padding: {
+                top: 28
+            }
+        },
+        interaction: {
+            mode: "index",
+            intersect: false
+        },
+        plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                backgroundColor: "#1E293B",
+                titleColor: "#fff",
+                bodyColor: "#fff",
+                borderColor: "#334155",
+                borderWidth: 1,
+                padding: 12,
+                cornerRadius: 8,
+                callbacks: {
+                    label(context){
+                        return "출고 수량 : "
+                            + Number(context.raw || 0).toLocaleString()
+                            + " EA";
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                grid: {
+                    display: false
+                },
+                ticks: {
+                    color: chartColors.text,
+                    font: {
+                        size: 11,
+                        weight: "600"
+                    }
+                }
+            },
+            y: {
+                beginAtZero: true,
+                // 최대값 위로 10% 여유를 둬서 막대가 차트 천장에
+                // 붙지 않게 한다 (라벨 잘림 방지 보조).
+                grace: "10%",
+                grid: {
+                    color: chartColors.grid
+                },
+                border: {
+                    color: chartColors.border
+                },
+                ticks: {
+                    color: chartColors.text,
+                    precision: 0,
+                    font: {
+                        size: 11,
+                        weight: "600"
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+
+{% endblock %}

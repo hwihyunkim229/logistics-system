@@ -1,0 +1,707 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<link rel="stylesheet" href="/workflow/static/css/workflow.css">
+<script src="/workflow/static/js/workflow-modal.js"></script>
+
+<div class="workflow-page">
+
+    <div class="page-header">
+        <div>
+            <div class="page-title">
+                생산 관리
+            </div>
+
+            <div class="page-subtitle">
+                생산 승인 · 반제품 생산 적용(원자재 4종 → 반제품) · 제품 포장 적용(반제품 2종 → 제품)
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-icon warning"><i class="fa-solid fa-industry"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">생산 승인 대기</div>
+                <div class="kpi-value">{{ approval_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ approval_count|default(0) }}건 · 자재팀 생산 요청</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon"><i class="fa-solid fa-gears"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">생산 대기 구성품</div>
+                <div class="kpi-value">{{ production_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ production_count|default(0) }}건 · 승인 완료</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon info"><i class="fa-solid fa-box-archive"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">포장 대기 구성품</div>
+                <div class="kpi-value">{{ packaging_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ packaging_count|default(0) }}건 · 자재팀 포장 요청</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon success"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">생산 완료 이후</div>
+                <div class="kpi-value">{{ completed_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ completed_count|default(0) }}건 · 생산 완료 단계 이상</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                ① 생산 승인 (생산 요청 접수)
+            </div>
+
+            <div class="section-count">
+                {{ approval_count }}건 대기
+            </div>
+        </div>
+
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>요청번호</th>
+                <th>Workflow No</th>
+                <th>품목코드</th>
+                <th>품명</th>
+                <th>LOT</th>
+                <th>요청수량</th>
+                <th>요청자</th>
+                <th>요청일시</th>
+                <th>상태</th>
+                <th></th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for req, item in approval_rows %}
+            <tr>
+                <td>PR-{{ "%06d"|format(req.id) }}</td>
+                <td>{{ req.workflow_no }}</td>
+                <td>{{ item.item_code }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.lot or "-" }}</td>
+                <td>{{ req.request_qty }}</td>
+                <td>{{ req.requested_by }}</td>
+                <td>{{ req.requested_at.strftime("%Y-%m-%d %H:%M") if req.requested_at else "-" }}</td>
+                <td>
+                    <span class="badge badge-yellow">대기</span>
+                </td>
+                <td style="white-space:nowrap;">
+                    <button
+                        class="btn btn-success btn-sm"
+                        onclick="openApproveModal({{ req.id }}, '{{ req.workflow_no }}', {{ req.request_qty }})">
+                        승인
+                    </button>
+
+                    <button
+                        class="btn btn-danger btn-sm"
+                        onclick="openRejectModal({{ req.id }}, '{{ req.workflow_no }}', '/workflow/production/reject')">
+                        반려
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr class="empty-row">
+                <td colspan="10">승인 대기 중인 생산 요청이 없습니다.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                ② 반제품 생산 적용 (원자재: INNER + PBA + TOP COVER + OUTER → 반제품: RING)
+            </div>
+
+            <div class="section-count">
+                {{ production_sets|length }}세트
+            </div>
+        </div>
+
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>생산 품목</th>
+                <th>구성품 현황</th>
+                <th>생산 가능 수량</th>
+                <th></th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for s in production_sets %}
+            <tr>
+                <td>
+                    <div style="font-weight:600;">{{ s.target_name }}</div>
+                    <div style="font-size:12px;color:#9aa1af;">{{ s.target_code }}</div>
+                </td>
+                <td style="text-align:left;">
+                    {% for c in s.rows %}
+                        {% if c.present %}
+                            <span class="badge badge-green" title="{{ c.item_name }} ({{ c.workflow_no }})">
+                                {{ c.item_code }} · {{ c.qty }}{% if c.leftover_qty %} (+잔존 {{ c.leftover_qty }}){% endif %}
+                            </span>
+                        {% else %}
+                            <span class="badge badge-red">
+                                {{ c.item_code }} · 미도착{% if c.leftover_qty %} (잔존 {{ c.leftover_qty }} 대기중){% endif %}
+                            </span>
+                        {% endif %}
+                    {% endfor %}
+                    {% if s.has_duplicate %}
+                        <span class="badge badge-yellow">동일 구성품 중복</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if s.ready %}
+                        <span class="badge badge-blue">{{ s.max_producible }} EA</span>
+                    {% else %}
+                        <span class="badge badge-gray">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <button
+                        class="btn btn-primary btn-sm"
+                        {% if not s.ready %}disabled{% endif %}
+                        onclick='openSetModal("production", {{ s.components_json }}, "{{ s.target_code }}", "{{ s.target_name }}", {{ s.max_producible }})'>
+                        반제품 생산 적용 완료
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr class="empty-row">
+                <td colspan="4">생산 대기 중인 세트가 없습니다.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+        {% if plain_production_items %}
+        <div class="section-header" style="border-top:1px solid var(--wf-border);">
+            <div class="section-title">개별 생산 (반제품 직입고 등 세트 구성 외 품목)</div>
+        </div>
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>Workflow No</th>
+                <th>품목코드</th>
+                <th>품명</th>
+                <th>LOT</th>
+                <th>수량</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for item in plain_production_items %}
+            <tr>
+                <td>{{ item.workflow_no }}</td>
+                <td>{{ item.item_code }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.lot or "-" }}</td>
+                <td>{{ item.qty }}</td>
+                <td>
+                    <button
+                        class="btn btn-primary btn-sm"
+                        data-workflow="{{ item.workflow_no }}"
+                        data-name="{{ item.item_name }}"
+                        data-qty="{{ item.qty }}"
+                        onclick="openCompleteModal(this.dataset.workflow, this.dataset.name, Number(this.dataset.qty), 'production', '', '')">
+                        생산 완료 등록
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                ③ 제품 포장 적용 (반제품: RING + CRADLE → 제품: CART PLATFORM IEM)
+            </div>
+
+            <div class="section-count">
+                {{ packaging_sets|length }}세트
+            </div>
+        </div>
+
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>포장 품목</th>
+                <th>구성품 현황</th>
+                <th>포장 가능 수량</th>
+                <th></th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for s in packaging_sets %}
+            <tr>
+                <td>
+                    <div style="font-weight:600;">{{ s.target_name }}</div>
+                    <div style="font-size:12px;color:#9aa1af;">{{ s.target_code }}</div>
+                </td>
+                <td style="text-align:left;">
+                    {% for c in s.rows %}
+                        {% if c.present %}
+                            <span class="badge badge-green" title="{{ c.item_name }} ({{ c.workflow_no }})">
+                                {{ c.item_code }} · {{ c.qty }}{% if c.leftover_qty %} (+잔존 {{ c.leftover_qty }}){% endif %}
+                            </span>
+                        {% else %}
+                            <span class="badge badge-red">
+                                {{ c.item_code }} · 미도착{% if c.leftover_qty %} (잔존 {{ c.leftover_qty }} 대기중){% endif %}
+                            </span>
+                        {% endif %}
+                    {% endfor %}
+                    {% if s.has_duplicate %}
+                        <span class="badge badge-yellow">동일 구성품 중복</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if s.ready %}
+                        <span class="badge badge-blue">{{ s.max_producible }} EA</span>
+                    {% else %}
+                        <span class="badge badge-gray">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <button
+                        class="btn btn-primary btn-sm"
+                        {% if not s.ready %}disabled{% endif %}
+                        onclick='openSetModal("packaging", {{ s.components_json }}, "{{ s.target_code }}", "{{ s.target_name }}", {{ s.max_producible }})'>
+                        제품 포장 적용 완료
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr class="empty-row">
+                <td colspan="4">포장 대기 중인 세트가 없습니다.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+
+        {% if plain_packaging_rows %}
+        <div class="section-header" style="border-top:1px solid var(--wf-border);">
+            <div class="section-title">개별 포장 (세트 구성 외 품목)</div>
+        </div>
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>Workflow No</th>
+                <th>품목코드</th>
+                <th>품명</th>
+                <th>LOT</th>
+                <th>수량</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for req, item in plain_packaging_rows %}
+            <tr>
+                <td>{{ item.workflow_no }}</td>
+                <td>{{ item.item_code }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.lot or "-" }}</td>
+                <td>{{ item.qty }}</td>
+                <td style="white-space:nowrap;">
+                    <button
+                        class="btn btn-primary btn-sm"
+                        data-workflow="{{ item.workflow_no }}"
+                        data-name="{{ item.item_name }}"
+                        data-qty="{{ item.qty }}"
+                        onclick="openCompleteModal(this.dataset.workflow, this.dataset.name, Number(this.dataset.qty), 'packaging', '', '')">
+                        포장 완료 등록
+                    </button>
+
+                    <button
+                        class="btn btn-danger btn-sm"
+                        onclick="openRejectModal({{ req.id }}, '{{ req.workflow_no }}', '/workflow/production/reject')">
+                        반려
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% endif %}
+    </div>
+
+    {% with title=remnant_title, show_restock=remnant_show_restock %}
+    {% include "workflow/_remnants.html" %}
+    {% endwith %}
+</div>
+
+<!-- 승인 모달 -->
+<div id="approveModal" class="modal">
+    <div class="request-modal">
+        <div class="modal-title">생산 승인</div>
+
+        <form method="post" action="/workflow/production/approve">
+            <input type="hidden" id="approveRequestId" name="request_id">
+
+            <div class="modal-row">
+                <label>Workflow</label>
+                <input id="approveWorkflow" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>승인 수량</label>
+                <input
+                    id="approveQty"
+                    name="approved_qty"
+                    type="number"
+                    min="1"
+                    required>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModals()">취소</button>
+                <button type="submit" class="btn btn-success">승인</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="setModal" class="modal">
+    <div class="request-modal" style="width:560px;">
+        <div class="modal-title" id="setTitle">반제품 생산 적용 완료</div>
+
+        <form method="post" id="setForm" onsubmit="return validateSet()">
+            <input type="hidden" id="setTargetCode" name="target_code">
+
+            <div class="modal-row">
+                <label>생산(포장) 품목</label>
+                <input id="setTargetName" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>구성품별 투입/불량</label>
+                <div id="setComponents" style="display:flex;flex-direction:column;gap:8px;"></div>
+            </div>
+
+            <div class="modal-grid">
+                <div class="modal-row">
+                    <label>생산(포장) 수량</label>
+                    <input id="setProducedQty" name="produced_qty" type="number" min="1" required>
+                </div>
+
+                <div class="modal-row">
+                    <label>새 LOT (필수)</label>
+                    <input id="setLot" name="lot" placeholder="LOT 번호" required>
+                </div>
+            </div>
+
+            <div class="modal-row">
+                <label>비고</label>
+                <input name="remark" placeholder="선택 입력">
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModals()">취소</button>
+                <button type="submit" class="btn btn-primary" id="setSubmit">완료</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 개별 완료 모달 (세트 외 품목) -->
+<div id="completeModal" class="modal">
+    <div class="request-modal">
+        <div class="modal-title" id="completeTitle">완료 등록</div>
+
+        <form method="post" id="completeForm" onsubmit="return validateComplete()">
+            <input type="hidden" id="completeWorkflowNo" name="workflow_no">
+
+            <div class="modal-row">
+                <label>품명</label>
+                <input id="completeItemName" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>대상 수량</label>
+                <input id="completeTotalQty" readonly>
+            </div>
+
+            <div class="modal-grid">
+                <div class="modal-row">
+                    <label>양품 수량</label>
+                    <input
+                        id="completeGoodQty"
+                        name="good_qty"
+                        type="number"
+                        min="0"
+                        required
+                        oninput="syncCompleteDefect()">
+                </div>
+
+                <div class="modal-row">
+                    <label>불량 수량</label>
+                    <input
+                        id="completeDefectQty"
+                        name="defect_qty"
+                        type="number"
+                        min="0"
+                        value="0"
+                        readonly>
+                </div>
+            </div>
+
+            <div class="modal-row">
+                <label>LOT (선택)</label>
+                <input id="completeLot" name="lot" placeholder="LOT 번호">
+            </div>
+
+            <div class="modal-row">
+                <label>비고</label>
+                <input name="remark" placeholder="선택 입력">
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModals()">취소</button>
+                <button type="submit" class="btn btn-primary" id="completeSubmit">완료 등록</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 반려 모달 (공용) -->
+<div id="rejectModal" class="modal">
+    <div class="request-modal">
+        <div class="modal-title">요청 반려</div>
+
+        <form method="post" id="rejectForm">
+            <input type="hidden" id="rejectRequestId" name="request_id">
+
+            <div class="modal-row">
+                <label>Workflow</label>
+                <input id="rejectWorkflow" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>반려 사유</label>
+                <input name="remark" placeholder="반려 사유를 입력하세요" required>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModals()">취소</button>
+                <button type="submit" class="btn btn-danger">반려</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const pageError = {{ error|tojson }};
+
+if (pageError) {
+    wfAlert(pageError);
+}
+
+function closeModals(){
+    document.querySelectorAll(".modal").forEach(m => m.style.display = "none");
+}
+
+window.addEventListener("keydown", e => {
+    if (e.key === "Escape") closeModals();
+});
+
+document.querySelectorAll(".modal").forEach(m => {
+    m.addEventListener("click", e => {
+        if (e.target === m) closeModals();
+    });
+});
+
+function openApproveModal(requestId, workflowNo, qty){
+    document.getElementById("approveRequestId").value = requestId;
+    document.getElementById("approveWorkflow").value = workflowNo;
+
+    const qtyInput = document.getElementById("approveQty");
+    qtyInput.value = qty;
+    qtyInput.max = qty;
+
+    document.getElementById("approveModal").style.display = "flex";
+}
+
+let setComponentsData = [];
+
+function openSetModal(mode, components, targetCode, targetName, maxProducible){
+    setComponentsData = components;
+
+    document.getElementById("setTargetCode").value = targetCode;
+    document.getElementById("setTargetName").value = targetName + " (" + targetCode + ")";
+    document.getElementById("setLot").value = "";
+    document.getElementById("setTitle").innerText =
+        mode === "production" ? "반제품 생산 적용 완료" : "제품 포장 적용 완료";
+    document.getElementById("setSubmit").innerText =
+        mode === "production" ? "생산 완료" : "포장 완료";
+    document.getElementById("setForm").action =
+        mode === "production"
+            ? "/workflow/production/complete-production-set"
+            : "/workflow/production/complete-packaging-set";
+
+    const box = document.getElementById("setComponents");
+    box.innerHTML = "";
+
+    components.forEach(c => {
+        const leftover = Number(c.leftover_qty) || 0;
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;align-items:center;gap:8px;";
+        row.innerHTML =
+            '<div style="flex:1;min-width:0;font-size:12.5px;">'
+            + '<div style="font-weight:600;">' + c.item_code + '</div>'
+            + '<div style="color:#9aa1af;">보유 ' + c.qty + ' EA'
+            + (leftover ? ' + 잔존 ' + leftover + ' EA' : '')
+            + (c.lot ? ' · LOT ' + c.lot : '') + '</div></div>'
+            + '<label style="font-size:12px;color:#6b7280;">불량</label>'
+            + '<input type="number" min="0" value="0" name="defect_' + c.workflow_no + '"'
+            + ' data-qty="' + c.qty + '" data-leftover="' + leftover + '" class="set-defect-input"'
+            + ' style="width:80px;height:34px;border:1px solid #d7dbe4;border-radius:8px;padding:0 10px;"'
+            + ' oninput="syncSetMax()">';
+        box.appendChild(row);
+    });
+
+    const produced = document.getElementById("setProducedQty");
+    produced.value = maxProducible;
+    produced.max = maxProducible;
+
+    document.getElementById("setModal").style.display = "flex";
+}
+
+function computeSetMax(){
+    let maxProducible = Infinity;
+
+    document.querySelectorAll(".set-defect-input").forEach(input => {
+        const qty = Number(input.dataset.qty);
+        const leftover = Number(input.dataset.leftover) || 0;
+        const defect = Number(input.value) || 0;
+        maxProducible = Math.min(maxProducible, qty - defect + leftover);
+    });
+
+    return maxProducible === Infinity ? 0 : Math.max(0, maxProducible);
+}
+
+function syncSetMax(){
+    const max = computeSetMax();
+    const produced = document.getElementById("setProducedQty");
+    produced.max = max;
+
+    if (Number(produced.value) > max) {
+        produced.value = max;
+    }
+}
+
+function validateSet(){
+    let ok = true;
+
+    document.querySelectorAll(".set-defect-input").forEach(input => {
+        const qty = Number(input.dataset.qty);
+        const defect = Number(input.value) || 0;
+
+        if (defect < 0 || defect > qty) ok = false;
+    });
+
+    if (!ok){
+        wfAlert("구성품 불량 수량이 보유 수량을 초과했습니다.");
+        return false;
+    }
+
+    const max = computeSetMax();
+    const produced = Number(document.getElementById("setProducedQty").value);
+
+    if (produced < 1 || produced > max){
+        wfAlert("생산 수량이 올바르지 않습니다.\n(구성품 가용 수량 기준 최대 " + max + " EA)");
+        return false;
+    }
+
+    if (document.getElementById("setLot").value.trim() === ""){
+        wfAlert("새 LOT 번호를 입력해야 합니다.");
+        return false;
+    }
+
+    return true;
+}
+
+let completeMax = 0;
+
+function openCompleteModal(workflowNo, itemName, qty, mode){
+    completeMax = qty;
+    document.getElementById("completeWorkflowNo").value = workflowNo;
+    document.getElementById("completeItemName").value = itemName;
+    document.getElementById("completeTotalQty").value = qty + " EA";
+    document.getElementById("completeGoodQty").value = qty;
+    document.getElementById("completeGoodQty").max = qty;
+    document.getElementById("completeDefectQty").value = 0;
+    document.getElementById("completeLot").value = "";
+
+    if (mode === "production") {
+        document.getElementById("completeTitle").innerText = "생산 완료 등록";
+        document.getElementById("completeSubmit").innerText = "생산 완료";
+        document.getElementById("completeForm").action = "/workflow/production/complete-production";
+    } else {
+        document.getElementById("completeTitle").innerText = "포장 완료 등록";
+        document.getElementById("completeSubmit").innerText = "포장 완료";
+        document.getElementById("completeForm").action = "/workflow/production/complete-packaging";
+    }
+
+    document.getElementById("completeModal").style.display = "flex";
+}
+
+function syncCompleteDefect(){
+    let good = Number(document.getElementById("completeGoodQty").value);
+
+    if (isNaN(good) || good < 0) good = 0;
+    if (good > completeMax){
+        good = completeMax;
+        document.getElementById("completeGoodQty").value = good;
+    }
+
+    document.getElementById("completeDefectQty").value = completeMax - good;
+}
+
+function validateComplete(){
+    const good = Number(document.getElementById("completeGoodQty").value);
+
+    if (good < 0 || good > completeMax){
+        wfAlert("양품 수량이 올바르지 않습니다.");
+        return false;
+    }
+
+    return true;
+}
+
+function openRejectModal(requestId, workflowNo, action){
+    document.getElementById("rejectRequestId").value = requestId;
+    document.getElementById("rejectWorkflow").value = workflowNo;
+    document.getElementById("rejectForm").action = action;
+    document.getElementById("rejectModal").style.display = "flex";
+}
+</script>
+
+{% endblock %}

@@ -327,7 +327,7 @@
             <select
                 name="role"
                 class="form-input"
-                style="min-width:180px;"
+                style="min-width:140px;"
             >
 
                 <option value="user">
@@ -336,6 +336,34 @@
 
                 <option value="admin">
                     Admin
+                </option>
+
+            </select>
+
+            <select
+                name="team"
+                class="form-input"
+                style="min-width:180px;"
+            >
+
+                <option value="">
+                    팀 없음 (전체 접근)
+                </option>
+
+                <option value="purchase">
+                    구매팀
+                </option>
+
+                <option value="quality">
+                    품질팀
+                </option>
+
+                <option value="material">
+                    자재팀
+                </option>
+
+                <option value="production">
+                    생산팀
                 </option>
 
             </select>
@@ -381,6 +409,7 @@
                     <tr>
                         <th>ID</th>
                         <th>ROLE</th>
+                        <th>TEAM</th>
                         <th>관리</th>
                     </tr>
 
@@ -415,6 +444,16 @@
 
                                 </span>
 
+                            </td>
+
+                            <td>
+                                {% set team_names = {
+                                    "purchase": "구매팀",
+                                    "quality": "품질팀",
+                                    "material": "자재팀",
+                                    "production": "생산팀"
+                                } %}
+                                {{ team_names.get(user.team, "-") if user.team else "-" }}
                             </td>
 
                             <td>

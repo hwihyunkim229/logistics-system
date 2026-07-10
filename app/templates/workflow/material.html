@@ -1,0 +1,523 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<link rel="stylesheet" href="/workflow/static/css/workflow.css">
+<script src="/workflow/static/js/workflow-modal.js"></script>
+
+<div class="workflow-page">
+
+    <div class="page-header">
+        <div>
+            <div class="page-title">
+                자재 관리
+            </div>
+
+            <div class="page-subtitle">
+                자재 확인/승인 · 생산/공정검사/포장 요청 · 제품 출고
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-icon warning"><i class="fa-solid fa-check-double"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">확인/승인 대기 수량</div>
+                <div class="kpi-value">{{ confirm_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ confirm_count|default(0) }}건 · 검사·생산·포장 결과 확인</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon"><i class="fa-solid fa-paper-plane"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">요청 대기 수량</div>
+                <div class="kpi-value">{{ request_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ request_count|default(0) }}건 · 생산·공정검사·포장 요청</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon info"><i class="fa-solid fa-dolly"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">출고 대기 수량</div>
+                <div class="kpi-value">{{ ship_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ ship_count|default(0) }}건 · 최종 확인 완료</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon success"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">출고 완료 수량</div>
+                <div class="kpi-value">{{ shipped_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ shipped_count|default(0) }}건 · 제품 출고 완료</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                ① 자재 확인/승인
+            </div>
+
+            <div class="section-count">
+                {{ confirm_count }}건 대기
+            </div>
+        </div>
+
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>Workflow No</th>
+                <th>품목코드</th>
+                <th>품명</th>
+                <th>LOT</th>
+                <th>수량</th>
+                <th>결과 내역</th>
+                <th>직전 단계</th>
+                <th>확인 단계</th>
+                <th></th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for item in confirm_items %}
+            <tr>
+                <td>{{ item.workflow_no }}</td>
+                <td>{{ item.item_code }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.lot or "-" }}</td>
+                <td>{{ item.qty }}</td>
+                <td style="font-size:12.5px;">
+                    {{ item.result_summary or "-" }}
+                </td>
+                <td>
+                    <span class="badge badge-blue">{{ item.current_stage_name }}</span>
+                </td>
+                <td>
+                    <span class="badge badge-yellow">{{ item.confirm_label }}</span>
+                </td>
+                <td style="white-space:nowrap;">
+                    <button
+                        class="btn btn-success btn-sm"
+                        data-workflow="{{ item.workflow_no }}"
+                        data-name="{{ item.item_name }}"
+                        data-label="{{ item.confirm_label }}"
+                        data-attachment="{{ item.inspection_attachment_id or '' }}"
+                        data-summary="{{ item.result_summary }}"
+                        onclick="openConfirmModal(this.dataset.workflow, this.dataset.name, this.dataset.label, this.dataset.attachment || null, this.dataset.summary)">
+                        승인
+                    </button>
+
+                    <button
+                        class="btn btn-danger btn-sm"
+                        data-workflow="{{ item.workflow_no }}"
+                        data-stage="{{ item.current_stage_name }}"
+                        onclick="openStageRejectModal(this.dataset.workflow, this.dataset.stage)">
+                        반려
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr class="empty-row">
+                <td colspan="9">확인 대기 항목이 없습니다.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                ② 다음 단계 요청 (생산 / 공정검사 / 포장)
+            </div>
+
+            <div class="section-count">
+                {{ request_count }}건 대기
+            </div>
+        </div>
+
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>Workflow No</th>
+                <th>품목코드</th>
+                <th>품명</th>
+                <th>LOT</th>
+                <th>보유 수량</th>
+                <th>현재 단계</th>
+                <th>다음 요청</th>
+                <th></th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for item in request_items %}
+            <tr>
+                <td>{{ item.workflow_no }}</td>
+                <td>{{ item.item_code }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.lot or "-" }}</td>
+                <td>{{ item.qty }}</td>
+                <td>
+                    <span class="badge badge-green">{{ item.current_stage_name }}</span>
+                </td>
+                <td>
+                    <span class="badge badge-blue">{{ item.next_request_label }}</span>
+                </td>
+                <td>
+                    <button
+                        class="btn btn-primary btn-sm"
+                        data-workflow="{{ item.workflow_no }}"
+                        data-name="{{ item.item_name }}"
+                        data-qty="{{ item.qty }}"
+                        data-label="{{ item.next_request_label }}"
+                        onclick="openRequestModal(this.dataset.workflow, this.dataset.name, Number(this.dataset.qty), this.dataset.label)">
+                        {{ item.next_request_label }}
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr class="empty-row">
+                <td colspan="8">요청 대기 항목이 없습니다.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                ③ 제품 출고
+            </div>
+
+            <div class="section-count">
+                {{ ship_count }}건 대기
+            </div>
+        </div>
+
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>Workflow No</th>
+                <th>품목코드</th>
+                <th>품명</th>
+                <th>LOT</th>
+                <th>출고 가능 수량</th>
+                <th>Product</th>
+                <th>상태</th>
+                <th></th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for item in ship_items %}
+            <tr>
+                <td>{{ item.workflow_no }}</td>
+                <td>{{ item.item_code }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.lot or "-" }}</td>
+                <td>{{ item.qty }}</td>
+                <td>{{ item.service_type }}</td>
+                <td>
+                    <span class="badge badge-purple">출고 대기</span>
+                </td>
+                <td>
+                    <button
+                        class="btn btn-primary btn-sm"
+                        data-workflow="{{ item.workflow_no }}"
+                        data-name="{{ item.item_name }}"
+                        data-qty="{{ item.qty }}"
+                        onclick="openShipModal(this.dataset.workflow, this.dataset.name, Number(this.dataset.qty))">
+                        출고 완료
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr class="empty-row">
+                <td colspan="8">출고 대기 항목이 없습니다.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    {% with remnants=defect_remnants, remnant_count=defect_remnant_count, title="불량 자재 창고", show_restock=false %}
+    {% include "workflow/_remnants.html" %}
+    {% endwith %}
+
+    {% with remnants=good_remnants, remnant_count=good_remnant_count, title="양품 자재 창고" %}
+    {% include "workflow/_remnants.html" %}
+    {% endwith %}
+</div>
+
+<!-- 확인/승인 모달 -->
+<div id="confirmModal" class="modal">
+    <div class="request-modal">
+        <div class="modal-title" id="confirmTitle">자재 확인/승인</div>
+
+        <form method="post" action="/workflow/material/confirm">
+            <input type="hidden" id="confirmWorkflowNo" name="workflow_no">
+
+            <div class="modal-row">
+                <label>품명</label>
+                <input id="confirmItemName" readonly>
+            </div>
+
+            <div class="modal-row" id="confirmSummaryWrap" style="display:none;">
+                <label>결과 내역 (승인 전 확인)</label>
+                <input id="confirmSummary" readonly style="font-weight:600;">
+            </div>
+
+            <div class="modal-row" id="confirmAttachmentWrap" style="display:none;">
+                <label>성적서</label>
+                <a
+                    id="confirmAttachmentLink"
+                    href="#"
+                    target="_blank"
+                    class="btn btn-secondary btn-sm">
+                    성적서 다운로드
+                </a>
+            </div>
+
+            <div class="modal-row">
+                <label>비고</label>
+                <input name="remark" placeholder="선택 입력">
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModals()">취소</button>
+                <button type="submit" class="btn btn-success">확인/승인</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 다음 단계 요청 모달 -->
+<div id="requestModal" class="modal">
+    <div class="request-modal">
+        <div class="modal-title" id="requestTitle">요청</div>
+
+        <form method="post" action="/workflow/material/request-next" onsubmit="return validateRequest()">
+            <input type="hidden" id="requestWorkflowNo" name="workflow_no">
+
+            <div class="modal-row">
+                <label>품명</label>
+                <input id="requestItemName" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>보유 수량</label>
+                <input id="requestTotalQty" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>요청 수량</label>
+                <input
+                    id="requestQty"
+                    name="qty"
+                    type="number"
+                    min="1"
+                    required>
+            </div>
+
+            <div class="modal-row">
+                <label>비고</label>
+                <input name="remark" placeholder="선택 입력">
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModals()">취소</button>
+                <button type="submit" class="btn btn-primary" id="requestSubmit">요청</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 자재 확인 반려 모달 -->
+<div id="stageRejectModal" class="modal">
+    <div class="request-modal">
+        <div class="modal-title">자재 확인 반려</div>
+
+        <form method="post" action="/workflow/material/reject-stage">
+            <input type="hidden" id="stageRejectWorkflowNo" name="workflow_no">
+
+            <div class="modal-row">
+                <label>Workflow</label>
+                <input id="stageRejectWorkflow" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>반려 대상 (직전 단계)</label>
+                <input id="stageRejectStage" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>반려 사유</label>
+                <input name="remark" placeholder="반려 사유를 입력하세요" required>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModals()">취소</button>
+                <button type="submit" class="btn btn-danger">반려</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="shipModal" class="modal">
+    <div class="request-modal">
+        <div class="modal-title">제품 출고</div>
+
+        <form method="post" action="/workflow/material/ship" onsubmit="return validateShip()">
+            <input type="hidden" id="shipWorkflowNo" name="workflow_no">
+
+            <div class="modal-row">
+                <label>품명</label>
+                <input id="shipItemName" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>출고 가능 수량</label>
+                <input id="shipTotalQty" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>출고 수량</label>
+                <input
+                    id="shipQty"
+                    name="qty"
+                    type="number"
+                    min="1"
+                    required>
+            </div>
+
+            <div class="modal-row">
+                <label>비고</label>
+                <input name="remark" placeholder="선택 입력">
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModals()">취소</button>
+                <button type="submit" class="btn btn-primary">출고 완료</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const pageError = {{ error|tojson }};
+
+if (pageError) {
+    wfAlert(pageError);
+}
+
+function closeModals(){
+    document.querySelectorAll(".modal").forEach(m => m.style.display = "none");
+}
+
+window.addEventListener("keydown", e => {
+    if (e.key === "Escape") closeModals();
+});
+
+document.querySelectorAll(".modal").forEach(m => {
+    m.addEventListener("click", e => {
+        if (e.target === m) closeModals();
+    });
+});
+
+function openConfirmModal(workflowNo, itemName, label, attachmentId, summary){
+    document.getElementById("confirmWorkflowNo").value = workflowNo;
+    document.getElementById("confirmItemName").value = itemName;
+    document.getElementById("confirmTitle").innerText = label;
+
+    const summaryWrap = document.getElementById("confirmSummaryWrap");
+
+    if (summary) {
+        document.getElementById("confirmSummary").value = summary;
+        summaryWrap.style.display = "block";
+    } else {
+        summaryWrap.style.display = "none";
+    }
+
+    const attachmentWrap = document.getElementById("confirmAttachmentWrap");
+
+    if (attachmentId) {
+        document.getElementById("confirmAttachmentLink").href =
+            "/workflow/quality/inspection/" + attachmentId + "/attachment";
+        attachmentWrap.style.display = "block";
+    } else {
+        attachmentWrap.style.display = "none";
+    }
+
+    document.getElementById("confirmModal").style.display = "flex";
+}
+
+function openStageRejectModal(workflowNo, stageName){
+    document.getElementById("stageRejectWorkflowNo").value = workflowNo;
+    document.getElementById("stageRejectWorkflow").value = workflowNo;
+    document.getElementById("stageRejectStage").value = stageName;
+    document.getElementById("stageRejectModal").style.display = "flex";
+}
+
+let requestMax = 0;
+
+function openRequestModal(workflowNo, itemName, qty, label){
+    requestMax = qty;
+    document.getElementById("requestWorkflowNo").value = workflowNo;
+    document.getElementById("requestItemName").value = itemName;
+    document.getElementById("requestTotalQty").value = qty + " EA";
+    document.getElementById("requestQty").value = qty;
+    document.getElementById("requestQty").max = qty;
+    document.getElementById("requestTitle").innerText = label;
+    document.getElementById("requestSubmit").innerText = label;
+    document.getElementById("requestModal").style.display = "flex";
+}
+
+function validateRequest(){
+    const qty = Number(document.getElementById("requestQty").value);
+
+    if (qty < 1 || qty > requestMax){
+        wfAlert("요청 수량이 올바르지 않습니다.");
+        return false;
+    }
+
+    return true;
+}
+
+let shipMax = 0;
+
+function openShipModal(workflowNo, itemName, qty){
+    shipMax = qty;
+    document.getElementById("shipWorkflowNo").value = workflowNo;
+    document.getElementById("shipItemName").value = itemName;
+    document.getElementById("shipTotalQty").value = qty + " EA";
+    document.getElementById("shipQty").value = qty;
+    document.getElementById("shipQty").max = qty;
+    document.getElementById("shipModal").style.display = "flex";
+}
+
+function validateShip(){
+    const qty = Number(document.getElementById("shipQty").value);
+
+    if (qty < 1 || qty > shipMax){
+        wfAlert("출고 수량이 올바르지 않습니다.");
+        return false;
+    }
+
+    return true;
+}
+</script>
+
+{% endblock %}

@@ -59,7 +59,8 @@ def create_user(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
-    role: str = Form(...)
+    role: str = Form(...),
+    team: str = Form("")
 ):
 
     if request.session.get("role") != "admin":
@@ -88,10 +89,15 @@ def create_user(
         password
     )
 
+    # admin은 팀 제한을 두지 않는다 - 팀은 실무자(user) 계정 전용.
+    if role == "admin":
+        team = ""
+
     user = User(
         username=username,
         password=hashed_password,
         role=role,
+        team=team,
         must_change_password=True
     )
 

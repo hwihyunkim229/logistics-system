@@ -74,6 +74,7 @@ def login(
     request.session["user"] = username
 
     request.session["role"] = user.role
+    request.session["team"] = user.team or ""
     request.session["last_activity"] = time.time()
 
     save_log(

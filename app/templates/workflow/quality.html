@@ -1,0 +1,693 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<link rel="stylesheet" href="/workflow/static/css/workflow.css">
+<script src="/workflow/static/js/workflow-modal.js"></script>
+
+<div class="workflow-page">
+
+    <div class="page-header">
+        <div>
+            <div class="page-title">
+                품질 관리
+            </div>
+
+            <div class="page-subtitle">
+                수입 검사 승인 · 수입 검사 적용 · 공정 검사 적용
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-icon warning"><i class="fa-solid fa-clipboard-check"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">입고 승인 대기 수량</div>
+                <div class="kpi-value">{{ approval_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ approval_count|default(0) }}건 · 구매팀 검사 의뢰</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon info"><i class="fa-solid fa-magnifying-glass"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">수입 검사 대기 수량</div>
+                <div class="kpi-value">{{ inspection_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ inspection_count|default(0) }}건 · 검사 진행 필요</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon"><i class="fa-solid fa-vial"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">공정 검사 대기 수량</div>
+                <div class="kpi-value">{{ process_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ process_count|default(0) }}건 · 자재팀 공정 검사 의뢰</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon success"><i class="fa-solid fa-clock-rotate-left"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">최근 검사 양품 수량</div>
+                <div class="kpi-value">{{ completed_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ completed_count|default(0) }}건 · 최근 완료된 검사</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                ① 품질 입고 승인 (검사 의뢰 접수)
+            </div>
+
+            <div class="section-count">
+                {{ approval_count }}건 대기
+            </div>
+        </div>
+
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>의뢰번호</th>
+                <th>Workflow No</th>
+                <th>품목코드</th>
+                <th>품명</th>
+                <th>LOT</th>
+                <th>의뢰수량</th>
+                <th>의뢰자</th>
+                <th>의뢰일시</th>
+                <th>상태</th>
+                <th></th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for req, item in approval_rows %}
+            <tr>
+                <td>REQ-{{ "%06d"|format(req.id) }}</td>
+                <td>{{ req.workflow_no }}</td>
+                <td>{{ item.item_code }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.lot or "-" }}</td>
+                <td>{{ req.request_qty }}</td>
+                <td>{{ req.requested_by }}</td>
+                <td>{{ req.requested_at.strftime("%Y-%m-%d %H:%M") if req.requested_at else "-" }}</td>
+                <td>
+                    <span class="badge badge-yellow">대기</span>
+                </td>
+                <td style="white-space:nowrap;">
+                    <button
+                        class="btn btn-success btn-sm"
+                        onclick="openApproveModal({{ req.id }}, '{{ req.workflow_no }}', {{ req.request_qty }})">
+                        승인
+                    </button>
+
+                    <button
+                        class="btn btn-danger btn-sm"
+                        onclick="openRejectModal({{ req.id }}, '{{ req.workflow_no }}', '/workflow/quality/reject')">
+                        반려
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr class="empty-row">
+                <td colspan="10">승인 대기 중인 검사 의뢰가 없습니다.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                ② 수입 검사 적용
+            </div>
+
+            <div class="section-count">
+                {{ inspection_count }}건 대기
+            </div>
+        </div>
+
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>Workflow No</th>
+                <th>품목코드</th>
+                <th>품명</th>
+                <th>LOT</th>
+                <th>검사수량</th>
+                <th>Product</th>
+                <th>상태</th>
+                <th></th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for item in inspection_items %}
+            <tr>
+                <td>{{ item.workflow_no }}</td>
+                <td>{{ item.item_code }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.lot or "-" }}</td>
+                <td>{{ item.qty }}</td>
+                <td>{{ item.service_type }}</td>
+                <td>
+                    <span class="badge badge-blue">검사 대기</span>
+                </td>
+                <td>
+                    <button
+                        class="btn btn-primary btn-sm"
+                        data-workflow="{{ item.workflow_no }}"
+                        data-name="{{ item.item_name }}"
+                        data-qty="{{ item.qty }}"
+                        onclick="openInspectModal(this.dataset.workflow, this.dataset.name, Number(this.dataset.qty))">
+                        검사 진행
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr class="empty-row">
+                <td colspan="8">수입 검사 대기 항목이 없습니다.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                ③ 공정 검사 적용(A/B/F 등급 판정 · F = 불량)
+            </div>
+
+            <div class="section-count">
+                {{ process_count }}건 대기
+            </div>
+        </div>
+
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>Workflow No</th>
+                <th>품목코드</th>
+                <th>품명</th>
+                <th>LOT</th>
+                <th>검사수량</th>
+                <th>의뢰자</th>
+                <th>Product</th>
+                <th>상태</th>
+                <th></th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for req, item in process_rows %}
+            <tr>
+                <td>{{ item.workflow_no }}</td>
+                <td>{{ item.item_code }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.lot or "-" }}</td>
+                <td>{{ item.qty }}</td>
+                <td>{{ req.requested_by }}</td>
+                <td>{{ item.service_type }}</td>
+                <td>
+                    <span class="badge badge-purple">공정 검사 대기</span>
+                </td>
+                <td style="white-space:nowrap;">
+                    <button
+                        class="btn btn-primary btn-sm"
+                        data-workflow="{{ item.workflow_no }}"
+                        data-name="{{ item.item_name }}"
+                        data-qty="{{ item.qty }}"
+                        onclick="openProcessModal(this.dataset.workflow, this.dataset.name, Number(this.dataset.qty))">
+                        검사 진행
+                    </button>
+
+                    <button
+                        class="btn btn-danger btn-sm"
+                        onclick="openRejectModal({{ req.id }}, '{{ req.workflow_no }}', '/workflow/quality/reject')">
+                        반려
+                    </button>
+                </td>
+            </tr>
+            {% else %}
+            <tr class="empty-row">
+                <td colspan="9">공정 검사 대기 항목이 없습니다.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                최근 검사 이력
+            </div>
+        </div>
+
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th>Workflow No</th>
+                <th>구분</th>
+                <th>검사자</th>
+                <th>검사수량</th>
+                <th>양품</th>
+                <th>불량</th>
+                <th>A급</th>
+                <th>B급</th>
+                <th>F급(불량)</th>
+                <th>결과</th>
+                <th>검사일시</th>
+                <th>성적서</th>
+            </tr>
+            </thead>
+
+            <tbody>
+            {% for row in recent_inspections %}
+            <tr>
+                <td>{{ row.workflow_no }}</td>
+                <td>
+                    {% if row.inspection_type == "INCOMING" %}
+                        <span class="badge badge-blue">수입 검사</span>
+                    {% else %}
+                        <span class="badge badge-purple">공정 검사</span>
+                    {% endif %}
+                </td>
+                <td>{{ row.inspector }}</td>
+                <td>{{ row.request_qty }}</td>
+                <td>{{ row.good_qty }}</td>
+                <td>{{ row.defect_qty }}</td>
+                <td>{{ row.grade_a_qty if row.inspection_type == "PROCESS" else "-" }}</td>
+                <td>{{ row.grade_b_qty if row.inspection_type == "PROCESS" else "-" }}</td>
+                <td>{{ row.grade_f_qty if row.inspection_type == "PROCESS" else "-" }}</td>
+                <td>
+                    {% if row.result == "PASS" %}
+                        <span class="badge badge-green">합격</span>
+                    {% else %}
+                        <span class="badge badge-yellow">부분합격</span>
+                    {% endif %}
+                </td>
+                <td>{{ row.created_at.strftime("%Y-%m-%d %H:%M") if row.created_at else "-" }}</td>
+                <td style="white-space:nowrap;">
+                    {% if row.attachment_path %}
+                        <a
+                            href="/workflow/quality/inspection/{{ row.id }}/attachment"
+                            class="btn btn-secondary btn-sm"
+                            target="_blank">
+                            {{ row.attachment_name or "다운로드" }}
+                        </a>
+
+                        <button
+                            type="button"
+                            class="btn btn-danger btn-sm"
+                            onclick="deleteAttachment({{ row.id }})">
+                            삭제
+                        </button>
+                    {% else %}
+                        <form
+                            method="post"
+                            enctype="multipart/form-data"
+                            action="/workflow/quality/inspection/{{ row.id }}/attachment"
+                            style="display:flex;gap:6px;align-items:center;">
+                            <div class="file-picker compact">
+                                <input
+                                    type="file"
+                                    name="attachment"
+                                    required
+                                    id="rowAttachmentFile{{ row.id }}"
+                                    onchange="updateFilePicker(this)">
+                                <label for="rowAttachmentFile{{ row.id }}" class="file-picker-btn">
+                                    <i class="fa-solid fa-paperclip"></i> 선택
+                                </label>
+                                <span class="file-picker-name" data-empty="파일 없음">파일 없음</span>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm">첨부</button>
+                        </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr class="empty-row">
+                <td colspan="12">검사 이력이 없습니다.</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+<!-- 승인 모달 -->
+<div id="approveModal" class="modal">
+    <div class="request-modal">
+        <div class="modal-title">품질 입고 승인</div>
+
+        <form method="post" action="/workflow/quality/approve">
+            <input type="hidden" id="approveRequestId" name="request_id">
+
+            <div class="modal-row">
+                <label>Workflow</label>
+                <input id="approveWorkflow" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>승인 수량</label>
+                <input
+                    id="approveQty"
+                    name="approved_qty"
+                    type="number"
+                    min="1"
+                    required>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModals()">취소</button>
+                <button type="submit" class="btn btn-success">승인</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="inspectModal" class="modal">
+    <div class="request-modal">
+        <div class="modal-title">수입 검사 적용</div>
+
+        <form method="post" action="/workflow/quality/inspect" enctype="multipart/form-data" onsubmit="return validateInspect()">
+            <input type="hidden" id="inspectWorkflowNo" name="workflow_no">
+
+            <div class="modal-row">
+                <label>품명</label>
+                <input id="inspectItemName" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>검사 대상 수량</label>
+                <input id="inspectTotalQty" readonly>
+            </div>
+
+            <div class="modal-grid">
+                <div class="modal-row">
+                    <label>양품 수량</label>
+                    <input
+                        id="inspectGoodQty"
+                        name="good_qty"
+                        type="number"
+                        min="0"
+                        required
+                        oninput="syncDefect()">
+                </div>
+
+                <div class="modal-row">
+                    <label>불량 수량</label>
+                    <input
+                        id="inspectDefectQty"
+                        name="defect_qty"
+                        type="number"
+                        min="0"
+                        value="0"
+                        readonly>
+                </div>
+            </div>
+
+            <div class="modal-row">
+                <label>비고</label>
+                <input name="remark" placeholder="선택 입력">
+            </div>
+
+            <div class="modal-row">
+                <label>성적서 첨부</label>
+                <div class="file-picker">
+                    <input
+                        type="file"
+                        name="attachment"
+                        id="inspectAttachmentFile"
+                        onchange="updateFilePicker(this)">
+                    <label for="inspectAttachmentFile" class="file-picker-btn">
+                        <i class="fa-solid fa-paperclip"></i> 파일 선택
+                    </label>
+                    <span class="file-picker-name" data-empty="선택된 파일 없음">선택된 파일 없음</span>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModals()">취소</button>
+                <button type="submit" class="btn btn-primary">검사 완료</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="processModal" class="modal">
+    <div class="request-modal">
+        <div class="modal-title">공정 검사 적용 (A/B/F 등급 판정)</div>
+
+        <form method="post" action="/workflow/quality/process-inspect" enctype="multipart/form-data" onsubmit="return validateProcess()">
+            <input type="hidden" id="processWorkflowNo" name="workflow_no">
+
+            <div class="modal-row">
+                <label>품명</label>
+                <input id="processItemName" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>검사 대상 수량</label>
+                <input id="processTotalQty" readonly>
+            </div>
+
+            <div class="modal-grid">
+                <div class="modal-row">
+                    <label>A급</label>
+                    <input id="gradeA" name="grade_a_qty" type="number" min="0" value="0" oninput="syncProcess()">
+                </div>
+
+                <div class="modal-row">
+                    <label>B급</label>
+                    <input id="gradeB" name="grade_b_qty" type="number" min="0" value="0" oninput="syncProcess()">
+                </div>
+            </div>
+
+            <div class="modal-row">
+                <label>F급 (불량 · 자동 계산)</label>
+                <input id="gradeF" name="grade_f_qty" type="number" min="0" value="0" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>비고</label>
+                <input name="remark" placeholder="선택 입력">
+            </div>
+
+            <div class="modal-row">
+                <label>성적서 첨부</label>
+                <div class="file-picker">
+                    <input
+                        type="file"
+                        name="attachment"
+                        id="processAttachmentFile"
+                        onchange="updateFilePicker(this)">
+                    <label for="processAttachmentFile" class="file-picker-btn">
+                        <i class="fa-solid fa-paperclip"></i> 파일 선택
+                    </label>
+                    <span class="file-picker-name" data-empty="선택된 파일 없음">선택된 파일 없음</span>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModals()">취소</button>
+                <button type="submit" class="btn btn-primary">검사 완료</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 반려 모달 (공용) -->
+<div id="rejectModal" class="modal">
+    <div class="request-modal">
+        <div class="modal-title">요청 반려</div>
+
+        <form method="post" id="rejectForm">
+            <input type="hidden" id="rejectRequestId" name="request_id">
+
+            <div class="modal-row">
+                <label>Workflow</label>
+                <input id="rejectWorkflow" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>반려 사유</label>
+                <input name="remark" placeholder="반려 사유를 입력하세요" required>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModals()">취소</button>
+                <button type="submit" class="btn btn-danger">반려</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const pageError = {{ error|tojson }};
+
+if (pageError) {
+    wfAlert(pageError);
+}
+
+function closeModals(){
+    document.querySelectorAll(".modal").forEach(m => m.style.display = "none");
+}
+
+window.addEventListener("keydown", e => {
+    if (e.key === "Escape") closeModals();
+});
+
+document.querySelectorAll(".modal").forEach(m => {
+    m.addEventListener("click", e => {
+        if (e.target === m) closeModals();
+    });
+});
+
+function openApproveModal(requestId, workflowNo, qty){
+    document.getElementById("approveRequestId").value = requestId;
+    document.getElementById("approveWorkflow").value = workflowNo;
+
+    const qtyInput = document.getElementById("approveQty");
+    qtyInput.value = qty;
+    qtyInput.max = qty;
+
+    document.getElementById("approveModal").style.display = "flex";
+}
+
+let inspectMax = 0;
+
+function openInspectModal(workflowNo, itemName, qty){
+    inspectMax = qty;
+    document.getElementById("inspectWorkflowNo").value = workflowNo;
+    document.getElementById("inspectItemName").value = itemName;
+    document.getElementById("inspectTotalQty").value = qty + " EA";
+    document.getElementById("inspectGoodQty").value = qty;
+    document.getElementById("inspectGoodQty").max = qty;
+    document.getElementById("inspectDefectQty").value = 0;
+    resetFilePicker("inspectAttachmentFile");
+    document.getElementById("inspectModal").style.display = "flex";
+}
+
+function resetFilePicker(inputId){
+    const input = document.getElementById(inputId);
+
+    if (!input) return;
+
+    input.value = "";
+    updateFilePicker(input);
+}
+
+function syncDefect(){
+    let good = Number(document.getElementById("inspectGoodQty").value);
+
+    if (isNaN(good) || good < 0) good = 0;
+    if (good > inspectMax){
+        good = inspectMax;
+        document.getElementById("inspectGoodQty").value = good;
+    }
+
+    document.getElementById("inspectDefectQty").value = inspectMax - good;
+}
+
+function validateInspect(){
+    const good = Number(document.getElementById("inspectGoodQty").value);
+
+    if (good < 0 || good > inspectMax){
+        wfAlert("양품 수량이 올바르지 않습니다.");
+        return false;
+    }
+
+    return true;
+}
+
+let processMax = 0;
+
+function openProcessModal(workflowNo, itemName, qty){
+    processMax = qty;
+    document.getElementById("processWorkflowNo").value = workflowNo;
+    document.getElementById("processItemName").value = itemName;
+    document.getElementById("processTotalQty").value = qty + " EA";
+    document.getElementById("gradeA").value = qty;
+    document.getElementById("gradeB").value = 0;
+    document.getElementById("gradeF").value = 0;
+    resetFilePicker("processAttachmentFile");
+    document.getElementById("processModal").style.display = "flex";
+}
+
+// A/B 입력에 따라 F(불량)는 나머지 수량으로 자동 계산된다 -
+// 전 수량이 반드시 세 등급 중 하나로 분류되도록 강제하는 구조.
+function syncProcess(){
+    const a = Number(document.getElementById("gradeA").value) || 0;
+    const b = Number(document.getElementById("gradeB").value) || 0;
+
+    const f = processMax - a - b;
+
+    document.getElementById("gradeF").value = f >= 0 ? f : 0;
+}
+
+function validateProcess(){
+    const a = Number(document.getElementById("gradeA").value) || 0;
+    const b = Number(document.getElementById("gradeB").value) || 0;
+    const f = Number(document.getElementById("gradeF").value) || 0;
+
+    if (a < 0 || b < 0){
+        wfAlert("등급 수량은 0 이상이어야 합니다.");
+        return false;
+    }
+
+    if (a + b > processMax){
+        wfAlert(
+            "A급 + B급 수량이 검사 대상 수량을 초과했습니다.\n"
+            + "검사 대상: " + processMax + " EA / 입력 합계: " + (a + b) + " EA"
+        );
+        return false;
+    }
+
+    if (a + b + f !== processMax){
+        wfAlert("A/B/F 수량 합계가 검사 대상 수량과 일치해야 합니다.");
+        return false;
+    }
+
+    return true;
+}
+
+async function deleteAttachment(inspectionId){
+    const confirmed = await wfConfirm(
+        "첨부된 성적서를 삭제하시겠습니까?",
+        "성적서 삭제"
+    );
+
+    if (!confirmed) return;
+
+    const form = document.createElement("form");
+    form.method = "post";
+    form.action = "/workflow/quality/inspection/" + inspectionId + "/attachment/delete";
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function openRejectModal(requestId, workflowNo, action){
+    document.getElementById("rejectRequestId").value = requestId;
+    document.getElementById("rejectWorkflow").value = workflowNo;
+    document.getElementById("rejectForm").action = action;
+    document.getElementById("rejectModal").style.display = "flex";
+}
+</script>
+
+{% endblock %}

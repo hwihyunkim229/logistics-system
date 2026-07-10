@@ -1,0 +1,883 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<script src="/workflow/static/js/workflow-modal.js"></script>
+<link rel="stylesheet" href="/workflow/static/css/workflow.css">
+
+<div class="workflow-page">
+
+    <div class="page-header">
+        <div>
+            <div class="page-title">
+                구매 관리
+            </div>
+
+            <div class="page-subtitle">
+                구매 자재 등록 및 수입 검사 의뢰
+            </div>
+        </div>
+    </div>
+
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-icon info"><i class="fa-solid fa-layer-group"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">총 입고 수량</div>
+                <div class="kpi-value">{{ total_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ total_count|default(0) }}건 · 등록된 전체 Workflow</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon warning"><i class="fa-solid fa-arrows-rotate"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">진행 중 수량</div>
+                <div class="kpi-value">{{ progress_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ progress_count|default(0) }}건 · 현재 진행 중</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon"><i class="fa-solid fa-paper-plane"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">수입 검사 의뢰 수량</div>
+                <div class="kpi-value">{{ waiting_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ waiting_count|default(0) }}건 · 품질 승인 대기</div>
+            </div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-icon success"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="kpi-body">
+                <div class="kpi-title">출고 완료 수량</div>
+                <div class="kpi-value">{{ completed_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
+                <div class="kpi-footer">{{ completed_count|default(0) }}건 · 제품 출고 완료</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <div class="toolbar-left">
+            <button
+                class="btn btn-primary"
+                onclick="openModal()">
+            + 신규 등록
+            </button>
+
+            <button
+                class="btn btn-success"
+                onclick="requestSelected()">
+            수입 검사 의뢰
+            </button>
+        </div>
+
+        <div class="toolbar-right">
+            <div class="search-box">
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Workflow / 품목 검색">
+            </div>
+        </div>
+    </div>
+
+    <div class="table-card">
+        <div class="table-scroll">
+        <table class="workflow-table">
+            <thead>
+            <tr>
+                <th width="50">
+                    <input
+                        type="checkbox"
+                        id="checkAll">
+                </th>
+                <th>Workflow No</th>
+                <th>Product</th>
+                <th>품목코드</th>
+                <th>품명</th>
+                <th>LOT</th>
+                <th>입고수량</th>
+                <th>진행수량</th>
+                <th>잔량</th>
+                <th>입고 일자</th>
+                <th>검사 의뢰 일자</th>
+                <th>상태</th>
+                <th></th>
+            </tr>
+            </thead>
+
+            <tbody id="workflowTable">
+
+            {% for item in workflow_list %}
+
+            <tr>
+
+            <td>
+            {% if item.current_stage == 1 %}
+
+            <input
+                type="checkbox"
+                class="workflow-check"
+                data-workflow="{{ item.workflow_no }}"
+                data-item-code="{{ item.item_code }}"
+                data-item-name="{{ item.item_name }}"
+                data-qty="{{ item.qty }}">
+
+                {% else %}
+
+                <input
+                type="checkbox"
+                disabled>
+
+                {% endif %}
+            </td>
+
+            <td>
+                {{ item.workflow_no }}
+            </td>
+
+            <td>
+                {{ item.service_type }}
+            </td>
+
+            <td>
+                {{ item.item_code }}
+            </td>
+
+            <td>
+                {{ item.item_name }}
+            </td>
+
+            <td>
+                {{ item.lot or "-" }}
+            </td>
+
+            <td class="number">
+                {{ item.initial_qty or item.qty }}
+            </td>
+
+            <td class="number">
+                {{ item.qty }}
+            </td>
+
+            <td>
+                {% if item.remnant_qty %}
+                    <span class="badge badge-yellow">{{ item.remnant_qty }}</span>
+                {% else %}
+                    0
+                {% endif %}
+            </td>
+
+            <td style="white-space:nowrap;">
+                {{ item.received_at.strftime("%Y-%m-%d %H:%M") if item.received_at else "-" }}
+            </td>
+
+            <td style="white-space:nowrap;">
+                {{ item.inspection_requested_at.strftime("%Y-%m-%d %H:%M") if item.inspection_requested_at else "-" }}
+            </td>
+
+            <td>
+                {% if item.current_stage == 1 %}
+                    <span class="badge badge-gray">
+                        구매 입고
+                    </span>
+                {% elif item.current_stage == 2 %}
+                    <span class="badge badge-yellow">
+                        수입 검사 의뢰
+                    </span>
+                {% elif item.status == "COMPLETED" %}
+                    <span class="badge badge-green">
+                        완료
+                    </span>
+                {% else %}
+                    <span class="badge badge-blue">
+                        {{ item.current_stage_name }}
+                    </span>
+                {% endif %}
+            </td>
+
+            <td>
+                {% if item.current_stage <= 2 %}
+                <button
+                    class="btn btn-secondary btn-sm"
+                    data-workflow="{{ item.workflow_no }}"
+                    data-code="{{ item.item_code }}"
+                    data-name="{{ item.item_name }}"
+                    data-lot="{{ item.lot or '' }}"
+                    data-received="{{ item.received_at.strftime('%Y-%m-%dT%H:%M') if item.received_at else '' }}"
+                    onclick="openItemEditModal(this.dataset.workflow, this.dataset.code, this.dataset.name, this.dataset.lot, this.dataset.received)">
+                    수정
+                </button>
+                {% endif %}
+            </td>
+        </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+
+    <div
+        class="modal"
+        id="registerModal">
+
+        <div class="modal-content">
+            <div class="modal-header">
+                신규 Workflow 등록
+            </div>
+
+            <form
+                method="post"
+                action="/workflow/purchase/create">
+
+                <div class="modal-body">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>
+                                입고 일자
+                            </label>
+
+                            <input
+                                type="datetime-local"
+                                id="createReceivedAt"
+                                name="received_at"
+                                required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                LOT
+                            </label>
+
+                            <input
+                                type="text"
+                                name="lot"
+                                placeholder="LOT 번호를 입력하세요"
+                                required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                품목 코드
+                            </label>
+
+                            <input
+                                id="itemCode"
+                                type="text"
+                                autocomplete="off"
+                                placeholder="품목 코드 (기준 정보 검색 또는 직접 입력)"
+                                required>
+
+                            <input
+                                type="hidden"
+                                id="item_code"
+                                name="item_code">
+
+                            <div
+                                id="itemSearchList"
+                                class="search-result">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                품명
+                            </label>
+
+                            <input
+                                id="item_name"
+                                name="item_name"
+                                placeholder="품명 (기준 정보 선택 시 자동 입력, 직접 입력 가능)"
+                                required>
+                        </div>
+
+
+                        <div class="form-group">
+                            <label>
+                                수량
+                            </label>
+
+                            <input
+                                type="number"
+                                name="qty"
+                                required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>
+                                서비스
+                            </label>
+
+                            <select
+                                name="service_type"
+                                required>
+
+                                <option value="">
+                                    선택
+                                </option>
+
+                                <option value="CART BP">
+                                    CART BP
+                                </option>
+
+                                <option value="CART BP Pro">
+                                    CART BP Pro
+                                </option>
+
+                                <option value="CART ON">
+                                    CART ON
+                                </option>
+
+                                <option value="CART-Platform">
+                                    CART Platform
+                                </option>
+
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button
+                        type="button"
+                        class="btn btn-secondary"
+                        onclick="closeModal()">
+                        취소
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="btn btn-primary">
+                        등록
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+
+const pageError = {{ error|default("")|tojson }};
+
+if (pageError) {
+    wfAlert(pageError);
+}
+
+const modal =
+    document.getElementById("registerModal");
+
+function openModal(){
+    modal.style.display = "flex";
+}
+
+function closeModal(){
+    modal.style.display = "none";
+}
+
+window.addEventListener(
+    "keydown",
+    function(e){
+        if(e.key==="Escape"){
+            closeModal();
+        }
+    }
+);
+
+window.onclick = function(e){
+    if(e.target===modal){
+        closeModal();
+    }
+}
+
+const searchInput =
+    document.getElementById("searchInput");
+
+searchInput.addEventListener(
+    "keyup",
+    function(){
+        const keyword =
+            this.value.toLowerCase();
+
+        const rows =
+            document.querySelectorAll(
+                "#workflowTable tr"
+            );
+
+        rows.forEach(row=>{
+            row.style.display =
+                row.innerText
+                    .toLowerCase()
+                    .includes(keyword)
+                    ? ""
+                    : "none";
+        });
+    }
+);
+
+function requestSelected(){
+    const checked =
+        document.querySelectorAll(
+            ".workflow-check:checked"
+        );
+
+    if(checked.length===0){
+        wfAlert("의뢰할 품목을 선택해주세요.");
+        return;
+    }
+
+    if(checked.length>1){
+        wfAlert("현재는 한 건씩만 가능합니다.");
+        return;
+    }
+
+    const row = checked[0];
+
+    openRequestModal(
+        row.dataset.workflow,
+        row.dataset.itemCode,
+        row.dataset.itemName,
+        row.dataset.qty
+    );
+}
+
+document
+.querySelectorAll(".number")
+.forEach(el=>{
+    const n =
+        Number(
+            el.innerText
+        );
+
+    if(!isNaN(n)){
+        el.innerText =
+            n.toLocaleString();
+    }
+});
+
+modal.addEventListener(
+    "transitionend",
+    ()=>{
+        const input =
+            modal.querySelector("input");
+
+        if(input){
+            input.focus();
+        }
+    }
+);
+
+const itemMaster = [
+
+{% for item in item_master_list %}
+
+{
+    code:"{{ item.item_code }}",
+    name:"{{ item.item_name }}"
+},
+
+{% endfor %}
+
+];
+
+const input =
+    document.getElementById("itemCode");
+
+const list =
+    document.getElementById("itemSearchList");
+
+input.addEventListener(
+    "input",
+    function(){
+
+        // 기준 정보에 없는 품목코드도 직접 입력해서 등록할 수 있도록,
+        // 검색 목록에서 선택하지 않아도 입력한 값 그대로 hidden
+        // item_code에 반영한다.
+        document.getElementById("item_code").value = this.value;
+
+        const keyword =
+            this.value.toLowerCase();
+        list.innerHTML="";
+
+        if(keyword===""){
+            list.style.display="none";
+            return;
+        }
+
+        const result = itemMaster.filter(item => {
+            const code = (item.code || "").toLowerCase();
+            const name = (item.name || "").toLowerCase();
+            return code.includes(keyword) || name.includes(keyword);
+        });
+
+        if(result.length===0){
+            list.innerHTML =
+                `<div class="search-item">
+                    검색 결과가 없습니다.
+                </div>`;
+
+            list.style.display="block";
+
+            return;
+        }
+
+        result.slice(0,10).forEach(item=>{
+            const div =
+                document.createElement("div");
+
+            div.className="search-item";
+
+            div.innerHTML=
+                `<b>${item.code}</b><br>${item.name}`;
+
+            div.onclick=function(){
+                document.getElementById("itemCode").value =
+                    item.code;
+                document.getElementById("item_code").value =
+                    item.code;
+                document.getElementById("item_name").value =
+                    item.name;
+                list.style.display="none";
+                input.blur();
+            }
+            list.appendChild(div);
+        });
+
+        list.style.display =
+            result.length ? "block" : "none";
+    }
+);
+
+document.addEventListener(
+    "click",
+    function(e){
+        if(
+            !input.contains(e.target) &&
+            !list.contains(e.target)
+        ){
+            list.style.display="none";
+        }
+    }
+);
+
+function openRequestModal(
+    workflow,
+    itemCode,
+    itemName,
+    qty
+){
+    document.getElementById(
+        "modalWorkflow"
+    ).value = workflow;
+
+    document.getElementById(
+        "modalItemCode"
+    ).value = itemCode;
+
+    document.getElementById(
+        "modalItemName"
+    ).value = itemName;
+
+    document.getElementById(
+        "modalQty"
+    ).value = qty + " EA";
+
+    document.getElementById(
+        "requestWorkflowNo"
+    ).value = workflow;
+
+    document.getElementById(
+        "requestQty"
+    ).value = qty;
+
+    document.getElementById(
+        "requestInputQty"
+    ).value = qty;
+
+    document.getElementById(
+        "remainQty"
+    ).value = "0 EA";
+
+    document.getElementById(
+        "requestModal"
+    ).style.display = "flex";
+}
+
+function closeRequestModal(){
+    document.getElementById(
+        "requestModal"
+    ).style.display = "none";
+}
+
+document
+.getElementById("checkAll")
+.addEventListener(
+"change",
+
+function(){
+document
+.querySelectorAll(".workflow-check")
+.forEach(
+check=>{
+check.checked=false;
+}
+);
+});
+
+function currentHoldQty(){
+    return Number(
+        document
+        .getElementById("modalQty")
+        .value
+        .replace(" EA","")
+    );
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+
+    const requestQtyInput =
+        document.getElementById(
+            "requestInputQty"
+        );
+
+    requestQtyInput.addEventListener(
+        "input",
+
+        function(){
+            const current = currentHoldQty();
+
+            const qty = Number(this.value);
+
+            const remain = current - (isNaN(qty) ? 0 : qty);
+
+            document
+            .getElementById(
+                "remainQty"
+            ).value =
+                remain >= 0
+                ? remain + " EA"
+                : "보유 수량 초과 (" + current + " EA 보유)";
+
+            document
+            .getElementById(
+                "requestQty"
+            ).value =
+                isNaN(qty) ? 0 : qty;
+        }
+    );
+
+    document
+    .getElementById("requestForm")
+    .addEventListener(
+    "submit",
+    function(e){
+        const qty = Number(
+            document.getElementById("requestQty").value
+        );
+
+        const current = currentHoldQty();
+
+        if(isNaN(qty) || qty < 1){
+            e.preventDefault();
+            wfAlert("의뢰 수량은 1개 이상이어야 합니다.");
+            return;
+        }
+
+        if(qty > current){
+            e.preventDefault();
+            wfAlert(
+                "의뢰 수량이 보유 수량을 초과했습니다.\n"
+                + "보유 수량: " + current + " EA / 입력 수량: " + qty + " EA"
+            );
+            return;
+        }
+    });
+
+});
+</script>
+
+<div id="requestModal" class="modal">
+    <div class="request-modal">
+        <div class="modal-title">
+            수입 검사 의뢰
+        </div>
+
+        <div class="modal-body">
+
+            <div class="modal-row">
+                <label>Workflow</label>
+                <input
+                    id="modalWorkflow"
+                    readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>품목코드</label>
+                <input
+                    id="modalItemCode"
+                    readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>품명</label>
+                <input
+                    id="modalItemName"
+                    readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>현재 수량</label>
+                <input
+                    id="modalQty"
+                    readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>의뢰 수량</label>
+
+                <input
+                    id="requestInputQty"
+                    type="number"
+                    min="1"
+                    name="qty">
+            </div>
+
+            <div class="modal-row">
+                <label>의뢰 후 예상 잔여</label>
+
+                <input
+                    id="remainQty"
+                    readonly>
+            </div>
+        </div>
+
+        <form
+            id="requestForm"
+            method="post"
+            action="/workflow/purchase/request">
+
+            <input
+                type="hidden"
+                id="requestWorkflowNo"
+                name="workflow_no">
+
+            <input
+                type="hidden"
+                id="requestQty"
+                name="qty">
+
+            <input
+                type="hidden"
+                id="requestRemark"
+                name="remark">
+
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    onclick="closeRequestModal()">
+                    취소
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn btn-success">
+                    수입 검사 의뢰
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="itemEditModal" class="modal">
+    <div class="request-modal">
+        <div class="modal-title">
+            구매 정보 수정
+        </div>
+
+        <form method="post" action="/workflow/purchase/update-item" onsubmit="return validateItemEdit()">
+            <input type="hidden" id="editWorkflowNo" name="workflow_no">
+
+            <div class="modal-row">
+                <label>Workflow</label>
+                <input id="editWorkflowDisplay" readonly>
+            </div>
+
+            <div class="modal-row">
+                <label>품목 코드</label>
+                <input id="editItemCode" name="item_code" placeholder="품목 코드" required>
+            </div>
+
+            <div class="modal-row">
+                <label>품명</label>
+                <input id="editItemName" name="item_name" placeholder="품명" required>
+            </div>
+
+            <div class="modal-row">
+                <label>LOT</label>
+                <input id="editLot" name="lot" placeholder="LOT 번호">
+            </div>
+
+            <div class="modal-row">
+                <label>입고 일자</label>
+                <input id="editReceivedAt" name="received_at" type="datetime-local">
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeItemEditModal()">취소</button>
+                <button type="submit" class="btn btn-primary">저장</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openItemEditModal(workflowNo, itemCode, itemName, lot, receivedAt){
+    document.getElementById("editWorkflowNo").value = workflowNo;
+    document.getElementById("editWorkflowDisplay").value = workflowNo;
+    document.getElementById("editItemCode").value = itemCode;
+    document.getElementById("editItemName").value = itemName;
+    document.getElementById("editLot").value = lot;
+    document.getElementById("editReceivedAt").value = receivedAt;
+    document.getElementById("itemEditModal").style.display = "flex";
+}
+
+function validateItemEdit(){
+    const code = document.getElementById("editItemCode").value.trim();
+    const name = document.getElementById("editItemName").value.trim();
+
+    if (!code){
+        wfAlert("품목 코드를 입력해주세요.");
+        return false;
+    }
+
+    if (!name){
+        wfAlert("품명을 입력해주세요.");
+        return false;
+    }
+
+    return true;
+}
+
+function closeItemEditModal(){
+    document.getElementById("itemEditModal").style.display = "none";
+}
+
+document.getElementById("itemEditModal").addEventListener("click", function(e){
+    if (e.target === this) closeItemEditModal();
+});
+
+// 신규 등록 모달의 입고 일자 기본값 = 현재 시각
+(function(){
+    const input = document.getElementById("createReceivedAt");
+
+    if (input && !input.value) {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        input.value = now.toISOString().slice(0, 16);
+    }
+})();
+</script>
+
+{% endblock %}

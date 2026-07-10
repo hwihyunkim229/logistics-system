@@ -205,6 +205,83 @@ body.sidebar-collapsed .main{
     font-weight:600;
     color:#2c3e50;
 }
+.bell-menu{
+    position:relative;
+    display:flex;
+    align-items:center;
+}
+.bell-trigger{
+    position:relative;
+    cursor:pointer;
+    font-size:18px;
+    line-height:1;
+    padding:4px;
+}
+.bell-badge{
+    position:absolute;
+    top:-5px;
+    right:-7px;
+    min-width:17px;
+    height:17px;
+    padding:0 4px;
+    background:#ef4444;
+    color:#fff;
+    border-radius:9px;
+    font-size:11px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+.bell-dropdown{
+    min-width:330px;
+    max-height:380px;
+    overflow-y:auto;
+    top:34px;
+    word-break:keep-all;
+}
+.bell-dropdown-title{
+    padding:12px 15px 8px;
+    font-size:13px;
+    font-weight:700;
+    color:#64748b;
+    border-bottom:1px solid #eef1f6;
+}
+.bell-todo-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:11px 15px;
+    text-decoration:none;
+    color:#2c3e50;
+    font-size:13.5px;
+    transition:.2s;
+    white-space:nowrap;
+}
+.bell-todo-item:hover{
+    background:#f5f6fa;
+}
+.bell-todo-team{
+    font-size:11px;
+    font-weight:700;
+    color:#2563eb;
+    background:#eff4ff;
+    border-radius:6px;
+    padding:2px 7px;
+    white-space:nowrap;
+}
+.bell-todo-count{
+    font-size:12px;
+    font-weight:700;
+    color:#ef4444;
+    white-space:nowrap;
+}
+.bell-empty{
+    padding:16px 15px;
+    font-size:13px;
+    color:#94a3b8;
+}
 .user-menu::before{
     content:"👤";
     font-size:16px;
@@ -545,6 +622,49 @@ body.sidebar-collapsed .main{
 
     </div>
 
+    <div class="menu-group" data-menu="workflow">
+
+        <div
+            class="menu-title"
+            onclick="toggleMenu(this)"
+        >
+            통합 워크플로우
+        </div>
+
+        <div class="submenu">
+
+            <a href="/workflow/dashboard" class="menu-single">
+                Dashboard
+            </a>
+
+            <a href="/workflow/purchase" class="menu-single">
+                구매 관리
+            </a>
+
+            <a href="/workflow/quality" class="menu-single">
+                품질 관리
+            </a>
+
+            <a href="/workflow/material" class="menu-single">
+                자재 관리
+            </a>
+
+            <a href="/workflow/production" class="menu-single">
+                생산 관리
+            </a>
+
+            <a href="/workflow/history" class="menu-single">
+                이력 조회
+            </a>
+
+            <a href="/workflow/notification" class="menu-single">
+                알림
+            </a>
+
+        </div>
+
+    </div>
+
     <div class="menu-group" data-menu="mrp">
 
         <div
@@ -629,6 +749,20 @@ body.sidebar-collapsed .main{
 </div>
 
 <div class="top-bar">
+    <div class="bell-menu" id="bellMenu">
+        <div class="bell-trigger" onclick="toggleBellMenu()">
+            🔔
+            <span class="bell-badge" id="bellBadge" style="display:none;">0</span>
+        </div>
+
+        <div id="bellDropdown" class="dropdown bell-dropdown">
+            <div class="bell-dropdown-title">해야 할 업무</div>
+            <div id="bellTodoList">
+                <div class="bell-empty">불러오는 중...</div>
+            </div>
+        </div>
+    </div>
+
     <div class="user-menu">
         <div class="user-trigger" onclick="toggleUserMenu()">
             {{ request.session.get('user') }}
@@ -808,6 +942,118 @@ function toggleUserMenu(){
         ? "none"
         : "block";
 }
+
+function toggleBellMenu(){
+    const d = document.getElementById("bellDropdown");
+
+    d.style.display =
+        d.style.display === "block" ? "none" : "block";
+}
+
+document.addEventListener("click", function(e){
+    const bell = document.getElementById("bellMenu");
+
+    if (bell && !bell.contains(e.target)) {
+        document.getElementById("bellDropdown").style.display = "none";
+    }
+});
+
+// 해야 할 업무(팀별 대기 작업)를 불러와 종 아이콘 배지/목록을 채운다.
+async function loadBellTodo(){
+    try {
+        const res = await fetch("/workflow/notification/todo", {
+            credentials: "include"
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const badge = document.getElementById("bellBadge");
+        const list = document.getElementById("bellTodoList");
+
+        if (data.total > 0) {
+            badge.innerText = data.total > 99 ? "99+" : data.total;
+            badge.style.display = "flex";
+        } else {
+            badge.style.display = "none";
+        }
+
+        if (!data.items.length) {
+            list.innerHTML =
+                '<div class="bell-empty">현재 처리할 업무가 없습니다.</div>';
+            return;
+        }
+
+        list.innerHTML = data.items.map(item =>
+            '<a class="bell-todo-item" href="' + item.link + '">'
+            + '<span class="bell-todo-team">' + item.team_name + '</span>'
+            + '<span style="flex:1;">' + item.label + '</span>'
+            + '<span class="bell-todo-count">' + item.count + '건 · '
+            + item.qty + ' EA</span>'
+            + '</a>'
+        ).join("");
+    } catch (e) {
+        /* 알림 로드는 실패해도 화면 사용에 지장 없어야 한다 */
+    }
+}
+
+loadBellTodo();
+setInterval(loadBellTodo, 60000);
+
+// 뒤로 가기로 브라우저 메모리 캐시(bfcache)에서 페이지가 복원되면
+// 서버를 다시 거치지 않아 로그아웃 후에도 화면이 그대로 보인다 -
+// 복원 시 강제로 재요청해서 세션이 없으면 로그인으로 보낸다.
+window.addEventListener("pageshow", function(e){
+    if (e.persisted) {
+        window.location.reload();
+    }
+});
+
+/* ---------- 팀 계정 뷰어 모드 ----------
+   팀 계정은 자기 팀 워크플로우 페이지에서만 쓰기가 가능하다.
+   서버 미들웨어가 최종적으로 차단하지만, UI에서도 다른 페이지의
+   폼 제출을 막고 조회 전용임을 배너로 안내한다. */
+(function(){
+    const USER_TEAM = {{ request.session.get("team", "")|tojson }};
+    const USER_ROLE = {{ request.session.get("role", "")|tojson }};
+
+    if (!USER_TEAM || USER_ROLE === "admin") return;
+
+    const TEAM_WRITE_PREFIXES = {
+        purchase: ["/workflow/purchase"],
+        quality: ["/workflow/quality"],
+        material: ["/workflow/material", "/workflow/remnant"],
+        production: ["/workflow/production"]
+    };
+
+    const allowed = (TEAM_WRITE_PREFIXES[USER_TEAM] || []).some(
+        prefix => location.pathname.startsWith(prefix)
+    );
+
+    if (allowed) return;
+
+    // 조회 전용 배너
+    const banner = document.createElement("div");
+    banner.style.cssText =
+        "position:fixed;top:0;left:50%;transform:translateX(-50%);"
+        + "z-index:99998;background:#1e293b;color:#fff;font-size:12.5px;"
+        + "font-weight:600;padding:6px 18px;border-radius:0 0 10px 10px;"
+        + "box-shadow:0 4px 12px rgba(0,0,0,.15);";
+    banner.innerText = "조회 전용 페이지입니다 (수정 권한: 소속 팀 페이지)";
+    document.body.appendChild(banner);
+
+    // 모든 폼 제출 차단 (assistant는 fetch 기반이라 영향 없음)
+    document.addEventListener("submit", function(e){
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (typeof wfAlert === "function") {
+            wfAlert("조회 전용 계정입니다.\n소속 팀 페이지에서만 작업할 수 있습니다.");
+        } else {
+            alert("조회 전용 계정입니다. 소속 팀 페이지에서만 작업할 수 있습니다.");
+        }
+    }, true);
+})();
 const SIDEBAR_KEY = "sidebar_collapsed";
 
 function toggleSidebar(){

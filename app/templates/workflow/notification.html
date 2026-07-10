@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<link rel="stylesheet" href="/workflow/static/css/workflow.css">
+
+<div class="workflow-page">
+
+    <div class="page-header">
+        <div>
+            <div class="page-title">
+                Workflow 알림
+            </div>
+
+            <div class="page-subtitle">
+                부서별 요청 · 승인 · 검사 · 완료 알림
+                (읽지 않음 {{ unread_count }}건)
+            </div>
+        </div>
+
+        <form method="post" action="/workflow/notification/read-all">
+            <input type="hidden" name="department" value="{{ department }}">
+            <button type="submit" class="btn btn-secondary">모두 읽음 처리</button>
+        </form>
+    </div>
+
+    <form method="get" action="/workflow/notification" class="toolbar">
+        <div class="toolbar-left" style="display:flex;gap:10px;">
+            <select name="department" class="filter-select">
+                <option value="">전체 부서</option>
+                <option value="purchase" {{ "selected" if department == "purchase" }}>구매팀</option>
+                <option value="quality" {{ "selected" if department == "quality" }}>품질팀</option>
+                <option value="material" {{ "selected" if department == "material" }}>자재팀</option>
+                <option value="production" {{ "selected" if department == "production" }}>생산팀</option>
+            </select>
+
+            <select name="unread" class="filter-select">
+                <option value="">전체</option>
+                <option value="1" {{ "selected" if unread == "1" }}>읽지 않음만</option>
+            </select>
+
+            <button type="submit" class="btn btn-primary">조회</button>
+        </div>
+    </form>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                알림 목록
+            </div>
+
+            <div class="section-count">
+                {{ total_count }}건
+            </div>
+        </div>
+
+        {% for row in notifications %}
+        <div class="notification-item {{ 'unread' if not row.is_read }}">
+            <div>
+                <div class="notification-title">
+                    {% if not row.is_read %}
+                        <span class="badge badge-blue" style="margin-right:6px;">NEW</span>
+                    {% endif %}
+                    {{ row.title }}
+                </div>
+
+                <div class="notification-message">
+                    {{ row.message }}
+                </div>
+
+                <div class="notification-meta">
+                    {{ row.workflow_no }}
+                    · {{ row.department_label }}
+                    · {{ row.created_at.strftime("%Y-%m-%d %H:%M") if row.created_at else "-" }}
+                </div>
+            </div>
+
+            <div>
+                {% if not row.is_read %}
+                <form method="post" action="/workflow/notification/read">
+                    <input type="hidden" name="notification_id" value="{{ row.id }}">
+                    <button type="submit" class="btn btn-secondary btn-sm">읽음</button>
+                </form>
+                {% else %}
+                <span class="badge badge-gray">읽음</span>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="notification-item">
+            <div class="notification-message">알림이 없습니다.</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}
