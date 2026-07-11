@@ -26,7 +26,7 @@
             <th>사유</th>
             <th>발생 단계</th>
             <th>발생일시</th>
-            {% if show_restock|default(true) %}<th></th>{% endif %}
+            {% if show_restock|default(true) or show_production_use|default(false) %}<th></th>{% endif %}
         </tr>
         </thead>
 
@@ -47,8 +47,17 @@
             </td>
             <td>{{ row.stage }}. {{ row.stage_name }}</td>
             <td>{{ row.created_at.strftime("%Y-%m-%d %H:%M") if row.created_at else "-" }}</td>
-            {% if show_restock|default(true) %}
+            {% if show_restock|default(true) or show_production_use|default(false) %}
             <td style="white-space:nowrap;">
+                {% if show_production_use|default(false) and row.department == "production" and row.reason == "SET_LEFTOVER" and row.qty > 0 %}
+                <button
+                    type="button"
+                    class="btn btn-primary btn-sm"
+                    onclick='openUseRemnantModal({{ row.id }}, {{ row.item_code|tojson }}, {{ row.item_name|tojson }}, {{ (row.lot or "")|tojson }}, {{ row.qty or 0 }})'>
+                    생산 투입
+                </button>
+                {% endif %}
+                {% if show_restock|default(true) %}
                 <form
                     method="post"
                     action="/workflow/remnant/{{ row.id }}/restock"
@@ -59,12 +68,13 @@
                         value="/workflow/{{ row.department }}">
                     <button type="submit" class="btn btn-secondary btn-sm">재입고</button>
                 </form>
+                {% endif %}
             </td>
             {% endif %}
         </tr>
         {% else %}
         <tr class="empty-row">
-            <td colspan="{{ 9 if show_restock|default(true) else 8 }}">잔존 자재가 없습니다.</td>
+            <td colspan="{{ 9 if show_restock|default(true) or show_production_use|default(false) else 8 }}">재고 잔량이 없습니다.</td>
         </tr>
         {% endfor %}
         </tbody>

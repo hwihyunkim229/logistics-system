@@ -78,6 +78,21 @@ def purchase_page(
         inspection_requested_at[row.workflow_no] = row.requested_at
 
     for item in workflow_list:
+        item.purchase_display_code = (
+            item.purchase_item_code
+            or item.prev_item_code
+            or item.item_code
+        )
+        item.purchase_display_name = (
+            item.purchase_item_name
+            or item.prev_item_name
+            or item.item_name
+        )
+        item.purchase_display_lot = (
+            item.purchase_lot
+            or item.prev_lot
+            or item.lot
+        )
         item.current_stage_name = get_stage_name(
             item.current_stage
         )
@@ -252,6 +267,9 @@ def update_item(
     item.item_code = "".join(item_code.split())
     item.item_name = item_name.strip()
     item.lot = (lot or "").strip()
+    item.purchase_item_code = item.item_code
+    item.purchase_item_name = item.item_name
+    item.purchase_lot = item.lot
 
     if parsed is not None:
         item.received_at = parsed

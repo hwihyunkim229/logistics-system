@@ -32,7 +32,6 @@ templates = Jinja2Templates(
     directory="app/templates"
 )
 
-
 def _redirect(error: str = ""):
     url = "/workflow/quality"
 
@@ -47,7 +46,6 @@ def quality_page(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    # 품질 입고 승인 대기 (2단계 요청)
     approval_rows = (
         db.query(WorkflowRequest, WorkflowItem)
         .join(
@@ -119,7 +117,6 @@ def quality_page(
         },
     )
 
-
 @router.post("/approve")
 def approve(
     request: Request,
@@ -142,7 +139,6 @@ def approve(
 
     return _redirect()
 
-
 @router.post("/reject")
 def reject(
     request: Request,
@@ -164,7 +160,6 @@ def reject(
         return _redirect(str(e))
 
     return _redirect()
-
 
 @router.post("/inspect")
 def inspect(
@@ -192,7 +187,6 @@ def inspect(
         return _redirect(str(e))
 
     return _redirect()
-
 
 @router.post("/process-inspect")
 def process_inspect(
@@ -223,7 +217,6 @@ def process_inspect(
 
     return _redirect()
 
-
 @router.get("/inspection/{inspection_id}/attachment")
 def download_attachment(
     inspection_id: int,
@@ -246,7 +239,6 @@ def download_attachment(
         inspection.attachment_path,
         filename=inspection.attachment_name or "성적서",
     )
-
 
 @router.post("/inspection/{inspection_id}/attachment/delete")
 def delete_attachment(
@@ -292,7 +284,6 @@ def upload_attachment(
     if not attachment.filename:
         return _redirect("첨부할 파일을 선택해주세요.")
 
-    # 기존 파일이 있다면 교체 전에 지운다.
     delete_inspection_attachment(inspection.attachment_path)
 
     path, name = save_inspection_attachment(inspection.id, attachment)

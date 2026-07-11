@@ -108,6 +108,36 @@ select, input{
     color:#2563eb;
     border:1px solid #bfdbfe;
 }
+.btn:disabled{
+    background:#eef2f7;
+    color:#94a3b8;
+    border-color:#e2e8f0;
+    cursor:not-allowed;
+}
+.mrp-toast{
+    position:fixed;
+    top:24px;
+    left:50%;
+    transform:translateX(-50%) translateY(-12px);
+    background:#172033;
+    color:white;
+    padding:12px 20px;
+    border-radius:10px;
+    font-size:13.5px;
+    font-weight:700;
+    box-shadow:0 10px 24px rgba(15,23,42,0.18);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;
+    z-index:9999;
+}
+.mrp-toast.error{
+    background:#b91c1c;
+}
+.mrp-toast.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+}
 .summary-grid{
     display:grid;
     grid-template-columns:repeat(5, minmax(150px, 1fr));
@@ -551,6 +581,8 @@ td{
 }
 </style>
 
+<div id="mrpToast" class="mrp-toast"></div>
+
 <div class="mrp-page">
     <div class="page-head">
         <div>
@@ -561,7 +593,7 @@ td{
             </div>
         </div>
         <div class="head-actions">
-            <button class="btn ghost" type="button" onclick="copyShortageList()">Copy Shortage List</button>
+            <button id="copyShortageBtn" class="btn ghost" type="button" onclick="copyShortageList()">Copy Shortage List</button>
             <a
                 class="btn success"
                 href="/mrp/result/download?year={{ selected_year or '' }}&week={{ selected_week or '' }}&q={{ q|urlencode }}&shortage_only={{ 'true' if shortage_only else 'false' }}"
@@ -1111,7 +1143,26 @@ function toggleDetail(id, button){
     button.textContent = isOpen ? "닫기" : "보기";
 }
 
+let mrpToastTimer = null;
+
+function showMrpToast(msg, type){
+    const toast = document.getElementById("mrpToast");
+    toast.textContent = msg;
+    toast.classList.toggle("error", type === "error");
+    toast.classList.add("show");
+
+    clearTimeout(mrpToastTimer);
+    mrpToastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+    }, 2200);
+}
+
 function copyShortageList(){
+    if (window.__VIEWER_MODE__) {
+        showMrpToast("조회 전용 계정은 복사할 수 없습니다.", "error");
+        return;
+    }
+
     const rows = Array.from(
         document.querySelectorAll("#mrpTable tbody tr[data-shortage]")
     );
@@ -1131,9 +1182,19 @@ function copyShortageList(){
         .join("\n");
 
     navigator.clipboard.writeText(text).then(() => {
-        alert("부족자재 목록이 복사되었습니다.");
+        showMrpToast("부족자재 목록이 복사되었습니다.");
     });
 }
+
+document.addEventListener("DOMContentLoaded", function(){
+    if (!window.__VIEWER_MODE__) return;
+
+    const btn = document.getElementById("copyShortageBtn");
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.title = "조회 전용 계정은 복사할 수 없습니다.";
+});
 
 let currentItemCode = "";
 

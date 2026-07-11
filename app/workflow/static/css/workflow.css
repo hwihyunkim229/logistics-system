@@ -140,9 +140,8 @@
     font-weight:600;
 }
 .table-scroll{
-    max-height:440px;
+    max-height:700px;
     overflow-y:auto;
-    /* 셀 줄바꿈을 막는 대신, 폭이 넘치면 가로 스크롤로 본다 */
     overflow-x:auto;
 }
 .workflow-table{
@@ -173,8 +172,6 @@
     border-bottom:1px solid #f0f1f5;
     text-align:center;
     vertical-align:middle;
-    /* 화면 배율/폭에 따라 품목코드·팀명 등이 줄바꿈되지 않도록
-       고정하고, 넘치는 폭은 .table-scroll의 가로 스크롤로 처리 */
     white-space:nowrap;
 }
 .workflow-table td:first-child{
@@ -526,17 +523,12 @@
     color:var(--wf-text-subtle);
     margin-top:5px;
 }
-
-/* 비고 등 자유 텍스트 칸 - 내용 길이에 맞춰 표 전체가 늘어나지
-   않도록 폭을 고정하고, 넘치면 줄바꿈되게 한다. */
 .workflow-table td.col-remark{
     max-width:280px;
     white-space:normal;
     word-break:break-word;
     text-align:left;
 }
-
-/* 성적서 첨부 - 커스텀 파일 선택 위젯 (기본 input[type=file] 대체) */
 .file-picker{
     display:flex;
     align-items:center;

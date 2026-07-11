@@ -120,8 +120,8 @@
                 type="checkbox"
                 class="workflow-check"
                 data-workflow="{{ item.workflow_no }}"
-                data-item-code="{{ item.item_code }}"
-                data-item-name="{{ item.item_name }}"
+                data-item-code="{{ item.purchase_display_code }}"
+                data-item-name="{{ item.purchase_display_name }}"
                 data-qty="{{ item.qty }}">
 
                 {% else %}
@@ -142,15 +142,15 @@
             </td>
 
             <td>
-                {{ item.item_code }}
+                {{ item.purchase_display_code }}
             </td>
 
             <td>
-                {{ item.item_name }}
+                {{ item.purchase_display_name }}
             </td>
 
             <td>
-                {{ item.lot or "-" }}
+                {{ item.purchase_display_lot or "-" }}
             </td>
 
             <td class="number">
@@ -202,9 +202,9 @@
                 <button
                     class="btn btn-secondary btn-sm"
                     data-workflow="{{ item.workflow_no }}"
-                    data-code="{{ item.item_code }}"
-                    data-name="{{ item.item_name }}"
-                    data-lot="{{ item.lot or '' }}"
+                    data-code="{{ item.purchase_display_code }}"
+                    data-name="{{ item.purchase_display_name }}"
+                    data-lot="{{ item.purchase_display_lot or '' }}"
                     data-received="{{ item.received_at.strftime('%Y-%m-%dT%H:%M') if item.received_at else '' }}"
                     onclick="openItemEditModal(this.dataset.workflow, this.dataset.code, this.dataset.name, this.dataset.lot, this.dataset.received)">
                     수정

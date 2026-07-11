@@ -8,6 +8,7 @@ from app.workflow.services.remnant_service import (
     clear_remnants,
     remnant_qty_by_item,
     consume_remnant_pool,
+    pop_remnant_qty,
 )
 from app.workflow.config import (
     PRODUCTION_TRANSFORM,
@@ -15,11 +16,13 @@ from app.workflow.config import (
     PRODUCTION_COMPONENTS,
     PACKAGING_COMPONENTS,
 )
+from app.models.item_master import ItemMaster
 from app.workflow.models.workflow_item import WorkflowItem
 from app.workflow.models.workflow_request import WorkflowRequest
 from app.workflow.models.workflow_inspection import WorkflowInspection
 from app.workflow.models.workflow_history import WorkflowHistory
 from app.workflow.models.workflow_counter import WorkflowCounter
+from app.workflow.models.workflow_remnant import WorkflowRemnant
 from app.workflow.models.workflow_stage import (
     WorkflowStage,
     get_stage_name,
@@ -214,6 +217,50 @@ class WorkflowService:
             approved_by=approved_by,
         )
     
+    def _check_item_name_consistency(self, item_code, item_name):
+        """
+        품목코드와 품명이 서로 다른 자재를 가리키는 상태로 등록되는 것을
+        막는다. 같은 품목코드인데 품명이 다르면 이후 세트 생산 화면에서
+        "동일 구성품 중복"으로 처리되어 생산 승인이 막히는 문제가 있었다.
+
+        기준 정보(ItemMaster)에 있으면 그 품명과 비교하고, 기준 정보에
+        없는 신규/미등록 코드는 이 시스템에 이미 등록된 이전 이력의
+        품명과 비교한다(둘 다 없으면 최초 등록이므로 통과시킨다).
+        """
+
+        master = (
+            self.db.query(ItemMaster)
+            .filter(ItemMaster.item_code == item_code)
+            .first()
+        )
+
+        if master:
+            expected = (master.item_name or "").strip()
+
+            if expected and expected != item_name:
+                raise Exception(
+                    f"품목코드 {item_code}의 기준 정보 품명은 "
+                    f"'{expected}' 입니다. 입력한 품명과 일치하지 않습니다."
+                )
+
+            return
+
+        prior = (
+            self.db.query(WorkflowItem)
+            .filter(WorkflowItem.item_code == item_code)
+            .order_by(WorkflowItem.id.asc())
+            .first()
+        )
+
+        if prior:
+            prior_name = (prior.item_name or "").strip()
+
+            if prior_name and prior_name != item_name:
+                raise Exception(
+                    f"품목코드 {item_code}는 이전에 '{prior_name}'(으)로 "
+                    f"등록된 이력이 있습니다. 입력한 품명과 일치하지 않습니다."
+                )
+
     def create_workflow(
         self,
         item_code: str,
@@ -236,12 +283,18 @@ class WorkflowService:
             )
 
         item_code = "".join((item_code or "").split())
+        item_name = (item_name or "").strip()
+
+        self._check_item_name_consistency(item_code, item_name)
 
         item = WorkflowItem(
             workflow_no="TEMP",
             item_code=item_code,
             item_name=item_name,
+            purchase_item_code=item_code,
+            purchase_item_name=item_name,
             lot=lot.strip(),
+            purchase_lot=lot.strip(),
             rev=rev,
             qty=qty,
             initial_qty=qty,
@@ -273,6 +326,93 @@ class WorkflowService:
             before_qty=qty,
             after_qty=qty,
             remark=f"구매 입고 등록 ({item_code})",
+        )
+
+        self.db.commit()
+        self.db.refresh(item)
+
+        return item
+
+    def use_production_remnant(
+        self,
+        remnant_id: int,
+        qty: int,
+        used_by: str,
+    ):
+        remnant = (
+            self.db.query(WorkflowRemnant)
+            .filter(WorkflowRemnant.id == remnant_id)
+            .first()
+        )
+
+        if remnant is None:
+            raise Exception("현 재고 기록을 찾을 수 없습니다.")
+
+        if remnant.department != "production" or remnant.reason != "SET_LEFTOVER":
+            raise Exception("생산 세트 미사용 잔량만 다음 생산에 투입할 수 있습니다.")
+
+        if qty < 1:
+            raise Exception("투입 수량은 1개 이상이어야 합니다.")
+
+        available_qty = remnant.qty or 0
+
+        if qty > available_qty:
+            raise Exception(f"투입 수량이 현 재고 잔량을 초과했습니다. (최대 {available_qty} EA)")
+
+        origin_item = (
+            self.db.query(WorkflowItem)
+            .filter(WorkflowItem.workflow_no == remnant.workflow_no)
+            .first()
+        )
+
+        now = datetime.now(ZoneInfo("Asia/Seoul"))
+        lot = remnant.lot or f"REMNANT-{remnant.id}"
+
+        item = WorkflowItem(
+            workflow_no="TEMP",
+            item_code=remnant.item_code,
+            item_name=remnant.item_name,
+            purchase_item_code=remnant.item_code,
+            purchase_item_name=remnant.item_name,
+            lot=lot,
+            purchase_lot=lot,
+            rev=origin_item.rev if origin_item else "",
+            qty=qty,
+            initial_qty=qty,
+            process_qty=0,
+            received_at=now,
+            current_stage=int(WorkflowStage.PRODUCTION_APPROVAL),
+            current_department="production",
+            status="IN_PROGRESS",
+            created_by=used_by,
+            service_type=origin_item.service_type if origin_item else "",
+        )
+
+        self.db.add(item)
+        self.db.flush()
+
+        seq = self._next_workflow_seq()
+        today = now.strftime("%Y%m%d")
+        item.workflow_no = f"WF-{today}-{seq:06d}"
+
+        remnant.qty = available_qty - qty
+
+        if remnant.qty <= 0:
+            self.db.delete(remnant)
+
+        add_history(
+            self.db,
+            workflow_no=item.workflow_no,
+            stage=int(WorkflowStage.PRODUCTION_APPROVAL),
+            action="POOL_USE",
+            user_name=used_by,
+            department="production",
+            before_qty=0,
+            after_qty=qty,
+            remark=(
+                f"현 재고 다음 생산 투입 "
+                f"({remnant.workflow_no} / {remnant.item_code}, {qty} EA)"
+            ),
         )
 
         self.db.commit()
@@ -466,6 +606,96 @@ class WorkflowService:
             )
 
             for comp in merged_components:
+                pool_store_history = (
+                    self.db.query(WorkflowHistory)
+                    .filter(
+                        WorkflowHistory.workflow_no == comp.workflow_no,
+                        WorkflowHistory.stage == redone_stage,
+                        WorkflowHistory.action == "POOL_STORE",
+                    )
+                    .order_by(WorkflowHistory.id.desc())
+                    .first()
+                )
+
+                if pool_store_history:
+                    # 세트에 투입되지 않고 잔존 풀로 보관만 됐던 동일
+                    # 구성품 - 소모된 게 아니므로 CONSUME 복원 대신,
+                    # 풀에 아직 남아 있는 수량만큼 workflow로 되돌린다.
+                    # (그 사이 후속 생산이 풀을 소모했다면 남은 만큼만)
+                    remaining = pop_remnant_qty(
+                        self.db,
+                        workflow_no=comp.workflow_no,
+                        stage=redone_stage,
+                        department="production",
+                        reason="SET_LEFTOVER",
+                    )
+
+                    if remaining <= 0:
+                        add_history(
+                            self.db,
+                            workflow_no=comp.workflow_no,
+                            stage=redone_stage,
+                            action="REJECT",
+                            user_name=rejected_by,
+                            department="material",
+                            before_qty=0,
+                            after_qty=0,
+                            remark=(
+                                "세트 반려 - 잔존 보관분이 이미 후속 "
+                                "생산에 전량 소모되어 복원할 수량이 "
+                                "없습니다."
+                            ),
+                            result="REJECTED",
+                        )
+                        continue
+
+                    comp.qty = remaining
+                    comp.status = "IN_PROGRESS"
+                    comp.merged_into = None
+                    comp.current_stage = rollback_stage
+                    comp.current_department = redo_department
+                    comp.updated_at = datetime.now(ZoneInfo("Asia/Seoul"))
+
+                    if redone_stage == int(
+                        WorkflowStage.PACKAGING_COMPLETE
+                    ):
+                        extra_request = (
+                            self.db.query(WorkflowRequest)
+                            .filter(
+                                WorkflowRequest.workflow_no
+                                == comp.workflow_no,
+                                WorkflowRequest.stage == int(
+                                    WorkflowStage.PACKAGING_REQUEST
+                                ),
+                                WorkflowRequest.status == "APPROVED",
+                            )
+                            .order_by(WorkflowRequest.id.desc())
+                            .first()
+                        )
+
+                        if extra_request:
+                            extra_request.status = "WAITING"
+                            extra_request.approved_qty = 0
+                            extra_request.approved_by = None
+                            extra_request.approved_at = None
+
+                    add_history(
+                        self.db,
+                        workflow_no=comp.workflow_no,
+                        stage=rollback_stage,
+                        action="REJECT",
+                        user_name=rejected_by,
+                        department="material",
+                        before_qty=0,
+                        after_qty=remaining,
+                        remark=(
+                            f"세트 반려로 잔존 보관분 복원 "
+                            f"(수량 {remaining})"
+                        ),
+                        result="REJECTED",
+                    )
+                    continue
+
                 consume_history = (
                     self.db.query(WorkflowHistory)
                     .filter(
@@ -910,15 +1140,16 @@ class WorkflowService:
                 "구성품이 아직 준비되지 않았습니다: " + ", ".join(missing)
             )
 
-        duplicated = [c for c, rows in by_code.items() if len(rows) > 1]
-
-        if duplicated:
-            raise Exception(
-                "동일 구성품 workflow가 2건 이상 있습니다: "
-                + ", ".join(duplicated)
-            )
-
+        # 같은 구성품 코드의 workflow가 2건 이상 대기 중이면(같은
+        # 자재가 두 번째 입고된 경우) 먼저 도착한 건을 이번 세트에
+        # 투입하고, 나머지는 완료 시점에 생산팀 잔존 풀(SET_LEFTOVER)로
+        # 보관해 다음 생산에서 자동으로 합산해 쓴다.
         picked = [by_code[c][0] for c in required_codes]
+        extras = [
+            row
+            for code in required_codes
+            for row in by_code[code][1:]
+        ]
 
         leftover_pool = {
             comp.item_code: remnant_qty_by_item(
@@ -1063,6 +1294,63 @@ class WorkflowService:
             comp.current_stage = done_stage
             comp.updated_at = now
 
+        for extra in extras:
+            # 이번 세트에 투입되지 않은 동일 구성품(나중에 입고된 건)은
+            # 전량을 생산팀 잔존 풀로 보관한다. LOT별로 기록이 남고,
+            # 다음 세트 생산 때 leftover_pool로 자동 합산된다. 반려 시
+            # 이 POOL_STORE 이력을 근거로 남은 수량을 복원한다
+            # (material_reject 참고).
+            add_remnant(
+                self.db,
+                workflow_no=extra.workflow_no,
+                stage=done_stage,
+                department="production",
+                item_code=extra.item_code,
+                item_name=extra.item_name,
+                lot=extra.lot,
+                qty=extra.qty,
+                reason="SET_LEFTOVER",
+            )
+
+            add_history(
+                self.db,
+                workflow_no=extra.workflow_no,
+                stage=done_stage,
+                action="POOL_STORE",
+                user_name=completed_by,
+                department="production",
+                before_qty=extra.qty,
+                after_qty=0,
+                remark=(
+                    f"세트 미투입분 잔존 보관 ({extra.qty} EA) - 다음 "
+                    f"생산에서 자동 사용 (대표 {primary.workflow_no})"
+                ),
+            )
+
+            if mode == "packaging":
+                extra_waiting = (
+                    self.db.query(WorkflowRequest)
+                    .filter(
+                        WorkflowRequest.workflow_no == extra.workflow_no,
+                        WorkflowRequest.stage == wait_stage,
+                        WorkflowRequest.status == "WAITING",
+                    )
+                    .order_by(WorkflowRequest.id.desc())
+                    .first()
+                )
+
+                if extra_waiting:
+                    extra_waiting.status = "APPROVED"
+                    extra_waiting.approved_qty = 0
+                    extra_waiting.approved_by = completed_by
+                    extra_waiting.approved_at = now
+
+            extra.status = "MERGED"
+            extra.merged_into = primary.workflow_no
+            extra.qty = 0
+            extra.current_stage = done_stage
+            extra.updated_at = now
+
         primary_before_qty = primary.qty
         primary.prev_item_code = primary.item_code
         primary.prev_item_name = primary.item_name
@@ -1090,6 +1378,11 @@ class WorkflowService:
                 + f" (LOT {primary.lot})"
                 + " / 구성품: "
                 + ", ".join(c.workflow_no for c in picked)
+                + (
+                    " / 잔존 보관: "
+                    + ", ".join(e.workflow_no for e in extras)
+                    if extras else ""
+                )
             ),
         )
 

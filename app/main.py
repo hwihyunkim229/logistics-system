@@ -63,6 +63,7 @@ from app.workflow.routers import (
     notification as workflow_notification,
 )
 import app.workflow.models
+from app.workflow.schema import ensure_workflow_schema
 import time
 from fastapi.responses import JSONResponse, Response
 
@@ -255,3 +256,5 @@ app.include_router(workflow_notification.router)
 Base.metadata.create_all(
     bind=engine
 )
+
+ensure_workflow_schema(engine)

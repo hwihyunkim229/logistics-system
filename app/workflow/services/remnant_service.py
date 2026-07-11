@@ -143,6 +143,41 @@ def consume_remnant_pool(
     return consumed
 
 
+def pop_remnant_qty(
+    db: Session,
+    workflow_no: str,
+    stage: int,
+    department: str,
+    reason: str,
+):
+    """
+    특정 workflow/단계의 잔존 기록을 삭제하면서 남아 있던 수량 합계를
+    반환한다 - 세트 완료 때 잔존 풀로 보관됐던(POOL_STORE) 구성품을
+    반려로 되살릴 때, 그 사이 후속 생산이 얼마를 이미 소모했든 지금
+    남아 있는 만큼만 workflow 수량으로 되돌리기 위해 쓴다.
+    (commit은 호출자가 담당)
+    """
+
+    rows = (
+        db.query(WorkflowRemnant)
+        .filter(
+            WorkflowRemnant.workflow_no == workflow_no,
+            WorkflowRemnant.stage == stage,
+            WorkflowRemnant.department == department,
+            WorkflowRemnant.reason == reason,
+        )
+        .all()
+    )
+
+    remaining = 0
+
+    for row in rows:
+        remaining += row.qty or 0
+        db.delete(row)
+
+    return remaining
+
+
 def get_remnants(
     db: Session,
     department: str = "",

@@ -628,7 +628,7 @@ body.sidebar-collapsed .main{
             class="menu-title"
             onclick="toggleMenu(this)"
         >
-            통합 워크플로우
+            CART PLATFORM IEM
         </div>
 
         <div class="submenu">
@@ -653,13 +653,14 @@ body.sidebar-collapsed .main{
                 생산 관리
             </a>
 
-            <a href="/workflow/history" class="menu-single">
-                이력 조회
-            </a>
+            <!-- <a href="/workflow/history" class="menu-single"> -->
+                <!-- 이력 조회 -->
+            <!-- </a> -->
 
-            <a href="/workflow/notification" class="menu-single">
-                알림
-            </a>
+            
+            <!-- <a href="/workflow/notification" class="menu-single"> -->
+                <!-- 알림 -->
+            <!-- </a> -->
 
         </div>
 
@@ -1031,6 +1032,9 @@ window.addEventListener("pageshow", function(e){
     );
 
     if (allowed) return;
+
+    // 다른 페이지(예: MRP)에서도 뷰어 여부를 참조할 수 있도록 전역에 노출
+    window.__VIEWER_MODE__ = true;
 
     // 조회 전용 배너
     const banner = document.createElement("div");

@@ -138,9 +138,9 @@ def production_page(
         for target_code, group in by_target.items():
             required = components_map.get(target_code, [])
             rows = []
+            extras = []
             ready = True
             max_producible = None
-            has_duplicate = False
 
             for code in required:
                 matched = group["components"].get(code, [])
@@ -165,8 +165,16 @@ def production_page(
                     })
                     continue
 
-                if len(matched) > 1:
-                    has_duplicate = True
+                # 같은 코드의 workflow가 여러 건이면 먼저 도착한 건만
+                # 이번 세트에 투입되고, 나머지는 완료 시 잔존 풀로
+                # 보관된다 (workflow_service._complete_set 참고).
+                for dup in matched[1:]:
+                    extras.append({
+                        "item_code": dup.item_code,
+                        "workflow_no": dup.workflow_no,
+                        "lot": dup.lot or "",
+                        "qty": dup.qty,
+                    })
 
                 comp = matched[0]
                 effective_qty = comp.qty + leftover_qty
@@ -187,8 +195,8 @@ def production_page(
                 "target_code": group["target_code"],
                 "target_name": group["target_name"],
                 "rows": rows,
-                "ready": ready and not has_duplicate,
-                "has_duplicate": has_duplicate,
+                "extras": extras,
+                "ready": ready,
                 "max_producible": max_producible or 0 if ready else 0,
                 "components_json": json.dumps([
                     r for r in rows if r["present"]
@@ -243,9 +251,33 @@ def production_page(
             "remnant_count": len(remnants),
             "remnant_title": "현 재고 현황",
             "remnant_show_restock": False,
+            "remnant_show_production_use": True,
             "error": request.query_params.get("error", ""),
         },
     )
+
+
+@router.post("/use-remnant")
+def use_remnant(
+    request: Request,
+    remnant_id: int = Form(...),
+    qty: int = Form(...),
+    db: Session = Depends(get_db),
+):
+    user = request.session.get("user", "SYSTEM")
+    service = WorkflowService(db)
+
+    try:
+        service.use_production_remnant(
+            remnant_id=remnant_id,
+            qty=qty,
+            used_by=user,
+        )
+    except Exception as e:
+        return _redirect(str(e))
+
+    return _redirect()
+
 
 @router.post("/complete-production-set")
 async def complete_production_set(
