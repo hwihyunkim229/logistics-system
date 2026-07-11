@@ -28,6 +28,13 @@ from app.models.material_master import MaterialMaster
 from app.models.material_note import MaterialNote
 from calendar import monthcalendar
 from app.utils.logger import save_log
+from zoneinfo import ZoneInfo
+
+KST = ZoneInfo("Asia/Seoul")
+
+def now_kst_str():
+    return datetime.now(KST).strftime("%Y-%m-%d %H:%M")
+
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
@@ -854,7 +861,7 @@ def build_mrp_summary(plans, rows, filtered_rows, inventory_count):
             if total_required > 0
             else 0
         ),
-        "calculated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "calculated_at": now_kst_str(),
     }
 
 def build_mrp_dashboard_context(

@@ -97,11 +97,8 @@ TEAM_WRITE_PREFIXES = {
 TEAM_COMMON_WRITE_PREFIXES = [
     "/change-password",
     "/assistant",
-    # 알림 읽음 처리는 어느 팀이든 자기 알림에 대해 항상 할 수 있어야
-    # 한다 - 특정 팀의 업무 데이터를 바꾸는 액션이 아니다.
     "/workflow/notification",
 ]
-
 
 class AuthMiddleware(BaseHTTPMiddleware):
 

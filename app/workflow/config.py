@@ -31,7 +31,6 @@ ACTION_NAMES = {
     "SHIP": "출고",
 }
 
-
 REMNANT_REASON_NAMES = {
     "PARTIAL_APPROVAL": "부분 승인 잔량",
     "DEFECT": "불량",
@@ -40,25 +39,11 @@ REMNANT_REASON_NAMES = {
     "SET_LEFTOVER": "세트 미사용 잔량",
 }
 
-
-# ------------------------------------------------------------------
-# 품목 레벨 변환 규칙 (사이즈 8~13)
-#
-#   level 3 (원자재: INNER / PBA / TOP COVER / OUTER)
-#     --생산 완료-->  level 2 (CART_Ring_Rev.2D_size N)
-#   level 2 (RING / CRADLE)
-#     --포장 완료-->  level 1 (CART PLATFORM IEM_size N)
-#
-# 품목코드/품명은 아래 맵으로 자동 변경되고, LOT는 생산/포장을
-# 수행한 생산팀이 직접 입력한다. 맵에 없는 품목은 변환 없이
-# 코드/품명을 유지한 채 진행된다.
-# ------------------------------------------------------------------
-
 def _build_level_transforms():
-    production = {}             # level3 code -> (level2 code, level2 name)
-    packaging = {}              # level2 code -> (level1 code, level1 name)
-    production_components = {}  # level2 code -> [필요한 level3 코드 4종]
-    packaging_components = {}   # level1 code -> [필요한 level2 코드 2종]
+    production = {}
+    packaging = {}
+    production_components = {}
+    packaging_components = {}
 
     for i, size in enumerate(range(8, 14)):
         level1_code = f"SL-P-PD-{110 + i:05d}"
@@ -69,10 +54,10 @@ def _build_level_transforms():
         ring_name = f"CART_Ring_Rev.2D_size {size}"
 
         level3_codes = [
-            f"SL-M-RM-{199 + i:05d}",   # Ring_INNER_PC_MRA2K
-            f"SL-H-AS-{87 + i:05d}",    # ASS'Y_RING_PBA_V3.3.2 Discrete
-            f"SL-M-RM-{286 + i:05d}",   # RING_TOP COVER_V2
-            f"SL-M-RM-{339 + i:05d}",   # Ring_OUTER_V1
+            f"SL-M-RM-{199 + i:05d}",
+            f"SL-H-AS-{87 + i:05d}",
+            f"SL-M-RM-{286 + i:05d}",
+            f"SL-M-RM-{339 + i:05d}",
         ]
 
         for code in level3_codes:
@@ -99,11 +84,6 @@ def _build_level_transforms():
     PACKAGING_COMPONENTS,
 ) = _build_level_transforms()
 
-# 포장 구성품 중 "이미 반제품으로 구매되는" 품목(CRADLE) - RING처럼
-# 원자재 4종을 조립해 생산팀이 만들어내는 게 아니라 애초에 완제된
-# 반제품 형태로 입고된다. 그래서 원자재와 달리 생산(조립)·공정검사
-# 단계가 필요 없고, 품질 입고검사 이후 자재 확인만 거치면 곧바로
-# 포장 요청으로 넘어가야 한다.
 PREMADE_PACKAGING_CODES = {
     code
     for codes in PACKAGING_COMPONENTS.values()

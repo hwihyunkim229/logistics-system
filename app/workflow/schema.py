@@ -1,12 +1,10 @@
 from sqlalchemy import inspect, text
 
-
 PURCHASE_COLUMNS = {
     "purchase_item_code": "VARCHAR",
     "purchase_item_name": "VARCHAR",
     "purchase_lot": "VARCHAR",
 }
-
 
 def ensure_workflow_schema(engine):
     inspector = inspect(engine)
