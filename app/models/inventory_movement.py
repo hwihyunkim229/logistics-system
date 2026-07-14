@@ -4,11 +4,8 @@ from sqlalchemy import (
     String,
     DateTime
 )
-
 from datetime import datetime
-
 from app.database import Base
-
 
 class InventoryMovement(Base):
 

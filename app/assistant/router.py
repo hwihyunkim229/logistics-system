@@ -1,6 +1,5 @@
 from app.assistant.registry import TOOLS
 
-
 class ToolRouter:
 
     def __init__(self, db):

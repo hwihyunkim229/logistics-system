@@ -9,10 +9,8 @@ class Movement(Base):
     id = Column(Integer, primary_key=True)
     serial = Column(String, index=True)
     product = Column(String, index=True)
-
     type = Column(String, index=True)
     source = Column(String)
-
     client = Column(String, nullable=True)
     category = Column(String, nullable=True)
     user = Column(String, nullable=True)

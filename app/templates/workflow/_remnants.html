@@ -1,8 +1,3 @@
-{# 잔존 자재 현황 - 부분 승인/불량/부분 요청/부분 출고/세트 미사용
-   으로 남은 수량. 각 부서 페이지에서 remnants / remnant_count 와
-   함께 include. title로 섹션 제목을 바꿀 수 있고, show_restock을
-   false로 주면 재입고 버튼 없이 표시만 한다(생산팀의 잔존 양품처럼
-   수동 조치 없이 다음 생산에 자동으로 합쳐지는 경우). #}
 <div class="section-card">
     <div class="section-header">
         <div class="section-title">
@@ -15,9 +10,10 @@
     </div>
 
     <div class="table-scroll">
-    <table class="workflow-table">
+    <table class="workflow-table" id="{{ table_id|default('remnantTable') }}">
         <thead>
         <tr>
+            {% if show_defect_transfer|default(false) %}<th width="44"><input type="checkbox" onchange="toggleDefectRows('{{ table_id }}', this.checked)"></th>{% endif %}
             <th>Workflow No</th>
             <th>품목코드</th>
             <th>품명</th>
@@ -26,13 +22,18 @@
             <th>사유</th>
             <th>발생 단계</th>
             <th>발생일시</th>
+            {% if show_defect_source|default(false) %}<th>생산팀 출처</th>{% endif %}
             {% if show_restock|default(true) or show_production_use|default(false) %}<th></th>{% endif %}
+            {% if show_defect_transfer|default(false) %}<th><button type="button" class="btn btn-danger btn-sm" onclick="requestDefectTransfer('{{ table_id }}')">자재팀 이관</button></th>{% endif %}
         </tr>
         </thead>
 
         <tbody>
         {% for row in remnants %}
         <tr>
+            {% if show_defect_transfer|default(false) %}
+            <td>{% if row.transfer_status != "PENDING" %}<input type="checkbox" class="defect-transfer-check" value="{{ row.id }}">{% endif %}</td>
+            {% endif %}
             <td>{{ row.workflow_no }}</td>
             <td>{{ row.item_code }}</td>
             <td>{{ row.item_name }}</td>
@@ -47,6 +48,9 @@
             </td>
             <td>{{ row.stage }}. {{ row.stage_name }}</td>
             <td>{{ row.created_at.strftime("%Y-%m-%d %H:%M") if row.created_at else "-" }}</td>
+            {% if show_defect_source|default(false) %}
+            <td>{{ "작업 불량 창고" if row.source_warehouse == "WORK_DEFECT" else "자재 불량 창고(반납)" if row.source_warehouse == "MATERIAL_RETURN_DEFECT" else "-" }}</td>
+            {% endif %}
             {% if show_restock|default(true) or show_production_use|default(false) %}
             <td style="white-space:nowrap;">
                 {% if show_production_use|default(false) and row.department == "production" and row.reason == "SET_LEFTOVER" and row.qty > 0 %}
@@ -71,10 +75,13 @@
                 {% endif %}
             </td>
             {% endif %}
+            {% if show_defect_transfer|default(false) %}
+            <td>{% if row.transfer_status == "PENDING" %}<span class="badge badge-yellow">승인 요청 중</span>{% else %}<span class="badge badge-gray">보관 중</span>{% endif %}</td>
+            {% endif %}
         </tr>
         {% else %}
         <tr class="empty-row">
-            <td colspan="{{ 9 if show_restock|default(true) or show_production_use|default(false) else 8 }}">재고 잔량이 없습니다.</td>
+            <td colspan="12">재고 잔량이 없습니다.</td>
         </tr>
         {% endfor %}
         </tbody>
@@ -99,3 +106,23 @@ async function confirmRestock(e, qty){
     return false;
 }
 </script>
+
+{% if show_defect_transfer|default(false) %}
+<script>
+function toggleDefectRows(tableId, checked){
+    document.querySelectorAll('#' + tableId + ' .defect-transfer-check').forEach(row => row.checked = checked);
+}
+function requestDefectTransfer(tableId){
+    const selected = Array.from(document.querySelectorAll('#' + tableId + ' .defect-transfer-check:checked'));
+    if (!selected.length){ wfAlert("자재팀으로 이관할 불량을 선택해 주세요."); return; }
+    const form = document.getElementById("defectTransferForm");
+    form.innerHTML = "";
+    selected.forEach(input => {
+        const hidden = document.createElement("input");
+        hidden.type = "hidden"; hidden.name = "remnant_ids"; hidden.value = input.value;
+        form.appendChild(hidden);
+    });
+    form.submit();
+}
+</script>
+{% endif %}

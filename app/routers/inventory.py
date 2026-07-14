@@ -2,14 +2,12 @@ from datetime import datetime
 from io import BytesIO
 from math import ceil
 from typing import Optional
-
 import pandas as pd
 from fastapi import APIRouter, Body, Depends, File, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import distinct, func, or_
 from sqlalchemy.orm import Session
-
 from app.database import SessionLocal
 from app.models.inventory import Inventory
 from app.models.inventory_movement import InventoryMovement
@@ -27,7 +25,6 @@ WAREHOUSE_TYPES = ["창고재고", "제공재고", "외주재고"]
 CATEGORIES = ["반제품", "제품", "원자재"]
 GRADES = ["A", "B", "F"]
 
-
 def get_db():
     db = SessionLocal()
     try:
@@ -35,10 +32,8 @@ def get_db():
     finally:
         db.close()
 
-
 def current_user(request: Request):
     return request.session.get("user") or "system"
-
 
 def summarize_items(items):
     codes = [item.item_code for item in items[:10]]
@@ -51,7 +46,6 @@ def summarize_items(items):
 
     return ", ".join(codes) + suffix
 
-
 def get_sub_category(item_name):
 
     name = (item_name or "").upper()
@@ -63,7 +57,6 @@ def get_sub_category(item_name):
         return "CRADLE"
 
     return "기타"
-
 
 def get_raw_category(item_name):
 
@@ -102,15 +95,8 @@ def get_raw_category(item_name):
 
     return "사급자재"
 
-
 def lookup_item_defaults(db, item_code):
-    """ItemMaster에서 품명/Rev를, Stock에서 Category를 최선 노력으로 조회.
-
-    ItemMaster에는 category 컬럼이 없으므로 이미 가계상 재고(Stock)에
-    등록된 동일 품목코드가 있으면 그 category를 가져온다. 둘 다 없으면
-    빈 문자열로 두고 화면에서 직접 입력하게 한다.
-    """
-
+    
     item_name = ""
     rev = ""
     category = ""
@@ -142,12 +128,7 @@ def lookup_item_defaults(db, item_code):
 
     return item_name, rev, category
 
-
 def ensure_grade_siblings(db, item_code, warehouse_type, lot, category, item_name, rev):
-    """가계상 재고와 동일하게: 창고재고에서는 품목코드+LOT 조합마다
-    A/B/F 세 등급이 항상 존재해야 하므로, 아직 없는 등급을 수량 0으로
-    자동 생성한다. 창고재고가 아니면(등급 미사용) 아무 것도 하지 않는다.
-    """
 
     if warehouse_type != "창고재고":
         return
@@ -180,7 +161,6 @@ def ensure_grade_siblings(db, item_code, warehouse_type, lot, category, item_nam
                 qty=0,
             )
         )
-
 
 @router.get("/inventory")
 def inventory_page(
@@ -284,14 +264,12 @@ def inventory_page(
         }
     )
 
-
 @router.post("/inventory/add")
 async def add_inventory(
     request: Request,
     data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
-
     item_code = (data.get("item_code") or "").strip()
     warehouse_type = (data.get("warehouse_type") or "").strip()
     category = (data.get("category") or "").strip()
@@ -400,7 +378,6 @@ async def add_inventory(
 
     return JSONResponse({"status": "success"})
 
-
 @router.post("/inventory/move-in")
 async def inventory_move_in(
     request: Request,
@@ -443,7 +420,6 @@ async def inventory_move_in(
     )
 
     return JSONResponse({"status": "success"})
-
 
 @router.post("/inventory/move-out")
 async def inventory_move_out(
@@ -498,7 +474,6 @@ async def inventory_move_out(
 
     return JSONResponse({"status": "success"})
 
-
 @router.post("/inventory/delete-selected")
 async def delete_selected_inventory(
     request: Request,
@@ -525,14 +500,12 @@ async def delete_selected_inventory(
 
     return JSONResponse({"status": "success"})
 
-
 @router.post("/inventory/update-field")
 async def update_inventory_field(
     request: Request,
     data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
-
     item = db.query(Inventory).filter(Inventory.id == data.get("id")).first()
 
     if not item:
@@ -585,7 +558,6 @@ async def update_inventory_field(
 
     return JSONResponse({"status": "success"})
 
-
 @router.post("/inventory/bulk-update-qty")
 async def bulk_update_inventory_qty(
     request: Request,
@@ -635,7 +607,6 @@ async def bulk_update_inventory_qty(
 
     return JSONResponse({"status": "success"})
 
-
 @router.post("/inventory/bulk-update-note")
 async def bulk_update_inventory_note(
     request: Request,
@@ -663,7 +634,6 @@ async def bulk_update_inventory_note(
 
     return JSONResponse({"status": "success"})
 
-
 @router.post("/inventory/bulk-update-lot")
 async def bulk_update_inventory_lot(
     request: Request,
@@ -673,9 +643,7 @@ async def bulk_update_inventory_lot(
 
     ids = data.get("ids", [])
     lot = (data.get("lot") or "").strip()
-
     items = db.query(Inventory).filter(Inventory.id.in_(ids)).all()
-
     applied = [item for item in items if item.category != "원자재"]
     skipped = len(items) - len(applied)
 
@@ -699,7 +667,6 @@ async def bulk_update_inventory_lot(
 
     return JSONResponse({"status": "success", "applied": len(applied), "skipped": skipped, "message": message})
 
-
 @router.get("/inventory/history")
 def inventory_history(
     request: Request,
@@ -709,7 +676,6 @@ def inventory_history(
     category: str = "",
     db: Session = Depends(get_db)
 ):
-
     per_page = 50
 
     query = db.query(InventoryMovement).filter(
@@ -753,7 +719,6 @@ def inventory_history(
             "category": category
         }
     )
-
 
 @router.get("/inventory/history/download-excel")
 def download_inventory_history_excel(
@@ -803,7 +768,6 @@ def download_inventory_history_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=inventory_history.xlsx"}
     )
-
 
 @router.get("/inventory/dashboard")
 def inventory_dashboard(
@@ -947,7 +911,6 @@ def inventory_dashboard(
         }
     )
 
-
 @router.get("/inventory/download")
 def download_inventory_excel(request: Request, db: Session = Depends(get_db)):
 
@@ -1068,7 +1031,6 @@ async def init_inventory_excel(
         if category == "원자재":
             lot = ""
 
-        # 창고재고 → A/B/F 자동 생성
         if warehouse_type == "창고재고":
 
             for grade in GRADES:
@@ -1103,7 +1065,6 @@ async def init_inventory_excel(
 
                 created += 1
 
-        # 제공재고 / 외주재고 → 1행만 생성
         else:
 
             exists = (
@@ -1300,7 +1261,6 @@ async def upload_inventory_excel(
         "message":message
     }
     )
-
 
 @router.get("/mrp/inventory")
 def redirect_old_inventory_page():

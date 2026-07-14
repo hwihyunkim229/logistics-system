@@ -14,10 +14,6 @@ def approve_request(
     approved_qty: int,
     approved_by: str,
 ):
-    """
-    요청 승인
-    """
-
     request = (
         db.query(WorkflowRequest)
         .filter(WorkflowRequest.id == request_id)

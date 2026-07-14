@@ -1,11 +1,9 @@
 from sqlalchemy import or_, func
 
-
 def find_item(model, db, keyword):
 
     keyword = keyword.strip()
 
-    # 1. 품번 정확 조회
     row = (
         db.query(model)
         .filter(
@@ -21,7 +19,6 @@ def find_item(model, db, keyword):
             "rows": [row]
         }
 
-    # 2. 품명 정확 조회
     row = (
         db.query(model)
         .filter(
@@ -37,7 +34,6 @@ def find_item(model, db, keyword):
             "rows": [row]
         }
 
-    # 3. 품번 / 품명 포함 조회
     rows = (
         db.query(model)
         .filter(

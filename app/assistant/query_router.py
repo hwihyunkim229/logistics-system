@@ -1,6 +1,5 @@
 import re
 
-
 STOPWORDS = {
     "알려줘",
     "보여줘",
@@ -72,7 +71,6 @@ STOPWORDS = {
     "어떤",
 }
 
-
 PRODUCT_ALIASES = {
     "cart bp pro": "cart_bp_pro",
     "cart bp프로": "cart_bp_pro",
@@ -108,7 +106,6 @@ PRODUCT_SEARCH_TERMS = {
     "카트 o2": "CART O2",
 }
 
-
 PAGE_KEYWORDS = [
     (("mrp result", "mrp 결과", "mrp result", "소요량 결과"), "mrp_result"),
     (("bom", "자재명세", "부품 구성"), "bom"),
@@ -131,7 +128,6 @@ PAGE_KEYWORDS = [
     (("전체 조회", "통합 조회"), "search"),
 ]
 
-
 DOMAIN_KEYWORDS = [
     (("bom", "자재명세", "부품", "구성품", "소요량"), "bom.detail"),
     (("생산계획", "생산 계획", "계획수량", "plan"), "production.plan"),
@@ -144,14 +140,11 @@ DOMAIN_KEYWORDS = [
     (("요약", "전체", "현황", "통계"), "system.summary"),
 ]
 
-
 def normalize(text):
     return (text or "").strip().lower()
 
-
 def contains_any(text, keywords):
     return any(keyword in text for keyword in keywords)
-
 
 def wants_move(text):
     return contains_any(
@@ -162,7 +155,6 @@ def wants_move(text):
         )
     )
 
-
 STRONG_MEANING_WORDS = ("의미", "뜻", "설명", "개념")
 WEAK_MEANING_WORDS = ("뭐야", "무엇")
 MEANING_WORDS = STRONG_MEANING_WORDS + WEAK_MEANING_WORDS
@@ -171,22 +163,10 @@ PARTICLE_PATTERN = re.compile(
     r"\b(그럼|그|이|가|은|는|을|를|의|에서|에|랑|과|와|이랑|으로|로)\b"
 )
 
-
 def wants_meaning(text):
     return contains_any(text, MEANING_WORDS)
 
-
 def has_specific_target(text, matched_keywords):
-    """True if there is more to the question than the matched domain
-    keyword(s) and the meaning-question wording itself.
-
-    "BOM이 뭐야" has nothing left over after removing "BOM" and "뭐야" -
-    it's asking what the term means. "카트 BP pro 구성품 뭐야" still has
-    "카트 BP pro" left over after the same removal - it's a data lookup
-    for that specific product; "뭐야" here is just casual phrasing for
-    "what is". This is what lets the same "뭐야" ending route to two
-    different tools depending on whether a real item/product is named.
-    """
 
     remainder = text
 
@@ -201,13 +181,11 @@ def has_specific_target(text, matched_keywords):
 
     return bool("".join(remainder.split()))
 
-
 def is_secret_question(text):
     return contains_any(
         text,
         ("비밀번호", "패스워드", "password", "pw", "암호")
     )
-
 
 def wants_account_creation(text):
     return contains_any(text, ("생성", "추가", "만들어")) and contains_any(
@@ -215,22 +193,13 @@ def wants_account_creation(text):
         ("계정", "사용자", "유저", "user")
     )
 
-
 def is_out_of_scope(text):
     return contains_any(
         text,
         ("날씨", "환율", "주가", "뉴스", "날짜", "시간")
     )
 
-
 def translate_product_terms(text):
-    """Rewrite Korean/mixed product aliases to the uppercase English
-    form the database stores, e.g. "카트 bp pro" -> "CART BP PRO".
-
-    Used for any "item" search string headed for a text LIKE query
-    (BOM, stock, material/item master) - regardless of whether that
-    string came from the keyword router or the AI planner.
-    """
 
     if not text:
         return text
@@ -242,7 +211,6 @@ def translate_product_terms(text):
 
     return " ".join(result.split())
 
-
 def page_uses_target(page):
     return page not in {
         "dashboard",
@@ -250,7 +218,6 @@ def page_uses_target(page):
         "inventory_dashboard",
         "mrp",
     }
-
 
 def extract_product(text):
     lowered = normalize(text)
@@ -260,7 +227,6 @@ def extract_product(text):
             return product
 
     return ""
-
 
 def extract_period(text):
     lowered = normalize(text)
@@ -279,13 +245,9 @@ def extract_period(text):
 
     return "all"
 
-
 def extract_flow_type(text):
     lowered = normalize(text)
 
-    # "입출고" contains "출고" as a substring, so it must be checked
-    # first - otherwise "입출고 알려줘" (both directions) would wrongly
-    # resolve to "outbound" only.
     if "입출고" in lowered:
         return "both"
 
@@ -297,11 +259,7 @@ def extract_flow_type(text):
 
     return "both"
 
-
 def extract_movement_type(text):
-    """Same substring trap as extract_flow_type, but for the IN/OUT
-    values InventoryMovement/StockMovement store (vs "inbound"/
-    "outbound" for the Inbound/Outbound tables)."""
 
     lowered = normalize(text)
 
@@ -315,7 +273,6 @@ def extract_movement_type(text):
         return "IN"
 
     return ""
-
 
 def extract_stock_category(text):
     lowered = normalize(text)
@@ -342,7 +299,6 @@ def extract_sort(text):
 
     return "", "asc"
 
-
 def extract_page(text):
     lowered = normalize(text)
 
@@ -352,28 +308,11 @@ def extract_page(text):
 
     return ""
 
-
 def extract_number(text):
-    """First plain number in the text ("215개인" -> "215").
-
-    Used for MRP Result navigation by value ("부족 수량이 215개인 행")
-    - extract_keyword's generic cleanup is built for item codes/names
-    and reliably leaves stray words (부족/mrp/등) around a bare number,
-    which then fails to match anything via the highlight substring
-    search.
-    """
-
     match = re.search(r"\d[\d,]*", text or "")
     return match.group(0).replace(",", "") if match else ""
 
-
-# Routing keywords are normally just phrasing, not real filter values,
-# so extract_keyword() strips them before hunting for a literal code.
-# "admin" is the exception - it's also this app's actual admin
-# username, so "admin 로그인 이력" should still be able to search by it
-# instead of losing it to the same stripping that "관리자"/"사용자" get.
 CODE_SEARCH_EXCEPTIONS = {"admin"}
-
 
 def extract_keyword(question):
     text = question or ""
@@ -410,14 +349,6 @@ def extract_keyword(question):
         flags=re.IGNORECASE
     )
 
-    # 실제 품목코드/품명은 "CART-I Ring_size_7"처럼 영숫자 토큰이 공백으로
-    # 이어진 다단어 형태가 많고, 그 안 어딘가에는 항상 숫자가 있다
-    # (SL-H-AS-00010, Ring_size_7 등). 토큰 하나만 뽑으면 "CART-I"만
-    # 잡고 뒤에 붙은 진짜 식별자("Ring_size_7")를 놓치거나, 반대로
-    # "Ring_size_7"만 잡고 앞의 "CART-I"를 놓쳐 다른 품목과 뒤섞여
-    # 매칭되는 문제가 있었다 - 공백으로 이어진 영숫자 토큰 구간 전체를
-    # 하나의 후보로 잡고, 그 구간 어딘가에 숫자가 있으면 그 구간
-    # 전체를 키워드로 쓴다(한글 조사/불용어가 자연스러운 경계가 됨).
     code = [
         c for c in re.findall(
             r"\b[A-Za-z0-9][A-Za-z0-9_\-./]*(?:\s+[A-Za-z0-9][A-Za-z0-9_\-./]*)*\b",
@@ -430,10 +361,6 @@ def extract_keyword(question):
 
     cleaned = re.sub(r"[?.,!<>()]", " ", translate_product_terms(text))
 
-    # 길이 내림차순으로 한 번에 처리한다 - 예를 들어 "뭐"(STOPWORDS)를
-    # "뭐야"(MEANING_WORDS)보다 먼저 지우면 "뭐야"의 앞글자가 없어져서
-    # 고아 글자 "야"만 남는 것처럼, 짧은 단어가 긴 단어의 일부일 때
-    # 순서에 따라 엉뚱한 글자가 남는 문제가 있었다.
     for word in sorted(set(STOPWORDS) | set(MEANING_WORDS), key=len, reverse=True):
         cleaned = re.sub(re.escape(word), " ", cleaned, flags=re.IGNORECASE)
 
@@ -447,15 +374,11 @@ def extract_keyword(question):
 
     return compact[:80]
 
-
 def resolve_tool(question):
     text = normalize(question)
 
     if "mrp" in text and "부족" in text:
 
-        # "top5"/"부족 5개"/"부족 목록" 같은 여러 건 요청은 shortage_max/
-        # min(단일 항목, 화면 이동)이 아니라 shortage_search(목록 조회)로
-        # 보낸다.
         number = extract_number(question)
 
         if number and contains_any(text, ("top", "개", "목록", "리스트")):
@@ -546,8 +469,6 @@ def resolve_tool(question):
             }
         }
 
-    # 대시보드 요약 조회 - "열어줘"/"이동" 같은 wants_move 표현이 없을 때만
-    # 여기 도달한다(있으면 위 page.move/page.find가 이미 처리함).
     if contains_any(text, ("대시보드", "dashboard")):
 
         if "가계상" in text:
@@ -579,8 +500,6 @@ def resolve_tool(question):
                 }
             }
 
-    # 재고 입출고 "이력/내역" 조회 - "입출고"는 "출고"를 부분 문자열로
-    # 포함하므로, 아래 flow_count 분기보다 먼저 확인해야 한다.
     if contains_any(text, ("이력", "내역")):
 
         if "가계상" in text:
@@ -627,13 +546,6 @@ def resolve_tool(question):
 
     if contains_any(text, ("입고", "출고", "inbound", "outbound")):
         matched = [kw for kw in ("입고", "출고", "inbound", "outbound") if kw in text]
-
-        # product가 잡히면 그걸로 이미 충분히 특정된 것이라 keyword를
-        # 같이 넘기면 안 된다 - extract_keyword()는 "cart bp pro"처럼
-        # 사람이 읽는 형태를 돌려주는데, DB의 product 컬럼은
-        # "cart_bp_pro"(언더스코어)로 저장돼 있어서 이 keyword가 별도
-        # LIKE 필터로 함께 걸리면 실제로는 매칭될 수 없는 조건이
-        # AND로 붙어 항상 0건이 되는 버그가 있었다.
         product = extract_product(question)
 
         return _meaning_or(matched, {
@@ -687,10 +599,6 @@ def resolve_tool(question):
             question or ""
         )
 
-        # stock.summary(가계상 재고)와 동일하게 "가장 많은/적은" 정렬
-        # 의도를 감지한다 - 이게 없으면 수불 재고는 "가장 많은 품목"
-        # 질문을 절대 top-N 조회로 못 받고 매번 일반 목록 조회로만
-        # 빠진다.
         sort, order = extract_sort(question)
         item = "" if sort else extract_keyword(scrubbed)
 

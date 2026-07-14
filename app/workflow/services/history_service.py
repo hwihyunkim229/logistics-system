@@ -1,7 +1,6 @@
 from sqlalchemy.orm import Session
 from app.workflow.models.workflow_history import WorkflowHistory
 
-
 def add_history(
     db: Session,
     workflow_no: str,
@@ -14,10 +13,6 @@ def add_history(
     remark: str = "",
     result: str = "SUCCESS",
 ):
-    """
-    Workflow 이력 기록 (commit은 호출자가 담당)
-    """
-
     history = WorkflowHistory(
         workflow_no=workflow_no,
         stage=stage,
@@ -34,17 +29,12 @@ def add_history(
 
     return history
 
-
 def get_histories(
     db: Session,
     workflow_no: str = "",
     department: str = "",
     limit: int = 200,
 ):
-    """
-    Workflow 이력 조회 (최신순)
-    """
-
     query = db.query(WorkflowHistory)
 
     if workflow_no:

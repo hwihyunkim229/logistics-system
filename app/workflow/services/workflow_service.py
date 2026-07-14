@@ -16,7 +16,7 @@ from app.workflow.config import (
     PRODUCTION_COMPONENTS,
     PACKAGING_COMPONENTS,
 )
-from app.models.item_master import ItemMaster
+from app.workflow.config import ITEM_MASTER
 from app.workflow.models.workflow_item import WorkflowItem
 from app.workflow.models.workflow_request import WorkflowRequest
 from app.workflow.models.workflow_inspection import WorkflowInspection
@@ -54,20 +54,12 @@ MATERIAL_REJECT_ROLLBACK = {
         int(WorkflowStage.PACKAGING_REQUEST),
 }
 
-
 class WorkflowService:
 
     def __init__(self, db: Session):
         self.db = db
 
     def _next_workflow_seq(self):
-        """
-        workflow_no에 쓸 다음 시퀀스 번호를 발급한다. WorkflowItem.id는
-        행이 삭제되면 SQLite가 재사용할 수 있어 그걸로 workflow_no를
-        만들면 예전에 지워진 품목과 새 품목이 같은 번호를 갖는 충돌이
-        생긴다 - 이 카운터는 삭제와 무관하게 계속 증가만 한다.
-        """
-
         counter = (
             self.db.query(WorkflowCounter)
             .filter(WorkflowCounter.key == "workflow_no")
@@ -183,13 +175,6 @@ class WorkflowService:
         requested_by: str,
         remark: str = "",
     ):
-        """
-        CRADLE처럼 이미 반제품으로 구매되는 포장 구성품은 생산(조립)·
-        공정검사 단계가 필요 없으므로, 자재 확인(5단계) 완료 후
-        생산/공정검사 단계를 건너뛰고 곧바로 포장 요청(13단계)으로
-        넘어간다.
-        """
-
         return create_request(
             db=self.db,
             workflow_no=workflow_no,
@@ -218,26 +203,13 @@ class WorkflowService:
         )
     
     def _check_item_name_consistency(self, item_code, item_name):
-        """
-        품목코드와 품명이 서로 다른 자재를 가리키는 상태로 등록되는 것을
-        막는다. 같은 품목코드인데 품명이 다르면 이후 세트 생산 화면에서
-        "동일 구성품 중복"으로 처리되어 생산 승인이 막히는 문제가 있었다.
 
-        기준 정보(ItemMaster)에 있으면 그 품명과 비교하고, 기준 정보에
-        없는 신규/미등록 코드는 이 시스템에 이미 등록된 이전 이력의
-        품명과 비교한다(둘 다 없으면 최초 등록이므로 통과시킨다).
-        """
+        expected = ITEM_MASTER.get(item_code)
 
-        master = (
-            self.db.query(ItemMaster)
-            .filter(ItemMaster.item_code == item_code)
-            .first()
-        )
+        if expected:
+            expected = expected.strip()
 
-        if master:
-            expected = (master.item_name or "").strip()
-
-            if expected and expected != item_name:
+            if expected != item_name:
                 raise Exception(
                     f"품목코드 {item_code}의 기준 정보 품명은 "
                     f"'{expected}' 입니다. 입력한 품명과 일치하지 않습니다."
@@ -272,10 +244,6 @@ class WorkflowService:
         service_type: str = "",
         received_at=None,
     ):
-        """
-        Workflow 신규 생성
-        """
-
         if not (lot or "").strip():
             raise Exception(
                 "LOT는 필수 입력 항목입니다. 동일한 품목 코드라도 입고 "
@@ -309,7 +277,6 @@ class WorkflowService:
         )
 
         self.db.add(item)
-
         self.db.flush()
 
         seq = self._next_workflow_seq()
@@ -390,11 +357,9 @@ class WorkflowService:
 
         self.db.add(item)
         self.db.flush()
-
         seq = self._next_workflow_seq()
         today = now.strftime("%Y%m%d")
         item.workflow_no = f"WF-{today}-{seq:06d}"
-
         remnant.qty = available_qty - qty
 
         if remnant.qty <= 0:
@@ -426,11 +391,6 @@ class WorkflowService:
         confirmed_by: str,
         remark: str = "",
     ):
-        """
-        자재 확인/승인 (5, 9, 12, 15단계) - 이전 단계 결과를 자재팀이
-        확인하고 다음 작업으로 넘긴다.
-        """
-
         item = self._get_item(workflow_no)
 
         next_stage = MATERIAL_CONFIRM_STAGES.get(item.current_stage)
@@ -479,11 +439,6 @@ class WorkflowService:
         rejected_by: str,
         remark: str = "",
     ):
-        """
-        자재 확인 단계에서 반려 - 직전 부서(품질/생산)가 작업을 다시
-        하도록 해당 부서의 대기 단계로 되돌린다.
-        """
-
         item = self._get_item(workflow_no)
 
         redone_stage = item.current_stage
@@ -547,11 +502,6 @@ class WorkflowService:
             int(WorkflowStage.PACKAGING_COMPLETE),
         ):
             def _restore_pool_consumption(wf_no, item_code, item_name, lot):
-                """
-                이 생산/포장에서 기존 잔존 풀을 끌어다 썼다면(아래
-                _complete_set의 POOL_CONSUME 이력 참고) 반려 시 그
-                소모분을 잔존 풀에 다시 채워 넣는다.
-                """
 
                 pool_history = (
                     self.db.query(WorkflowHistory)
@@ -577,8 +527,6 @@ class WorkflowService:
                         reason="SET_LEFTOVER",
                     )
 
-            # primary는 변환되기 전 원래 품목코드로 풀을 소모했으므로,
-            # prev_item_code를 지우기 전에 복원용 코드로 먼저 챙긴다.
             original_code = item.prev_item_code or item.item_code
             original_name = item.prev_item_name or item.item_name
             original_lot = item.prev_lot or item.lot
@@ -618,10 +566,7 @@ class WorkflowService:
                 )
 
                 if pool_store_history:
-                    # 세트에 투입되지 않고 잔존 풀로 보관만 됐던 동일
-                    # 구성품 - 소모된 게 아니므로 CONSUME 복원 대신,
-                    # 풀에 아직 남아 있는 수량만큼 workflow로 되돌린다.
-                    # (그 사이 후속 생산이 풀을 소모했다면 남은 만큼만)
+
                     remaining = pop_remnant_qty(
                         self.db,
                         workflow_no=comp.workflow_no,
@@ -855,14 +800,9 @@ class WorkflowService:
         defect_qty: int,
         lot: str = "",
         remark: str = "",
+        work_defect_qty: int = None,
+        material_return_defect_qty: int = None,
     ):
-        """
-        생산 완료 등록 (8단계) - 양품 수량이 이후 단계의 기준 수량이
-        되고, level3 원자재(INNER/PBA/TOP COVER/OUTER)는 level2
-        (CART_Ring)로 품목코드/품명이 자동 변환된다. LOT는 생산팀이
-        직접 입력한다.
-        """
-
         item = self._get_item(workflow_no)
 
         if item.current_stage != int(WorkflowStage.PRODUCTION_APPROVAL):
@@ -881,16 +821,28 @@ class WorkflowService:
         before_code = item.item_code
         before_name = item.item_name
 
+        if work_defect_qty is None and material_return_defect_qty is None:
+            work_defect_qty, material_return_defect_qty = defect_qty, 0
+        work_defect_qty = int(work_defect_qty or 0)
+        material_return_defect_qty = int(material_return_defect_qty or 0)
+        defect_qty = work_defect_qty + material_return_defect_qty
+        if work_defect_qty < 0 or material_return_defect_qty < 0:
+            raise Exception("불량 수량은 0 이상이어야 합니다.")
+
         add_remnant(
-            self.db,
-            workflow_no=workflow_no,
+            self.db, workflow_no=workflow_no,
             stage=int(WorkflowStage.PRODUCTION_COMPLETE),
-            department="material",
-            item_code=before_code,
-            item_name=before_name,
-            lot=item.lot,
-            qty=defect_qty,
-            reason="DEFECT",
+            department="production", item_code=before_code,
+            item_name=before_name, lot=item.lot, qty=work_defect_qty,
+            reason="WORK_DEFECT", source_warehouse="WORK_DEFECT",
+        )
+        add_remnant(
+            self.db, workflow_no=workflow_no,
+            stage=int(WorkflowStage.PRODUCTION_COMPLETE),
+            department="production", item_code=before_code,
+            item_name=before_name, lot=item.lot, qty=material_return_defect_qty,
+            reason="MATERIAL_RETURN_DEFECT",
+            source_warehouse="MATERIAL_RETURN_DEFECT",
         )
 
         transform = PRODUCTION_TRANSFORM.get(item.item_code)
@@ -903,7 +855,6 @@ class WorkflowService:
             item.prev_item_code = item.item_code
             item.prev_item_name = item.item_name
             item.prev_lot = item.lot
-
             item.item_code, item.item_name = transform
             item.lot = lot.strip()
 
@@ -960,14 +911,9 @@ class WorkflowService:
         defect_qty: int,
         lot: str = "",
         remark: str = "",
+        work_defect_qty: int = None,
+        material_return_defect_qty: int = None,
     ):
-        """
-        포장 완료 등록 (14단계) - 포장 요청(13단계) 대기 요청을 함께
-        완료 처리하고, level2(RING/CRADLE)는 level1(CART PLATFORM
-        IEM)로 품목코드/품명이 자동 변환된다. LOT는 생산팀이 직접
-        입력한다.
-        """
-
         item = self._get_item(workflow_no)
 
         if item.current_stage != int(WorkflowStage.PACKAGING_REQUEST):
@@ -1005,16 +951,27 @@ class WorkflowService:
             request.approved_by = completed_by
             request.approved_at = datetime.now(ZoneInfo("Asia/Seoul"))
 
+        if work_defect_qty is None and material_return_defect_qty is None:
+            work_defect_qty, material_return_defect_qty = defect_qty, 0
+        work_defect_qty = int(work_defect_qty or 0)
+        material_return_defect_qty = int(material_return_defect_qty or 0)
+        defect_qty = work_defect_qty + material_return_defect_qty
+        if work_defect_qty < 0 or material_return_defect_qty < 0:
+            raise Exception("불량 수량은 0 이상이어야 합니다.")
         add_remnant(
-            self.db,
-            workflow_no=workflow_no,
+            self.db, workflow_no=workflow_no,
             stage=int(WorkflowStage.PACKAGING_COMPLETE),
-            department="material",
-            item_code=before_code,
-            item_name=before_name,
-            lot=item.lot,
-            qty=defect_qty,
-            reason="DEFECT",
+            department="production", item_code=before_code,
+            item_name=before_name, lot=item.lot, qty=work_defect_qty,
+            reason="WORK_DEFECT", source_warehouse="WORK_DEFECT",
+        )
+        add_remnant(
+            self.db, workflow_no=workflow_no,
+            stage=int(WorkflowStage.PACKAGING_COMPLETE),
+            department="production", item_code=before_code,
+            item_name=before_name, lot=item.lot, qty=material_return_defect_qty,
+            reason="MATERIAL_RETURN_DEFECT",
+            source_warehouse="MATERIAL_RETURN_DEFECT",
         )
 
         transform = PACKAGING_TRANSFORM.get(item.item_code)
@@ -1081,21 +1038,11 @@ class WorkflowService:
         produced_qty: int,
         lot: str,
         defects: dict,
+        defect_breakdowns: dict,
         completed_by: str,
         remark: str,
         mode: str,
     ):
-        """
-        반제품 생산 적용/포장 공통 처리.
-
-        구성품(생산: level3 4종 / 포장: level2 2종)이 전부 해당 단계에
-        도착해 있어야 하며, 생산 수량은 (구성품 수량 - 구성품 불량)의
-        최소값을 넘을 수 없다. 각 구성품의 불량은 DEFECT, 세트에
-        쓰이지 못한 정상 수량은 SET_LEFTOVER 잔존으로 남는다.
-        구성품 중 대표(가장 먼저 등록된) workflow가 결과물(level2/
-        level1)로 변환되어 이어지고, 나머지는 MERGED 상태로 종료된다.
-        """
-
         if mode == "production":
             components_map = PRODUCTION_COMPONENTS
             wait_stage = int(WorkflowStage.PRODUCTION_APPROVAL)
@@ -1140,10 +1087,6 @@ class WorkflowService:
                 "구성품이 아직 준비되지 않았습니다: " + ", ".join(missing)
             )
 
-        # 같은 구성품 코드의 workflow가 2건 이상 대기 중이면(같은
-        # 자재가 두 번째 입고된 경우) 먼저 도착한 건을 이번 세트에
-        # 투입하고, 나머지는 완료 시점에 생산팀 잔존 풀(SET_LEFTOVER)로
-        # 보관해 다음 생산에서 자동으로 합산해 쓴다.
         picked = [by_code[c][0] for c in required_codes]
         extras = [
             row
@@ -1196,23 +1139,34 @@ class WorkflowService:
             own_leftover = max(0, own_available - produced_qty)
             pool_needed = max(0, produced_qty - own_available)
 
+            breakdown = defect_breakdowns.get(comp.workflow_no, {})
+            work_defect = int(breakdown.get("work", defect) or 0)
+            return_defect = int(breakdown.get("return", 0) or 0)
             add_remnant(
                 self.db,
                 workflow_no=comp.workflow_no,
                 stage=done_stage,
-                department="material",
+                department="production",
                 item_code=comp.item_code,
                 item_name=comp.item_name,
                 lot=comp.lot,
-                qty=defect,
-                reason="DEFECT",
+                qty=work_defect,
+                reason="WORK_DEFECT",
+                source_warehouse="WORK_DEFECT",
+            )
+            add_remnant(
+                self.db,
+                workflow_no=comp.workflow_no,
+                stage=done_stage,
+                department="production",
+                item_code=comp.item_code,
+                item_name=comp.item_name,
+                lot=comp.lot,
+                qty=return_defect,
+                reason="MATERIAL_RETURN_DEFECT",
+                source_warehouse="MATERIAL_RETURN_DEFECT",
             )
 
-            # 이번에 새로 도착한 수량 중 못 쓴 만큼만 잔존으로 남긴다.
-            # 기존에 쌓여 있던 잔존 풀은 필요한 만큼만(pool_needed)
-            # 아래에서 소모하고, 나머지는 그대로 건드리지 않는다 -
-            # 그래야 이 생산이 반려됐을 때 원래 잔존 기록이 그대로
-            # 남아있어 복원이 필요 없다.
             add_remnant(
                 self.db,
                 workflow_no=comp.workflow_no,
@@ -1235,8 +1189,6 @@ class WorkflowService:
                 )
 
                 if pool_consumed > 0:
-                    # 반려 시 이 기록을 찾아 소모한 만큼 잔존 풀에
-                    # 다시 채워 넣는다 (material_reject 참고).
                     add_history(
                         self.db,
                         workflow_no=comp.workflow_no,
@@ -1295,11 +1247,6 @@ class WorkflowService:
             comp.updated_at = now
 
         for extra in extras:
-            # 이번 세트에 투입되지 않은 동일 구성품(나중에 입고된 건)은
-            # 전량을 생산팀 잔존 풀로 보관한다. LOT별로 기록이 남고,
-            # 다음 세트 생산 때 leftover_pool로 자동 합산된다. 반려 시
-            # 이 POOL_STORE 이력을 근거로 남은 수량을 복원한다
-            # (material_reject 참고).
             add_remnant(
                 self.db,
                 workflow_no=extra.workflow_no,
@@ -1413,12 +1360,14 @@ class WorkflowService:
         defects: dict,
         completed_by: str,
         remark: str = "",
+        defect_breakdowns: dict = None,
     ):
         return self._complete_set(
             target_code=target_code,
             produced_qty=produced_qty,
             lot=lot,
             defects=defects,
+            defect_breakdowns=defect_breakdowns or {},
             completed_by=completed_by,
             remark=remark,
             mode="production",
@@ -1432,12 +1381,14 @@ class WorkflowService:
         defects: dict,
         completed_by: str,
         remark: str = "",
+        defect_breakdowns: dict = None,
     ):
         return self._complete_set(
             target_code=target_code,
             produced_qty=produced_qty,
             lot=lot,
             defects=defects,
+            defect_breakdowns=defect_breakdowns or {},
             completed_by=completed_by,
             remark=remark,
             mode="packaging",
@@ -1450,10 +1401,6 @@ class WorkflowService:
         ship_qty: int,
         remark: str = "",
     ):
-        """
-        제품 출고 (16단계) - Workflow를 완료 상태로 전환한다.
-        """
-
         item = self._get_item(workflow_no)
 
         if item.current_stage != int(WorkflowStage.MATERIAL_FINAL_CONFIRM):
@@ -1517,11 +1464,6 @@ class WorkflowService:
         rejected_by: str,
         remark: str = "",
     ):
-        """
-        요청 반려 - 요청을 REJECTED로 바꾸고 Workflow 단계를 요청
-        이전으로 되돌려서 요청 부서가 다시 보낼 수 있게 한다.
-        """
-
         request = (
             self.db.query(WorkflowRequest)
             .filter(WorkflowRequest.id == request_id)
@@ -1539,7 +1481,6 @@ class WorkflowService:
         request.status = "REJECTED"
         request.approved_by = rejected_by
         request.approved_at = datetime.now(ZoneInfo("Asia/Seoul"))
-
         previous_stage = get_previous_stage(request.stage)
 
         if previous_stage is not None:

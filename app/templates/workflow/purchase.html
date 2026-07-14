@@ -30,15 +30,6 @@
         </div>
 
         <div class="kpi-card">
-            <div class="kpi-icon warning"><i class="fa-solid fa-arrows-rotate"></i></div>
-            <div class="kpi-body">
-                <div class="kpi-title">진행 중 수량</div>
-                <div class="kpi-value">{{ progress_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
-                <div class="kpi-footer">{{ progress_count|default(0) }}건 · 현재 진행 중</div>
-            </div>
-        </div>
-
-        <div class="kpi-card">
             <div class="kpi-icon"><i class="fa-solid fa-paper-plane"></i></div>
             <div class="kpi-body">
                 <div class="kpi-title">수입 검사 의뢰 수량</div>
@@ -47,18 +38,22 @@
             </div>
         </div>
 
-        <div class="kpi-card">
-            <div class="kpi-icon success"><i class="fa-solid fa-circle-check"></i></div>
-            <div class="kpi-body">
-                <div class="kpi-title">출고 완료 수량</div>
-                <div class="kpi-value">{{ completed_qty|default(0) }} <span style="font-size:13px;color:#9aa1af;">EA</span></div>
-                <div class="kpi-footer">{{ completed_count|default(0) }}건 · 제품 출고 완료</div>
-            </div>
-        </div>
     </div>
 
     <div class="toolbar">
         <div class="toolbar-left">
+            <form id="excelUploadForm" method="post" action="/workflow/purchase/upload-excel" enctype="multipart/form-data">
+                <input id="excelUploadFile" type="file" name="file" accept=".xlsx,.xls" hidden onchange="this.form.submit()">
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('excelUploadFile').click()">엑셀 업로드</button>
+            </form>
+
+            <a
+                href="/workflow/purchase/template"
+                class="btn btn-secondary">
+                <i class="fa-solid fa-download"></i>
+                엑셀 양식 다운로드
+            </a>
+
             <button
                 class="btn btn-primary"
                 onclick="openModal()">
@@ -98,7 +93,6 @@
                 <th>품명</th>
                 <th>LOT</th>
                 <th>입고수량</th>
-                <th>진행수량</th>
                 <th>잔량</th>
                 <th>입고 일자</th>
                 <th>검사 의뢰 일자</th>
@@ -157,20 +151,16 @@
                 {{ item.initial_qty or item.qty }}
             </td>
 
-            <td class="number">
-                {{ item.qty }}
-            </td>
-
             <td>
-                {% if item.remnant_qty %}
-                    <span class="badge badge-yellow">{{ item.remnant_qty }}</span>
+                {% if item.purchase_remain_qty %}
+                    <span class="badge badge-yellow">{{ item.purchase_remain_qty }}</span>
                 {% else %}
                     0
                 {% endif %}
             </td>
 
             <td style="white-space:nowrap;">
-                {{ item.received_at.strftime("%Y-%m-%d %H:%M") if item.received_at else "-" }}
+                {{ item.purchase_received_at.strftime("%Y-%m-%d %H:%M") if item.purchase_received_at else "-" }}
             </td>
 
             <td style="white-space:nowrap;">
@@ -205,7 +195,7 @@
                     data-code="{{ item.purchase_display_code }}"
                     data-name="{{ item.purchase_display_name }}"
                     data-lot="{{ item.purchase_display_lot or '' }}"
-                    data-received="{{ item.received_at.strftime('%Y-%m-%dT%H:%M') if item.received_at else '' }}"
+                    data-received="{{ item.purchase_received_at.strftime('%Y-%m-%dT%H:%M') if item.purchase_received_at else '' }}"
                     onclick="openItemEditModal(this.dataset.workflow, this.dataset.code, this.dataset.name, this.dataset.lot, this.dataset.received)">
                     수정
                 </button>
@@ -350,6 +340,9 @@
 const pageError = {{ error|default("")|tojson }};
 
 if (pageError) {
+    // 완료/오류 메시지는 한 번만 표시한다. URL의 error 쿼리를 남기면
+    // 브라우저 새로고침 때 같은 팝업이 반복된다.
+    window.history.replaceState({}, document.title, "/workflow/purchase");
     wfAlert(pageError);
 }
 
@@ -415,19 +408,29 @@ function requestSelected(){
         return;
     }
 
-    if(checked.length>1){
-        wfAlert("현재는 한 건씩만 가능합니다.");
+    requestQueue = Array.from(checked).map(row => ({
+        workflow: row.dataset.workflow,
+        itemCode: row.dataset.itemCode,
+        itemName: row.dataset.itemName,
+        qty: row.dataset.qty
+    }));
+    requestQueueIndex = 0;
+    openNextRequestModal();
+}
+
+let requestQueue = [];
+let requestQueueIndex = 0;
+
+function openNextRequestModal(){
+    const row = requestQueue[requestQueueIndex];
+    if(!row){
+        wfAlert("선택한 항목의 수입 검사 의뢰가 완료되었습니다.");
+        // 엑셀 업로드 완료 메시지처럼 기존 URL에 남아 있는 쿼리값을
+        // 재사용하지 않도록 구매 기본 화면으로 이동한다.
+        window.location.href = "/workflow/purchase";
         return;
     }
-
-    const row = checked[0];
-
-    openRequestModal(
-        row.dataset.workflow,
-        row.dataset.itemCode,
-        row.dataset.itemName,
-        row.dataset.qty
-    );
+    openRequestModal(row.workflow, row.itemCode, row.itemName, row.qty);
 }
 
 document
@@ -478,10 +481,6 @@ const list =
 input.addEventListener(
     "input",
     function(){
-
-        // 기준 정보에 없는 품목코드도 직접 입력해서 등록할 수 있도록,
-        // 검색 목록에서 선택하지 않아도 입력한 값 그대로 hidden
-        // item_code에 반영한다.
         document.getElementById("item_code").value = this.value;
 
         const keyword =
@@ -608,7 +607,7 @@ document
 .querySelectorAll(".workflow-check")
 .forEach(
 check=>{
-check.checked=false;
+check.checked=this.checked;
 }
 );
 });
@@ -679,6 +678,30 @@ document.addEventListener("DOMContentLoaded", function(){
                 + "보유 수량: " + current + " EA / 입력 수량: " + qty + " EA"
             );
             return;
+        }
+    });
+
+    document.getElementById("requestForm").addEventListener("submit", async function(e){
+        if(e.defaultPrevented){
+            return;
+        }
+        e.preventDefault();
+        const form = e.currentTarget;
+        try {
+            const response = await fetch(form.action, {
+                method: "POST",
+                headers: {"X-Requested-With": "XMLHttpRequest"},
+                body: new FormData(form)
+            });
+            const result = await response.json();
+            if(!response.ok || !result.ok){
+                wfAlert(result.error || "수입 검사 의뢰에 실패했습니다.");
+                return;
+            }
+            requestQueueIndex += 1;
+            openNextRequestModal();
+        } catch(error) {
+            wfAlert("수입 검사 의뢰 중 오류가 발생했습니다.");
         }
     });
 
@@ -856,7 +879,6 @@ document.getElementById("itemEditModal").addEventListener("click", function(e){
     if (e.target === this) closeItemEditModal();
 });
 
-// 신규 등록 모달의 입고 일자 기본값 = 현재 시각
 (function(){
     const input = document.getElementById("createReceivedAt");
 

@@ -121,7 +121,6 @@ def register_page():
 
     return RedirectResponse("/login")
 
-
 @router.post("/register")
 def register():
 

@@ -18,7 +18,6 @@ class WorkflowStage(IntEnum):
     MATERIAL_FINAL_CONFIRM = 15
     SERVICE_SHIPMENT = 16
 
-
 STAGE_INFO = {
     WorkflowStage.PURCHASE_RECEIVED: {
         "name": "구매 입고",
@@ -115,24 +114,18 @@ STAGE_INFO = {
         "department": "material",
         "next_department": None,
     },
-
 }
 
-
 TOTAL_STAGE = len(WorkflowStage)
-
 
 def get_stage_name(stage: int):
     return STAGE_INFO[WorkflowStage(stage)]["name"]
 
-
 def get_department(stage: int):
     return STAGE_INFO[WorkflowStage(stage)]["department"]
 
-
 def get_next_department(stage: int):
     return STAGE_INFO[WorkflowStage(stage)]["next_department"]
-
 
 def get_next_stage(stage: int):
 
@@ -142,7 +135,6 @@ def get_next_stage(stage: int):
         return None
 
     return WorkflowStage(stage + 1)
-
 
 def get_previous_stage(stage: int):
 

@@ -51,14 +51,12 @@ BOM_COLUMNS = {
     "qty": ["Qty", "qty", "소요량"],
 }
 
-
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-
 
 def find_column(df, candidates):
     columns = {
@@ -72,7 +70,6 @@ def find_column(df, candidates):
             return column
 
     return None
-
 
 def normalize_bom_dataframe(df):
     mapped = {
@@ -116,7 +113,6 @@ def normalize_bom_dataframe(df):
 
     return rows[rows["qty"] > 0]
 
-
 def get_bom_rows(db):
     return (
         db.query(BOM)
@@ -144,10 +140,6 @@ def calculate_mrp(
     material_rows=None,
     note_rows=None,
 ):
-    # all_plans/bom_rows/inventory_rows/material_rows/note_rows는 호출자가
-    # 이미 조회해둔 데이터가 있으면 그대로 재사용하기 위한 선택 인자다 -
-    # 넘기지 않으면(None) 예전과 동일하게 이 함수가 직접 조회한다. 계산
-    # 로직은 그대로고, 같은 테이블을 여러 번 중복 조회하지 않기 위함.
     if all_plans is None:
         all_plans = (
             db.query(ProductionPlan)
@@ -636,7 +628,6 @@ def calculate_mrp(
         shortage_count,
         week_summary
     )
-
 
 def filter_mrp_rows(rows, q="", shortage_only=False):
     keyword = (q or "").strip().lower()
@@ -1226,12 +1217,6 @@ def mrp_dashboard(
     year = int(year) if year else None
     month = int(month) if month else None
 
-    # 이 페이지는 calculate_mrp -> build_week_dashboard_summary ->
-    # build_mrp_dashboard_context를 연달아 호출하는데, 셋 다 각자
-    # ProductionPlan/Inventory/BOM/MaterialMaster/MaterialNote를 따로
-    # 또 조회해서 같은 테이블을 최대 3번까지 중복으로 읽고 있었다.
-    # 한 번씩만 가져와 세 함수에 그대로 넘겨 재사용한다 - 계산 로직과
-    # 결과는 동일하고 중복 조회만 없앤다.
     all_plans = (
         db.query(ProductionPlan)
         .order_by(
@@ -1315,7 +1300,6 @@ def mrp_dashboard(
         context=context,
     )
 
-
 @router.get("/mrp/bom")
 @router.get("/mrp/bom/upload")
 @router.get("/mrp/bom/list")
@@ -1354,7 +1338,6 @@ def bom_page(
             "row_count": len(rows),
         },
     )
-
 
 @router.post("/mrp/bom")
 @router.post("/mrp/bom/upload")
@@ -2976,7 +2959,6 @@ async def update_material_master(
     db: Session = Depends(get_db)
 
 ):
-
     row = db.get(
         MaterialMaster,
         row_id
@@ -2986,7 +2968,6 @@ async def update_material_master(
         return {"success": False}
 
     data = await request.form()
-
     field = data.get("field")
     value = data.get("value")
 

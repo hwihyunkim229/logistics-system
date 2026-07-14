@@ -1,8 +1,6 @@
 import json
-
 from app.ai.client import ask_ai
 from app.ai.prompts import ANSWER_PROMPT, GENERAL_KNOWLEDGE_PROMPT
-
 
 PERIOD_LABELS = {
     "today": "오늘",
@@ -12,12 +10,8 @@ PERIOD_LABELS = {
     "all": "전체 기간",
 }
 
-
 def _garbled(text):
-    """Groq가 간혹 U+FFFD(�) 범벅인 깨진 텍스트를 반환한다 - 그대로
-    사용자에게 보여주는 대신 결정적 fallback 답변으로 대체한다."""
     return bool(text) and text.count("�") >= 3
-
 
 def make_answer(question, result):
     if result.get("type") == "move":
@@ -74,7 +68,6 @@ def make_answer(question, result):
         return fallback
 
     return ai_answer or fallback
-
 
 def _fallback_answer(result):
     status = result.get("status")
@@ -191,15 +184,6 @@ def _fallback_answer(result):
             if not rows:
                 continue
 
-            # book_stock/inventory rows carry qty - showing the summed
-            # total here (not just a row count) means this fallback is
-            # still a real, correct answer to "수량 알려줘" even when
-            # the AI synthesis call above fails or times out. Only sum
-            # when every row belongs to the SAME item_code - a loose
-            # keyword can match several different items (e.g. "Ring_9"
-            # matching both "CART-I Ring_size_9" and "Hermes_RING size
-            # 9"), and adding their quantities together would produce a
-            # number that isn't the true total for either item.
             item_codes = {row.get("item_code") for row in rows if isinstance(row, dict)}
             if (
                 key in ("book_stock", "inventory")
@@ -238,7 +222,6 @@ def _fallback_answer(result):
 
     return "요청을 처리했습니다."
 
-
 def _flow_count_answer(result):
     product_name = result.get("product_name") or "전체 제품"
     period = PERIOD_LABELS.get(result.get("period"), "전체 기간")
@@ -273,12 +256,7 @@ def _flow_count_answer(result):
 
     return "\n".join(lines)
 
-
 def _stock_summary_answer(result):
-    # AI가 쉬거나(요청 실패, rate limit) 응답이 깨졌을 때 이 결정론적
-    # 답변이 그대로 사용자에게 나간다 - "가장 많은/적은 품목" 질문인데
-    # is_top_result를 반영 안 하면 전체 목록 요약만 나가서 정작 질문에
-    # 대한 답(어떤 품목인지)이 빠지게 된다.
     if result.get("is_top_result"):
         rows = result.get("rows", [])
         if rows:
@@ -331,7 +309,6 @@ def _stock_summary_answer(result):
 
     return "\n".join(lines)
 
-
 def _login_summary_answer(result):
     period = PERIOD_LABELS.get(result.get("period"), "전체 기간")
     lines = [
@@ -357,7 +334,6 @@ def _login_summary_answer(result):
 
     return "\n".join(lines)
 
-
 def _logistics_dashboard_answer(result):
     period = PERIOD_LABELS.get(result.get("period"), "전체 기간")
 
@@ -369,7 +345,6 @@ def _logistics_dashboard_answer(result):
         f"- {period} 출고: {result.get('period_out', 0):,}건\n"
         f"- 출고 정보 미입력: {result.get('missing', 0):,}건"
     )
-
 
 def _inventory_dashboard_answer(result):
     lines = [
@@ -392,7 +367,6 @@ def _inventory_dashboard_answer(result):
 
     return "\n".join(lines)
 
-
 def _stock_dashboard_answer(result):
     lines = [
         "가계상 재고 현황입니다.",
@@ -413,7 +387,6 @@ def _stock_dashboard_answer(result):
         )
 
     return "\n".join(lines)
-
 
 def _mrp_dashboard_answer(result):
     lines = [
@@ -438,7 +411,6 @@ def _mrp_dashboard_answer(result):
 
     return "\n".join(lines)
 
-
 def _knowledge_answer(result):
     question = (result.get("question") or "").lower()
     facts = result.get("facts", {})
@@ -459,16 +431,11 @@ def _knowledge_answer(result):
         "예: 가계상 재고, 제품 물류, MRP, BOM의 의미를 물어볼 수 있습니다."
     )
 
-
 def _rows_answer(result):
     domain = result.get("domain", "data")
     rows = result.get("rows", [])
     label = _domain_label(domain)
 
-    # stock.summary와 동일한 이유(is_top_result 무시 -> "가장 많은/적은
-    # 품목" 질문에 목록만 나가는 문제)로, "rows" 상태를 쓰는 모든 도메인
-    # (inventory.search 등)에 공통으로 적용한다 - 특정 tool 하나만
-    # 고치면 같은 종류의 tool에서 똑같은 문제가 반복된다.
     if result.get("is_top_result") and rows:
         row = rows[0]
         item_label = row.get("item_name") or row.get("item_code")
@@ -481,9 +448,6 @@ def _rows_answer(result):
 
     header = f"{label} 조회 결과 {len(rows)}건입니다."
 
-    # "총 수량/총 재고" 같은 질문은 개별 행 목록이 아니라 합계 숫자
-    # 하나가 답인데, total_qty가 있는 tool(inventory.search 등)인데도
-    # 이 답변에서 빠지면 정작 사용자가 물어본 숫자가 안 나가게 된다.
     if "total_qty" in result:
         header += f" 총 수량은 {result['total_qty']:,}개입니다."
 
@@ -497,7 +461,6 @@ def _rows_answer(result):
         lines.append("결과가 많아 일부만 표시했습니다. 품목명이나 코드로 더 좁혀 주세요.")
 
     return "\n".join(lines)
-
 
 def _movement_answer(rows):
     serial_rows = rows.get("serial_movements", [])
@@ -521,7 +484,6 @@ def _movement_answer(rows):
 
     return "\n".join(lines).strip()
 
-
 def _domain_label(domain):
     return {
         "book_stock": "가계상 재고",
@@ -536,7 +498,6 @@ def _domain_label(domain):
         "stock_movement": "가계상 재고 입출고 이력",
         "mrp_result": "MRP 부족 수량",
     }.get(domain, "데이터")
-
 
 def _format_row(domain, row):
     if domain == "book_stock":

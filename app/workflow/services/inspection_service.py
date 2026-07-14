@@ -14,7 +14,6 @@ from app.workflow.services.notification_service import add_notification
 from app.workflow.services.remnant_service import add_remnant
 from app.workflow.services.attachment_service import save_inspection_attachment
 
-
 def _get_item(db: Session, workflow_no: str):
     item = (
         db.query(WorkflowItem)
@@ -27,7 +26,6 @@ def _get_item(db: Session, workflow_no: str):
 
     return item
 
-
 def complete_incoming_inspection(
     db: Session,
     workflow_no: str,
@@ -37,10 +35,6 @@ def complete_incoming_inspection(
     remark: str = "",
     attachment=None,
 ):
-    """
-    수입 검사 적용 완료 (4단계) - 양품 수량이 이후 단계의 기준 수량이 된다.
-    """
-
     item = _get_item(db, workflow_no)
 
     if item.current_stage != int(WorkflowStage.QUALITY_APPROVAL):
@@ -118,7 +112,6 @@ def complete_incoming_inspection(
 
     return inspection
 
-
 def complete_process_inspection(
     db: Session,
     workflow_no: str,
@@ -129,12 +122,6 @@ def complete_process_inspection(
     remark: str = "",
     attachment=None,
 ):
-    """
-    공정 검사 완료 (11단계) - A/B/F 세 등급으로만 판정한다.
-    F급 = 불량이라는 의미이므로 A/B만 양품으로 다음 단계에 승계되고,
-    F는 불량 수량으로 집계되어 제외된다.
-    """
-
     item = _get_item(db, workflow_no)
 
     if item.current_stage != int(WorkflowStage.PROCESS_INSPECTION_REQUEST):
@@ -240,12 +227,10 @@ def complete_process_inspection(
 
     return inspection
 
-
 def get_inspections(
     db: Session,
     workflow_no: str = "",
-    inspection_type: str = "",
-    limit: int = 100,
+    inspection_type: str = ""
 ):
     query = db.query(WorkflowInspection)
 
@@ -262,6 +247,5 @@ def get_inspections(
     return (
         query
         .order_by(WorkflowInspection.id.desc())
-        .limit(limit)
         .all()
     )

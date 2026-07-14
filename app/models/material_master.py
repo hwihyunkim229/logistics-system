@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, String
 from app.database import Base
 
-
 class MaterialMaster(Base):
 
     __tablename__ = "material_master"

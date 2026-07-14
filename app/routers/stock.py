@@ -34,10 +34,8 @@ templates = Jinja2Templates(directory="app/templates")
 
 STOCK_LOG_PRODUCT = "가계상 재고"
 
-
 def current_user(request: Request):
     return request.session.get("user") or "system"
-
 
 def summarize_items(items):
     codes = [
@@ -53,14 +51,12 @@ def summarize_items(items):
 
     return ", ".join(codes) + suffix
 
-
 def get_db():
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-
 
 @router.get("/stock")
 def inventory_dashboard(
@@ -72,7 +68,6 @@ def inventory_dashboard(
     rev: str = "",
     db: Session = Depends(get_db)
 ):
-
     per_page = 50
 
     query = (
@@ -91,11 +86,6 @@ def inventory_dashboard(
             )
         )
 
-    # Rev 드롭다운 선택지는 grade/rev 필터를 적용하기 전, category/
-    # keyword 범위에서만 뽑는다 - 그래야 등급을 선택해도 다른 Rev
-    # 선택지가 사라지지 않는다. 새 Rev 값이 등록되면 하드코딩 없이
-    # 자동으로 목록에 반영된다. "COMMON"은 실제 데이터가 없어도 항상
-    # 선택 가능해야 하는 공통 Rev라 목록에 고정으로 포함한다.
     scoped_rows = query.all()
 
     revs = sorted(
@@ -128,8 +118,6 @@ def inventory_dashboard(
         ceil(total_count / per_page)
     )
 
-    # 전체 Stock 행을 다 불러와 Python에서 카테고리별로 더하던 것을,
-    # SQL GROUP BY 합산 한 번으로 대체 - 결과(카테고리별 합계)는 동일.
     category_totals = dict(
         db.query(Stock.category, func.sum(Stock.qty))
         .group_by(Stock.category)
@@ -218,7 +206,6 @@ async def stock_move_in(
         }
     )
 
-
 @router.post("/stock/move-out")
 async def stock_move_out(
     request: Request,
@@ -292,7 +279,6 @@ async def stock_move_out(
         }
     )
 
-
 @router.post("/stock/delete-selected")
 async def delete_selected_stock(
     request: Request,
@@ -329,7 +315,6 @@ async def delete_selected_stock(
         }
     )
 
-
 @router.get("/stock/history")
 def stock_history(
     request: Request,
@@ -339,7 +324,6 @@ def stock_history(
     category: str = "",
     db: Session = Depends(get_db)
 ):
-
     per_page = 50
 
     query = (
@@ -410,7 +394,6 @@ def stock_history(
             "category": category
         }
     )
-
 
 @router.get("/stock/download-excel")
 def download_stock_excel(

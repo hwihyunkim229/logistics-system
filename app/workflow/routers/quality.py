@@ -40,7 +40,6 @@ def _redirect(error: str = ""):
 
     return RedirectResponse(url, status_code=303)
 
-
 @router.get("")
 def quality_page(
     request: Request,
@@ -92,7 +91,7 @@ def quality_page(
         .all()
     )
 
-    recent_inspections = get_inspections(db, limit=10)
+    recent_inspections = get_inspections(db)
 
     for row in recent_inspections:
         row.stage_name = get_stage_name(row.stage)
@@ -261,17 +260,12 @@ def delete_attachment(
 
     return _redirect()
 
-
 @router.post("/inspection/{inspection_id}/attachment")
 def upload_attachment(
     inspection_id: int,
     attachment: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    """
-    최근 검사 이력에서 성적서를 삭제한 뒤 다시 첨부할 때 사용한다.
-    """
-
     inspection = (
         db.query(WorkflowInspection)
         .filter(WorkflowInspection.id == inspection_id)

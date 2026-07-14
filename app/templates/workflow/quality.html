@@ -350,7 +350,6 @@
     </div>
 </div>
 
-<!-- 승인 모달 -->
 <div id="approveModal" class="modal">
     <div class="request-modal">
         <div class="modal-title">품질 입고 승인</div>
@@ -512,7 +511,6 @@
     </div>
 </div>
 
-<!-- 반려 모달 (공용) -->
 <div id="rejectModal" class="modal">
     <div class="request-modal">
         <div class="modal-title">요청 반려</div>
@@ -630,8 +628,6 @@ function openProcessModal(workflowNo, itemName, qty){
     document.getElementById("processModal").style.display = "flex";
 }
 
-// A/B 입력에 따라 F(불량)는 나머지 수량으로 자동 계산된다 -
-// 전 수량이 반드시 세 등급 중 하나로 분류되도록 강제하는 구조.
 function syncProcess(){
     const a = Number(document.getElementById("gradeA").value) || 0;
     const b = Number(document.getElementById("gradeB").value) || 0;

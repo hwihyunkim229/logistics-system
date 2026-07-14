@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, String, Float
 from app.database import Base
 
-
 class BOM(Base):
     __tablename__ = "bom"
 

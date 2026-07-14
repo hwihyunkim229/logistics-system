@@ -1,18 +1,17 @@
 from urllib.parse import quote
-
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-
 from app.workflow.utils import get_db
 from app.workflow.services.workflow_service import WorkflowService
 from app.workflow.services.remnant_service import (
     get_remnants,
     remnant_qty_by_item,
 )
+from app.workflow.models.workflow_remnant import WorkflowRemnant
+from app.workflow.models.workflow_notification import WorkflowNotification
 import json
-
 from app.workflow.config import (
     REMNANT_REASON_NAMES,
     PRODUCTION_TRANSFORM,
@@ -36,7 +35,6 @@ templates = Jinja2Templates(
     directory="app/templates"
 )
 
-
 def _redirect(error: str = ""):
     url = "/workflow/production"
 
@@ -44,7 +42,6 @@ def _redirect(error: str = ""):
         url += f"?error={quote(error)}"
 
     return RedirectResponse(url, status_code=303)
-
 
 @router.get("")
 def production_page(
@@ -111,12 +108,6 @@ def production_page(
     )
 
     def _build_sets(items, components_map, transform_map):
-        """구성품 목록을 세트(결과물) 단위로 묶는다.
-
-        각 세트는 필요한 구성품 코드 전체와, 실제 도착한 workflow를
-        짝지어 보여준다 - 전부 도착해야 완료 버튼이 활성화된다.
-        """
-
         by_target = {}
 
         for item in items:
@@ -165,9 +156,6 @@ def production_page(
                     })
                     continue
 
-                # 같은 코드의 workflow가 여러 건이면 먼저 도착한 건만
-                # 이번 세트에 투입되고, 나머지는 완료 시 잔존 풀로
-                # 보관된다 (workflow_service._complete_set 참고).
                 for dup in matched[1:]:
                     extras.append({
                         "item_code": dup.item_code,
@@ -224,9 +212,17 @@ def production_page(
         if not PACKAGING_TRANSFORM.get(item.item_code)
     ]
 
-    remnants = get_remnants(db, department="production")
+    all_remnants = get_remnants(db, department="production")
+    work_defects = [r for r in all_remnants if r.reason == "WORK_DEFECT"]
+    material_return_defects = [
+        r for r in all_remnants if r.reason == "MATERIAL_RETURN_DEFECT"
+    ]
+    remnants = [
+        r for r in all_remnants
+        if r.reason not in ("WORK_DEFECT", "MATERIAL_RETURN_DEFECT")
+    ]
 
-    for row in remnants:
+    for row in all_remnants:
         row.stage_name = get_stage_name(row.stage)
         row.reason_label = REMNANT_REASON_NAMES.get(row.reason, row.reason)
 
@@ -252,10 +248,13 @@ def production_page(
             "remnant_title": "현 재고 현황",
             "remnant_show_restock": False,
             "remnant_show_production_use": True,
+            "work_defects": work_defects,
+            "work_defect_count": len(work_defects),
+            "material_return_defects": material_return_defects,
+            "material_return_defect_count": len(material_return_defects),
             "error": request.query_params.get("error", ""),
         },
     )
-
 
 @router.post("/use-remnant")
 def use_remnant(
@@ -279,22 +278,70 @@ def use_remnant(
     return _redirect()
 
 
+@router.post("/transfer-defects")
+async def transfer_defects(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    form = await request.form()
+    raw_ids = form.getlist("remnant_ids")
+    try:
+        remnant_ids = [int(value) for value in raw_ids]
+        if not remnant_ids:
+            raise ValueError("자재팀으로 이관할 불량을 선택해 주세요.")
+        rows = (
+            db.query(WorkflowRemnant)
+            .filter(WorkflowRemnant.id.in_(remnant_ids))
+            .all()
+        )
+        if len(rows) != len(set(remnant_ids)):
+            raise ValueError("선택한 불량 재고를 찾을 수 없습니다.")
+        for row in rows:
+            if (
+                row.department != "production"
+                or row.reason not in ("WORK_DEFECT", "MATERIAL_RETURN_DEFECT")
+                or row.transfer_status == "PENDING"
+            ):
+                raise ValueError("이관할 수 없는 불량 재고가 포함되어 있습니다.")
+            row.transfer_status = "PENDING"
+            db.add(WorkflowNotification(
+                workflow_no=row.workflow_no,
+                department="material",
+                title="생산 불량 자재 이관 승인 요청",
+                message=(f"{row.item_code} {row.qty} EA · "
+                         f"{row.source_warehouse or row.reason}"),
+                notification_type="DEFECT_TRANSFER",
+            ))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return _redirect(str(e))
+    return _redirect()
+
 @router.post("/complete-production-set")
 async def complete_production_set(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """세트 생산 완료 - 구성품별 불량 수량은 defect_<workflow_no>
-    필드로 전달된다."""
-
     form = await request.form()
     user = request.session.get("user", "SYSTEM")
 
-    defects = {
-        key[len("defect_"):]: int(value or 0)
-        for key, value in form.items()
-        if key.startswith("defect_")
+    work_defects = {
+        key[len("work_defect_"):]: int(value or 0)
+        for key, value in form.items() if key.startswith("work_defect_")
     }
+    return_defects = {
+        key[len("material_return_defect_"):]: int(value or 0)
+        for key, value in form.items() if key.startswith("material_return_defect_")
+    }
+    defect_breakdowns = {
+        workflow_no: {
+            "work": work_defects.get(workflow_no, 0),
+            "return": return_defects.get(workflow_no, 0),
+        }
+        for workflow_no in set(work_defects) | set(return_defects)
+    }
+    defects = {key: value["work"] + value["return"] for key, value in defect_breakdowns.items()}
 
     service = WorkflowService(db)
 
@@ -304,6 +351,7 @@ async def complete_production_set(
             produced_qty=int(form.get("produced_qty", 0) or 0),
             lot=form.get("lot", ""),
             defects=defects,
+            defect_breakdowns=defect_breakdowns,
             completed_by=user,
             remark=form.get("remark", ""),
         )
@@ -312,24 +360,17 @@ async def complete_production_set(
 
     return _redirect()
 
-
 @router.post("/complete-packaging-set")
 async def complete_packaging_set(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """제품 포장 적용 완료 - 구성품별 불량 수량은 defect_<workflow_no>
-    필드로 전달된다."""
-
     form = await request.form()
     user = request.session.get("user", "SYSTEM")
-
-    defects = {
-        key[len("defect_"):]: int(value or 0)
-        for key, value in form.items()
-        if key.startswith("defect_")
-    }
-
+    work_defects = {key[len("work_defect_"):]: int(value or 0) for key, value in form.items() if key.startswith("work_defect_")}
+    return_defects = {key[len("material_return_defect_"):]: int(value or 0) for key, value in form.items() if key.startswith("material_return_defect_")}
+    defect_breakdowns = {workflow_no: {"work": work_defects.get(workflow_no, 0), "return": return_defects.get(workflow_no, 0)} for workflow_no in set(work_defects) | set(return_defects)}
+    defects = {key: value["work"] + value["return"] for key, value in defect_breakdowns.items()}
     service = WorkflowService(db)
 
     try:
@@ -338,6 +379,7 @@ async def complete_packaging_set(
             produced_qty=int(form.get("produced_qty", 0) or 0),
             lot=form.get("lot", ""),
             defects=defects,
+            defect_breakdowns=defect_breakdowns,
             completed_by=user,
             remark=form.get("remark", ""),
         )
@@ -345,7 +387,6 @@ async def complete_packaging_set(
         return _redirect(str(e))
 
     return _redirect()
-
 
 @router.post("/approve")
 def approve(
@@ -355,7 +396,6 @@ def approve(
     db: Session = Depends(get_db),
 ):
     user = request.session.get("user", "SYSTEM")
-
     service = WorkflowService(db)
 
     try:
@@ -369,7 +409,6 @@ def approve(
 
     return _redirect()
 
-
 @router.post("/reject")
 def reject(
     request: Request,
@@ -378,7 +417,6 @@ def reject(
     db: Session = Depends(get_db),
 ):
     user = request.session.get("user", "SYSTEM")
-
     service = WorkflowService(db)
 
     try:
@@ -392,19 +430,19 @@ def reject(
 
     return _redirect()
 
-
 @router.post("/complete-production")
 def complete_production(
     request: Request,
     workflow_no: str = Form(...),
     good_qty: int = Form(...),
     defect_qty: int = Form(0),
+    work_defect_qty: int = Form(None),
+    material_return_defect_qty: int = Form(None),
     lot: str = Form(""),
     remark: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = request.session.get("user", "SYSTEM")
-
     service = WorkflowService(db)
 
     try:
@@ -415,12 +453,13 @@ def complete_production(
             defect_qty=defect_qty,
             lot=lot,
             remark=remark,
+            work_defect_qty=work_defect_qty,
+            material_return_defect_qty=material_return_defect_qty,
         )
     except Exception as e:
         return _redirect(str(e))
 
     return _redirect()
-
 
 @router.post("/complete-packaging")
 def complete_packaging(
@@ -428,12 +467,13 @@ def complete_packaging(
     workflow_no: str = Form(...),
     good_qty: int = Form(...),
     defect_qty: int = Form(0),
+    work_defect_qty: int = Form(None),
+    material_return_defect_qty: int = Form(None),
     lot: str = Form(""),
     remark: str = Form(""),
     db: Session = Depends(get_db),
 ):
     user = request.session.get("user", "SYSTEM")
-
     service = WorkflowService(db)
 
     try:
@@ -444,6 +484,8 @@ def complete_packaging(
             defect_qty=defect_qty,
             lot=lot,
             remark=remark,
+            work_defect_qty=work_defect_qty,
+            material_return_defect_qty=material_return_defect_qty,
         )
     except Exception as e:
         return _redirect(str(e))

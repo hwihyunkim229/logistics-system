@@ -12,6 +12,7 @@
 }
 html, body{
     min-height:100%;
+    overflow:hidden;
 }
 body{
     font-family:'Segoe UI', sans-serif;
@@ -31,16 +32,13 @@ body{
         #17222f
     );
     overflow-y:auto;
+    scrollbar-width:none;
     z-index:1000;
     transition:all .3s ease;
     box-sizing:border-box;
 }
 .sidebar::-webkit-scrollbar{
-    width:6px;
-}
-.sidebar::-webkit-scrollbar-thumb{
-    background:rgba(255,255,255,0.15);
-    border-radius:10px;
+    display:none;
 }
 .sidebar h3{
     margin-bottom:28px;
@@ -86,11 +84,10 @@ body{
 }
 .main{
     margin-left:260px;
-    min-height:100vh;
-    padding:20px;
-    position:relative;
-    transition:all .3s ease;
+    height:100vh;
+    overflow-y:auto;
     overflow-x:hidden;
+    padding:20px;
 }
 body.sidebar-collapsed .main{
     margin-left:80px;
@@ -959,7 +956,6 @@ document.addEventListener("click", function(e){
     }
 });
 
-// 해야 할 업무(팀별 대기 작업)를 불러와 종 아이콘 배지/목록을 채운다.
 async function loadBellTodo(){
     try {
         const res = await fetch("/workflow/notification/todo", {
@@ -994,26 +990,18 @@ async function loadBellTodo(){
             + '</a>'
         ).join("");
     } catch (e) {
-        /* 알림 로드는 실패해도 화면 사용에 지장 없어야 한다 */
     }
 }
 
 loadBellTodo();
 setInterval(loadBellTodo, 60000);
 
-// 뒤로 가기로 브라우저 메모리 캐시(bfcache)에서 페이지가 복원되면
-// 서버를 다시 거치지 않아 로그아웃 후에도 화면이 그대로 보인다 -
-// 복원 시 강제로 재요청해서 세션이 없으면 로그인으로 보낸다.
 window.addEventListener("pageshow", function(e){
     if (e.persisted) {
         window.location.reload();
     }
 });
 
-/* ---------- 팀 계정 뷰어 모드 ----------
-   팀 계정은 자기 팀 워크플로우 페이지에서만 쓰기가 가능하다.
-   서버 미들웨어가 최종적으로 차단하지만, UI에서도 다른 페이지의
-   폼 제출을 막고 조회 전용임을 배너로 안내한다. */
 (function(){
     const USER_TEAM = {{ request.session.get("team", "")|tojson }};
     const USER_ROLE = {{ request.session.get("role", "")|tojson }};
@@ -1033,10 +1021,8 @@ window.addEventListener("pageshow", function(e){
 
     if (allowed) return;
 
-    // 다른 페이지(예: MRP)에서도 뷰어 여부를 참조할 수 있도록 전역에 노출
     window.__VIEWER_MODE__ = true;
 
-    // 조회 전용 배너
     const banner = document.createElement("div");
     banner.style.cssText =
         "position:fixed;top:0;left:50%;transform:translateX(-50%);"
@@ -1046,7 +1032,6 @@ window.addEventListener("pageshow", function(e){
     banner.innerText = "조회 전용 페이지입니다 (수정 권한: 소속 팀 페이지)";
     document.body.appendChild(banner);
 
-    // 모든 폼 제출 차단 (assistant는 fetch 기반이라 영향 없음)
     document.addEventListener("submit", function(e){
         e.preventDefault();
         e.stopPropagation();

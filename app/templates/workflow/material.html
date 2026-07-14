@@ -253,7 +253,15 @@
         </div>
     </div>
 
-    {% with remnants=defect_remnants, remnant_count=defect_remnant_count, title="불량 자재 창고", show_restock=false %}
+    <div class="section-card">
+        <div class="section-header"><div class="section-title">생산 불량 자재 이관 승인</div><div class="section-count">{{ pending_defect_transfers|length }}건</div></div>
+        <div class="table-scroll"><table class="workflow-table"><thead><tr><th>Workflow No</th><th>품목코드</th><th>품명</th><th>LOT</th><th>수량</th><th>생산팀 출처</th><th></th></tr></thead><tbody>
+        {% for row in pending_defect_transfers %}<tr><td>{{ row.workflow_no }}</td><td>{{ row.item_code }}</td><td>{{ row.item_name }}</td><td>{{ row.lot or "-" }}</td><td>{{ row.qty }}</td><td>{{ "작업 불량 창고" if row.source_warehouse == "WORK_DEFECT" else "자재 불량 창고(반납)" }}</td><td style="white-space:nowrap;"><form method="post" action="/workflow/material/approve-defect-transfer" style="display:inline;"><input type="hidden" name="remnant_id" value="{{ row.id }}"><button class="btn btn-success btn-sm">승인</button></form> <form method="post" action="/workflow/material/reject-defect-transfer" style="display:inline;"><input type="hidden" name="remnant_id" value="{{ row.id }}"><button class="btn btn-danger btn-sm">반려</button></form></td></tr>
+        {% else %}<tr class="empty-row"><td colspan="7">승인 대기 중인 생산 불량 이관 요청이 없습니다.</td></tr>{% endfor %}
+        </tbody></table></div>
+    </div>
+
+    {% with remnants=defect_remnants, remnant_count=defect_remnant_count, title="불량 자재 창고", show_restock=false, show_defect_source=true %}
     {% include "workflow/_remnants.html" %}
     {% endwith %}
 
@@ -262,7 +270,6 @@
     {% endwith %}
 </div>
 
-<!-- 확인/승인 모달 -->
 <div id="confirmModal" class="modal">
     <div class="request-modal">
         <div class="modal-title" id="confirmTitle">자재 확인/승인</div>
@@ -298,13 +305,12 @@
 
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModals()">취소</button>
-                <button type="submit" class="btn btn-success">확인/승인</button>
+                <button type="submit" class="btn btn-success">승인</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- 다음 단계 요청 모달 -->
 <div id="requestModal" class="modal">
     <div class="request-modal">
         <div class="modal-title" id="requestTitle">요청</div>

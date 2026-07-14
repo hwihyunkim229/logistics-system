@@ -1,10 +1,8 @@
 from urllib.parse import quote
-
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-
 from app.workflow.utils import get_db
 from app.workflow.services.workflow_service import (
     WorkflowService,
@@ -20,6 +18,7 @@ from app.workflow.config import (
 )
 from app.workflow.models.workflow_item import WorkflowItem
 from app.workflow.models.workflow_inspection import WorkflowInspection
+from app.workflow.models.workflow_remnant import WorkflowRemnant
 from app.workflow.models.workflow_stage import (
     WorkflowStage,
     get_stage_name,
@@ -45,7 +44,6 @@ NEXT_REQUEST_LABELS = {
     int(WorkflowStage.MATERIAL_CONFIRM_3): "포장 요청",
 }
 
-
 def _redirect(error: str = ""):
     url = "/workflow/material"
 
@@ -53,7 +51,6 @@ def _redirect(error: str = ""):
         url += f"?error={quote(error)}"
 
     return RedirectResponse(url, status_code=303)
-
 
 @router.get("")
 def material_page(
@@ -125,7 +122,7 @@ def material_page(
             defect_qty = sum(
                 r.qty or 0
                 for r in get_remnants(db, department="material")
-                if r.reason == "DEFECT"
+                if r.reason in ("DEFECT", "WORK_DEFECT", "MATERIAL_RETURN_DEFECT")
                 and r.stage == item.current_stage
                 and r.workflow_no in ([item.workflow_no] + merged_wf_nos)
             )
@@ -194,7 +191,25 @@ def material_page(
         row.reason_label = REMNANT_REASON_NAMES.get(row.reason, row.reason)
 
     defect_remnants = [r for r in remnants if r.reason == "DEFECT"]
+    defect_remnants += [
+        r for r in remnants
+        if r.reason in ("WORK_DEFECT", "MATERIAL_RETURN_DEFECT")
+    ]
     good_remnants = [r for r in remnants if r.reason != "DEFECT"]
+    good_remnants = [
+        r for r in good_remnants
+        if r.reason not in ("WORK_DEFECT", "MATERIAL_RETURN_DEFECT")
+    ]
+    pending_defect_transfers = (
+        db.query(WorkflowRemnant)
+        .filter(
+            WorkflowRemnant.department == "production",
+            WorkflowRemnant.transfer_status == "PENDING",
+            WorkflowRemnant.reason.in_(("WORK_DEFECT", "MATERIAL_RETURN_DEFECT")),
+        )
+        .order_by(WorkflowRemnant.id.asc())
+        .all()
+    )
 
     return templates.TemplateResponse(
         request,
@@ -213,6 +228,7 @@ def material_page(
             "shipped_qty": sum(i.qty or 0 for i in shipped_items),
             "defect_remnants": defect_remnants,
             "defect_remnant_count": len(defect_remnants),
+            "pending_defect_transfers": pending_defect_transfers,
             "good_remnants": good_remnants,
             "good_remnant_count": len(good_remnants),
             "error": request.query_params.get("error", ""),
@@ -241,6 +257,43 @@ def confirm(
 
     return _redirect()
 
+
+@router.post("/approve-defect-transfer")
+def approve_defect_transfer(
+    request: Request,
+    remnant_id: int = Form(...),
+    db: Session = Depends(get_db),
+):
+    row = db.query(WorkflowRemnant).filter(WorkflowRemnant.id == remnant_id).first()
+    if (
+        row is None
+        or row.department != "production"
+        or row.transfer_status != "PENDING"
+    ):
+        return _redirect("승인 대기 중인 생산 불량 이관 요청을 찾을 수 없습니다.")
+    row.department = "material"
+    row.transfer_status = "APPROVED"
+    db.commit()
+    return _redirect()
+
+
+@router.post("/reject-defect-transfer")
+def reject_defect_transfer(
+    request: Request,
+    remnant_id: int = Form(...),
+    db: Session = Depends(get_db),
+):
+    row = db.query(WorkflowRemnant).filter(WorkflowRemnant.id == remnant_id).first()
+    if (
+        row is None
+        or row.department != "production"
+        or row.transfer_status != "PENDING"
+    ):
+        return _redirect("승인 대기 중인 생산 불량 이관 요청을 찾을 수 없습니다.")
+    row.transfer_status = "AVAILABLE"
+    db.commit()
+    return _redirect()
+
 @router.post("/reject-stage")
 def reject_stage(
     request: Request,
@@ -248,10 +301,6 @@ def reject_stage(
     remark: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    """
-    자재 확인 단계 반려 - 직전 부서(품질/생산)가 재작업하도록 되돌린다.
-    """
-
     user = request.session.get("user", "SYSTEM")
 
     service = WorkflowService(db)
@@ -267,7 +316,6 @@ def reject_stage(
 
     return _redirect()
 
-
 @router.post("/request-next")
 def request_next(
     request: Request,
@@ -276,10 +324,6 @@ def request_next(
     remark: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    """
-    자재 확인 완료 단계에 맞는 다음 요청(생산/공정검사/포장)을 보낸다.
-    """
-
     user = request.session.get("user", "SYSTEM")
 
     item = (
@@ -395,7 +439,6 @@ def request_next(
         return _redirect(str(e))
 
     return _redirect()
-
 
 @router.post("/ship")
 def ship(

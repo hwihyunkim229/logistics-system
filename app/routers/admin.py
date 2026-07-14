@@ -89,7 +89,6 @@ def create_user(
         password
     )
 
-    # admin은 팀 제한을 두지 않는다 - 팀은 실무자(user) 계정 전용.
     if role == "admin":
         team = ""
 

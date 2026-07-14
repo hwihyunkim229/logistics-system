@@ -1,9 +1,7 @@
 import re
-
 from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-
 from app.workflow.utils import get_db, department_name
 from app.workflow.models.workflow_item import WorkflowItem
 from app.workflow.models.workflow_request import WorkflowRequest
@@ -13,6 +11,7 @@ from app.workflow.models.workflow_stage import (
     get_stage_name,
 )
 from app.workflow.services.history_service import get_histories
+from app.workflow.config import ACTION_NAMES
 
 router = APIRouter(
     prefix="/workflow/dashboard",
@@ -22,7 +21,6 @@ router = APIRouter(
 templates = Jinja2Templates(
     directory="app/templates"
 )
-
 
 @router.get("")
 def dashboard_page(
@@ -140,5 +138,6 @@ def dashboard_page(
             "recent_histories": recent_histories,
             "size_labels": size_labels,
             "size_values": size_values,
+            "action_names": ACTION_NAMES
         },
     )

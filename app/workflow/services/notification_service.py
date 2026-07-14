@@ -3,7 +3,6 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 from app.workflow.models.workflow_notification import WorkflowNotification
 
-
 def add_notification(
     db: Session,
     workflow_no: str,
@@ -12,10 +11,6 @@ def add_notification(
     message: str,
     notification_type: str,
 ):
-    """
-    부서 알림 생성 (commit은 호출자가 담당)
-    """
-
     notification = WorkflowNotification(
         workflow_no=workflow_no,
         department=department,
@@ -28,17 +23,12 @@ def add_notification(
 
     return notification
 
-
 def get_notifications(
     db: Session,
     department: str = "",
     unread_only: bool = False,
     limit: int = 100,
 ):
-    """
-    알림 조회 (최신순)
-    """
-
     query = db.query(WorkflowNotification)
 
     if department:
@@ -58,7 +48,6 @@ def get_notifications(
         .all()
     )
 
-
 def count_unread(
     db: Session,
     department: str = "",
@@ -73,7 +62,6 @@ def count_unread(
         )
 
     return query.count()
-
 
 def mark_read(
     db: Session,
@@ -96,7 +84,6 @@ def mark_read(
     db.commit()
 
     return notification
-
 
 def mark_all_read(
     db: Session,

@@ -6,7 +6,6 @@ from app.assistant.agent import AssistantAgent
 
 router = APIRouter()
 
-
 @router.post("/assistant/chat")
 async def assistant_chat(
     request: Request,

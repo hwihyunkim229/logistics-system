@@ -210,11 +210,19 @@
                 <td>{{ row.stage }}. {{ row.stage_name }}</td>
                 <td>
                     {% if row.action == "REJECT" %}
-                        <span class="badge badge-red">반려</span>
+                        <span class="badge badge-red">
+                            {{ action_names.get(row.action, row.action) }}
+                        </span>
+
                     {% elif row.action in ("APPROVE", "CONFIRM") %}
-                        <span class="badge badge-green">{{ row.action }}</span>
+                        <span class="badge badge-green">
+                            {{ action_names.get(row.action, row.action) }}
+                        </span>
+
                     {% else %}
-                        <span class="badge badge-blue">{{ row.action }}</span>
+                        <span class="badge badge-blue">
+                            {{ action_names.get(row.action, row.action) }}
+                        </span>
                     {% endif %}
                 </td>
                 <td>{{ row.department_label }}</td>
@@ -236,9 +244,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 <script>
-/* 사이즈별 서비스 출고 차트 - MRP Dashboard의 막대 차트(gapChart)와
-   동일한 스타일(파란 그라데이션 막대 + 데이터 라벨). Y축은 Chart.js
-   기본 동작으로 데이터 최대값에 맞춰 자동 스케일링된다. */
 Chart.register(ChartDataLabels);
 
 const chartColors = {
@@ -270,8 +275,6 @@ new Chart(sizeCtx, {
                 anchor: "end",
                 align: "top",
                 offset: 4,
-                // 최대값 막대 위에서도 라벨이 차트 영역 밖으로
-                // 밀려 잘리지 않도록 클램프한다.
                 clamp: true,
                 clip: false,
                 color: "#356FC7",
@@ -292,7 +295,6 @@ new Chart(sizeCtx, {
     options: {
         responsive: true,
         maintainAspectRatio: false,
-        // 상단 여백을 확보해 값 라벨이 잘리지 않게 한다.
         layout: {
             padding: {
                 top: 28
@@ -338,8 +340,6 @@ new Chart(sizeCtx, {
             },
             y: {
                 beginAtZero: true,
-                // 최대값 위로 10% 여유를 둬서 막대가 차트 천장에
-                // 붙지 않게 한다 (라벨 잘림 방지 보조).
                 grace: "10%",
                 grid: {
                     color: chartColors.grid

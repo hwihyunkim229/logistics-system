@@ -5,7 +5,6 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo
 from app.routers.mrp import calculate_mrp
 from sqlalchemy import distinct, func, or_
-
 from app.assistant.registry import tool
 from app.models.activity_log import ActivityLog
 from app.models.bom import BOM
@@ -24,7 +23,6 @@ from app.models.stock import Stock
 from app.models.stock_movement import StockMovement
 from app.models.user import User
 
-
 MAX_ROWS = 15
 
 SERVICE_NAMES = {
@@ -37,26 +35,21 @@ SERVICE_NAMES = {
     "cart_o2": "CART O2",
 }
 
-
 def _keyword(value):
     return (value or "").strip()
 
-
 def _like(value):
     return f"%{value.lower()}%"
-
 
 def _fmt_dt(value):
     if not value:
         return ""
     return value.strftime("%Y-%m-%d %H:%M")
 
-
 def _fmt_date(value):
     if not value:
         return ""
     return value.strftime("%Y-%m-%d")
-
 
 def _safe_user(row):
     return {
@@ -64,7 +57,6 @@ def _safe_user(row):
         "role": row.role,
         "must_change_password": bool(row.must_change_password),
     }
-
 
 def _period_range(period):
     today = datetime.now(ZoneInfo("Asia/Seoul")).date()
@@ -88,7 +80,6 @@ def _period_range(period):
         datetime.combine(start, datetime.min.time()),
         datetime.combine(end, datetime.min.time()),
     )
-
 
 def _apply_flow_filters(query, model, product="", period="all", keyword=""):
     if product:
@@ -119,7 +110,6 @@ def _apply_flow_filters(query, model, product="", period="all", keyword=""):
 
     return query
 
-
 def _flow_rows(query, model):
     return [
         {
@@ -134,10 +124,8 @@ def _flow_rows(query, model):
         for row in query.order_by(model.created_at.desc()).limit(5).all()
     ]
 
-
 def _encoded(value):
     return quote(value or "", safe="")
-
 
 def _contains_filter(model, fields, value):
     pattern = _like(value)
@@ -146,15 +134,7 @@ def _contains_filter(model, fields, value):
         for field in fields
     ])
 
-
 def _find_page_matches(db, target):
-    """Find every module that has a row matching `target`, not just the
-    first one. An item code is not unique across modules (a component
-    can appear in Stock, BOM, MaterialMaster, ItemMaster all at once),
-    so stopping at the first hit silently sends everyone to whichever
-    table happens to be checked first (Stock) even when that is not
-    what they meant.
-    """
 
     target = _keyword(target)
 
@@ -259,7 +239,6 @@ def _find_page_matches(db, target):
 
     return matches
 
-
 @tool("general.chat")
 def general_chat(db, question: str):
     return {
@@ -271,7 +250,6 @@ def general_chat(db, question: str):
         )
     }
 
-
 @tool("security.block")
 def security_block(db, question: str = ""):
     return {
@@ -281,7 +259,6 @@ def security_block(db, question: str = ""):
             "필요하면 관리자 화면에서 비밀번호 초기화 또는 변경 절차를 사용해 주세요."
         )
     }
-
 
 @tool("knowledge.answer")
 def knowledge_answer(db, question: str = "", topic: str = ""):
@@ -377,7 +354,6 @@ def knowledge_answer(db, question: str = "", topic: str = ""):
         }
     }
 
-
 @tool("knowledge.out_of_scope")
 def knowledge_out_of_scope(db, question: str = ""):
     return {
@@ -387,7 +363,6 @@ def knowledge_out_of_scope(db, question: str = ""):
             "날씨, 뉴스, 주가처럼 외부 실시간 정보는 이 assistant에서 조회하지 않습니다."
         )
     }
-
 
 @tool("admin.account_action")
 def admin_account_action(db, action: str = ""):
@@ -401,7 +376,6 @@ def admin_account_action(db, action: str = ""):
             "관리자 계정 관리 화면에서 사용자명, 초기 비밀번호, 권한을 입력해 생성해 주세요."
         )
     }
-
 
 @tool("activity.login_summary")
 def activity_login_summary(db, period: str = "all", keyword: str = ""):
@@ -446,7 +420,6 @@ def activity_login_summary(db, period: str = "all", keyword: str = ""):
             for row in rows[:MAX_ROWS]
         ],
     }
-
 
 @tool("logistics.flow_count")
 def logistics_flow_count(
@@ -496,7 +469,6 @@ def logistics_flow_count(
         ),
     }
 
-
 @tool("logistics.dashboard")
 def logistics_dashboard(db, period: str = "all"):
     total_in = db.query(Inbound).count()
@@ -534,7 +506,6 @@ def logistics_dashboard(db, period: str = "all"):
         "missing": missing,
     }
 
-
 @tool("stock.summary")
 def stock_summary(
     db,
@@ -563,12 +534,6 @@ def stock_summary(
         return q
 
     if sort == "qty":
-
-        # 창고재고와 같은 방식으로 품목코드마다 A/B/F 등급이 항상 세
-        # 행으로 나뉘어 저장돼 있다. 개별 행을 qty로 정렬하면 "가장
-        # 많은 품목"이 실제로는 어느 한 등급 한 행일 뿐이라 다른
-        # 등급을 합친 진짜 총 재고량과 다른 값이 나온다 - 품목코드
-        # 단위로 등급을 합산한 뒤 정렬해야 한다.
         grouped = apply_scope(
             db.query(
                 Stock.item_code,
@@ -598,11 +563,6 @@ def stock_summary(
                 item_code=row.item_code,
                 item_name=row.item_name,
                 category=row.category,
-                # grade는 A/B/F 등급을 합산한 값이라 특정 등급 하나로
-                # 표시할 수 없다 - null이 아니라 빈 문자열로 둬서(다른
-                # tool들의 "해당 없음" 관례와 동일하게) 응답 생성 AI가
-                # null을 보고 "데이터 없음"으로 오해해 답변을 얼버무리는
-                # 것을 방지한다.
                 grade="",
                 rev=row.rev,
                 qty=row.qty or 0,
@@ -636,11 +596,6 @@ def stock_summary(
 
         rows = query.limit(limit + 1).all()
         total_rows = query.count()
-
-        # order_by() must be cleared before collapsing to a bare aggregate -
-        # Postgres rejects ORDER BY columns that aren't grouped/aggregated
-        # when the SELECT list is aggregate-only (SQLite silently allows it,
-        # which is why this only surfaced against the Postgres/Neon DB).
         total_qty = (
             query.order_by(None)
             .with_entities(func.coalesce(func.sum(Stock.qty), 0))
@@ -696,7 +651,6 @@ def stock_summary(
         ],
     }
 
-
 @tool("stock.dashboard")
 def stock_dashboard_summary(db):
     total_items = db.query(
@@ -732,7 +686,6 @@ def stock_dashboard_summary(db):
         "today_out": int(today_out),
         "category_summary": category_summary,
     }
-
 
 @tool("stock.movement_search")
 def stock_movement_search(
@@ -784,7 +737,6 @@ def stock_movement_search(
         ],
     }
 
-
 @tool("system.summary")
 def system_summary(db, question: str = ""):
     inbound_count = db.query(Inbound).count()
@@ -817,7 +769,6 @@ def system_summary(db, question: str = ""):
             "activity_logs": db.query(ActivityLog).count(),
         }
     }
-
 
 @tool("stock.book")
 def stock_book(db, item: str = ""):
@@ -858,14 +809,12 @@ def stock_book(db, item: str = ""):
 def stock_select(db):
 
     return {
-
         "status":"need_stock_type",
 
         "choices":[
             "가계상 재고",
             "수불 재고"
         ]
-
     }
 
 @tool("inventory.search")
@@ -909,12 +858,6 @@ def inventory_search(
         return q
 
     if sort == "qty":
-
-        # stock.summary와 같은 이유: 품목코드 하나가 창고재고/제공재고/
-        # 외주재고, 등급(A/B/F)별로 여러 행에 나뉘어 저장돼 있어서,
-        # 개별 행을 qty로 정렬하면 "가장 많은 품목"이 실제로는 그중
-        # 한 행일 뿐이라 품목 전체 합계와 다른 값이 나온다 - 품목코드
-        # 단위로 합산한 뒤 정렬해야 한다.
         grouped = apply_scope(
             db.query(
                 Inventory.item_code,
@@ -969,9 +912,6 @@ def inventory_search(
 
         rows = query.limit(limit + 1).all()
         total_rows = query.count()
-
-        # order_by()는 Postgres에서 집계 전용 SELECT와 함께 쓸 수 없다 -
-        # stock_summary와 동일한 이유로 총합 계산 전에 제거해야 한다.
         total_qty = (
             query.order_by(None)
             .with_entities(func.coalesce(func.sum(Inventory.qty), 0))
@@ -1011,7 +951,6 @@ def inventory_search(
             for row in rows[:limit]
         ],
     }
-
 
 @tool("inventory.dashboard")
 def inventory_dashboard_summary(db):
@@ -1056,7 +995,6 @@ def inventory_dashboard_summary(db):
         "today_out": int(today_out),
         "category_summary": category_summary,
     }
-
 
 @tool("inventory.movement_search")
 def inventory_movement_search(
@@ -1113,7 +1051,6 @@ def inventory_movement_search(
         ],
     }
 
-
 @tool("bom.detail")
 def bom_detail(db, item: str = ""):
     keyword = _keyword(item)
@@ -1146,7 +1083,6 @@ def bom_detail(db, item: str = ""):
             for row in rows[:MAX_ROWS]
         ],
     }
-
 
 @tool("production.plan")
 def production_plan(
@@ -1201,7 +1137,6 @@ def production_plan(
             for row in rows[:limit]
         ],
     }
-
 
 @tool("material.master")
 def material_master(
@@ -1266,7 +1201,6 @@ def material_master(
         ],
     }
 
-
 @tool("item.master")
 def item_master(db, item: str = ""):
     keyword = _keyword(item)
@@ -1298,7 +1232,6 @@ def item_master(db, item: str = ""):
             for row in rows[:MAX_ROWS]
         ],
     }
-
 
 @tool("item.master_history")
 def item_master_history(db, item: str = ""):
@@ -1337,7 +1270,6 @@ def item_master_history(db, item: str = ""):
             for row in rows[:MAX_ROWS]
         ],
     }
-
 
 @tool("movement.search")
 def movement_search(db, item: str = ""):
@@ -1402,7 +1334,6 @@ def movement_search(db, item: str = ""):
         },
     }
 
-
 @tool("activity.search")
 def activity_search(db, item: str = ""):
     keyword = _keyword(item)
@@ -1440,7 +1371,6 @@ def activity_search(db, item: str = ""):
         ],
     }
 
-
 @tool("admin.user_summary")
 def admin_user_summary(db, item: str = ""):
     keyword = _keyword(item)
@@ -1466,7 +1396,6 @@ def admin_user_summary(db, item: str = ""):
         "truncated": len(rows) > MAX_ROWS,
         "rows": [_safe_user(row) for row in rows[:MAX_ROWS]],
     }
-
 
 @tool("page.move")
 def page_move(db, page: str):
@@ -1498,7 +1427,6 @@ def page_move(db, page: str):
         "message": message,
     }
 
-
 @tool("page.find")
 def page_find(db, page: str = "", target: str = ""):
     target = _keyword(target)
@@ -1513,16 +1441,6 @@ def page_find(db, page: str = "", target: str = ""):
         }
 
     if page == "stock":
-        # The /stock route always filters to one category (defaults to
-        # 반제품 if none is given - there is no "all categories" view),
-        # so the right category has to be resolved before navigating or
-        # the target row may not even be in the rendered table.
-        #
-        # A bare number ("수량이 100인 행으로 이동") means a quantity
-        # value, not an item code/name - look it up by qty, not by a
-        # substring match against item_code/item_name/category, which
-        # would land on the category of an unrelated item whose code
-        # happens to contain that number.
         if target.isdigit():
             stock = (
                 db.query(Stock)
@@ -1592,10 +1510,6 @@ def page_find(db, page: str = "", target: str = ""):
         }
 
     if len(matches) > 1:
-        # Same item code exists in more than one module - ask instead
-        # of silently guessing (guessing always picked Stock, since it
-        # was the first table checked, regardless of what the user
-        # actually meant).
         return {
             "status": "need_page_choice",
             "target": target,
@@ -1610,23 +1524,14 @@ def page_find(db, page: str = "", target: str = ""):
         "message": f"'{target}'를 전체 조회 화면에서 확인해 주세요.",
     }
 
-
 @tool("page.choice")
 def page_choice(db, url: str = "", message: str = ""):
-    """Resolves a pending "which page did you mean" follow-up.
-
-    Only ever invoked internally by AssistantAgent's follow-up resolver
-    once the user has picked one of the offered options - never exposed
-    to the AI planner or keyword router, since `url` is trusted/
-    pre-built rather than user- or model-controlled input.
-    """
     return {
         "status": "move",
         "type": "move",
         "url": url,
         "message": message or "요청한 위치로 이동합니다.",
     }
-
 
 @tool("global.search")
 def global_search(db, item: str = ""):
@@ -1665,17 +1570,12 @@ def mrp_shortage_max(db):
     return {
         "type": "move",
         "status": "success",
-        # highlight (not q) so the full table renders and base.html's
-        # global highlightAssistantTarget() finds and scrolls to the
-        # row - q instead filters the table down to just this row,
-        # which leaves nothing for the highlight effect to apply to.
         "url": f"/mrp/result?highlight={_encoded(row['item_code'])}",
         "message": (
             f"부족 수량이 가장 많은 품목은 "
             f"{row['item_code']} ({row['item_name']}) 입니다."
         )
     }
-
 
 @tool("mrp.shortage_min")
 def mrp_shortage_min(db):
@@ -1711,7 +1611,6 @@ def mrp_shortage_min(db):
         "url": f"/mrp/result?highlight={_encoded(row['item_code'])}",
         "message": message,
     }
-
 
 @tool("mrp.shortage_search")
 def mrp_shortage_search(db, sort: str = "desc", limit: int = 5):
@@ -1751,7 +1650,6 @@ def mrp_shortage_search(db, sort: str = "desc", limit: int = 5):
             for row in ordered[:limit]
         ],
     }
-
 
 @tool("mrp.dashboard")
 def mrp_dashboard_summary(db):

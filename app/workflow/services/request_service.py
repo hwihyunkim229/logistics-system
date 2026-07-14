@@ -20,10 +20,6 @@ def create_request(
     remark: str = "",
     next_stage: int = None,
 ):
-    """
-    새로운 Workflow 요청 생성
-    """
-
     item = (
         db.query(WorkflowItem)
         .filter(
@@ -83,9 +79,6 @@ def create_request(
     )
 
     if item:
-        # 반제품(CRADLE 등)처럼 중간 단계를 건너뛰어야 하는 요청은
-        # 호출자가 next_stage를 직접 지정한다 - 지정이 없으면 원래
-        # 대로 다음 단계(+1)로 진행한다.
         target_stage = (
             next_stage
             if next_stage is not None

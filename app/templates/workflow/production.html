@@ -360,9 +360,18 @@
     {% with title=remnant_title, show_restock=remnant_show_restock, show_production_use=remnant_show_production_use %}
     {% include "workflow/_remnants.html" %}
     {% endwith %}
+
+    {% with remnants=work_defects, remnant_count=work_defect_count, title="작업 불량 창고", show_restock=false, show_defect_transfer=true, table_id="workDefectTable" %}
+    {% include "workflow/_remnants.html" %}
+    {% endwith %}
+
+    {% with remnants=material_return_defects, remnant_count=material_return_defect_count, title="자재 불량 창고(반납)", show_restock=false, show_defect_transfer=true, table_id="materialReturnDefectTable" %}
+    {% include "workflow/_remnants.html" %}
+    {% endwith %}
 </div>
 
-<!-- 승인 모달 -->
+<form id="defectTransferForm" method="post" action="/workflow/production/transfer-defects"></form>
+
 <div id="approveModal" class="modal">
     <div class="request-modal">
         <div class="modal-title">생산 승인</div>
@@ -435,7 +444,6 @@
     </div>
 </div>
 
-<!-- 현 재고 생산 투입 모달 -->
 <div id="useRemnantModal" class="modal">
     <div class="request-modal">
         <div class="modal-title">현 재고 생산 투입</div>
@@ -478,7 +486,6 @@
     </div>
 </div>
 
-<!-- 개별 완료 모달 (세트 외 품목) -->
 <div id="completeModal" class="modal">
     <div class="request-modal">
         <div class="modal-title" id="completeTitle">완료 등록</div>
@@ -509,15 +516,27 @@
                 </div>
 
                 <div class="modal-row">
-                    <label>불량 수량</label>
+                    <label>작업 불량 수량</label>
                     <input
-                        id="completeDefectQty"
-                        name="defect_qty"
+                        id="completeWorkDefectQty"
+                        name="work_defect_qty"
                         type="number"
                         min="0"
                         value="0"
-                        readonly>
+                        oninput="syncCompleteDefect('warehouse')">
                 </div>
+                <div class="modal-row" id="completeMaterialReturnWrap">
+                    <label>자재 불량 수량(반납)</label>
+                    <input id="completeMaterialReturnDefectQty" name="material_return_defect_qty" type="number" min="0" value="0" oninput="syncCompleteDefect('warehouse')">
+                </div>
+                <div class="modal-row">
+                    <label>총 불량 수량</label>
+                    <input id="completeDefectQty" name="defect_qty" type="number" min="0" value="0" readonly>
+                </div>
+            </div>
+
+            <div style="margin-top:-4px;font-size:12px;color:#6b7280;line-height:1.5;">
+                생산 중 발생한 불량은 <b>작업 불량</b>, 생산 전 원자재 자체 불량으로 공급업체에 반납할 건은 <b>자재 불량 수량(반납)</b>에 입력하세요. 불량 수량을 입력하면 양품 수량은 자동 조정됩니다.
             </div>
 
             <div class="modal-row">
@@ -538,7 +557,6 @@
     </div>
 </div>
 
-<!-- 반려 모달 (공용) -->
 <div id="rejectModal" class="modal">
     <div class="request-modal">
         <div class="modal-title">요청 반려</div>
@@ -653,11 +671,18 @@ function openSetModal(mode, components, targetCode, targetName, maxProducible){
             + '<div style="color:#9aa1af;">보유 ' + c.qty + ' EA'
             + (leftover ? ' + 잔존 ' + leftover + ' EA' : '')
             + (c.lot ? ' · LOT ' + c.lot : '') + '</div></div>'
-            + '<label style="font-size:12px;color:#6b7280;">불량</label>'
-            + '<input type="number" min="0" value="0" name="defect_' + c.workflow_no + '"'
-            + ' data-qty="' + c.qty + '" data-leftover="' + leftover + '" class="set-defect-input"'
+            + '<label style="font-size:12px;color:#6b7280;">작업 불량</label>'
+            + '<input type="number" min="0" value="0" name="work_defect_' + c.workflow_no + '"'
+            + ' data-workflow="' + c.workflow_no + '" data-qty="' + c.qty + '" data-leftover="' + leftover + '" class="set-defect-input"'
             + ' style="width:80px;height:34px;border:1px solid #d7dbe4;border-radius:8px;padding:0 10px;"'
-            + ' oninput="syncSetMax()">';
+            + ' oninput="syncSetMax()">'
+            + (mode === "production"
+                ? '<label style="font-size:12px;color:#6b7280;">반납 불량</label>'
+                    + '<input type="number" min="0" value="0" name="material_return_defect_' + c.workflow_no + '"'
+                    + ' data-workflow="' + c.workflow_no + '" data-qty="' + c.qty + '" data-leftover="' + leftover + '" class="set-defect-input"'
+                    + ' style="width:80px;height:34px;border:1px solid #d7dbe4;border-radius:8px;padding:0 10px;"'
+                    + ' oninput="syncSetMax()">'
+                : '');
         box.appendChild(row);
     });
 
@@ -671,11 +696,16 @@ function openSetModal(mode, components, targetCode, targetName, maxProducible){
 function computeSetMax(){
     let maxProducible = Infinity;
 
+    const components = {};
     document.querySelectorAll(".set-defect-input").forEach(input => {
-        const qty = Number(input.dataset.qty);
-        const leftover = Number(input.dataset.leftover) || 0;
-        const defect = Number(input.value) || 0;
-        maxProducible = Math.min(maxProducible, qty - defect + leftover);
+        const workflow = input.dataset.workflow;
+        if (!components[workflow]) {
+            components[workflow] = { qty: Number(input.dataset.qty), leftover: Number(input.dataset.leftover) || 0, defect: 0 };
+        }
+        components[workflow].defect += Number(input.value) || 0;
+    });
+    Object.values(components).forEach(component => {
+        maxProducible = Math.min(maxProducible, component.qty - component.defect + component.leftover);
     });
 
     return maxProducible === Infinity ? 0 : Math.max(0, maxProducible);
@@ -685,20 +715,21 @@ function syncSetMax(){
     const max = computeSetMax();
     const produced = document.getElementById("setProducedQty");
     produced.max = max;
-
-    if (Number(produced.value) > max) {
-        produced.value = max;
-    }
+    // 불량 수량을 줄여 가용 수량이 늘어난 경우에도, 세트 생산/포장
+    // 수량이 새 최대 생산 가능 수량으로 즉시 다시 계산되도록 한다.
+    produced.value = max;
 }
 
 function validateSet(){
     let ok = true;
-
+    const components = {};
     document.querySelectorAll(".set-defect-input").forEach(input => {
-        const qty = Number(input.dataset.qty);
-        const defect = Number(input.value) || 0;
-
-        if (defect < 0 || defect > qty) ok = false;
+        const workflow = input.dataset.workflow;
+        if (!components[workflow]) components[workflow] = { qty: Number(input.dataset.qty), defect: 0 };
+        components[workflow].defect += Number(input.value) || 0;
+    });
+    Object.values(components).forEach(component => {
+        if (component.defect < 0 || component.defect > component.qty) ok = false;
     });
 
     if (!ok){
@@ -731,6 +762,8 @@ function openCompleteModal(workflowNo, itemName, qty, mode){
     document.getElementById("completeTotalQty").value = qty + " EA";
     document.getElementById("completeGoodQty").value = qty;
     document.getElementById("completeGoodQty").max = qty;
+    document.getElementById("completeWorkDefectQty").value = 0;
+    document.getElementById("completeMaterialReturnDefectQty").value = 0;
     document.getElementById("completeDefectQty").value = 0;
     document.getElementById("completeLot").value = "";
 
@@ -738,16 +771,19 @@ function openCompleteModal(workflowNo, itemName, qty, mode){
         document.getElementById("completeTitle").innerText = "생산 완료 등록";
         document.getElementById("completeSubmit").innerText = "생산 완료";
         document.getElementById("completeForm").action = "/workflow/production/complete-production";
+        document.getElementById("completeMaterialReturnWrap").style.display = "";
     } else {
         document.getElementById("completeTitle").innerText = "포장 완료 등록";
         document.getElementById("completeSubmit").innerText = "포장 완료";
         document.getElementById("completeForm").action = "/workflow/production/complete-packaging";
+        document.getElementById("completeMaterialReturnDefectQty").value = 0;
+        document.getElementById("completeMaterialReturnWrap").style.display = "none";
     }
 
     document.getElementById("completeModal").style.display = "flex";
 }
 
-function syncCompleteDefect(){
+function syncCompleteDefect(source){
     let good = Number(document.getElementById("completeGoodQty").value);
 
     if (isNaN(good) || good < 0) good = 0;
@@ -756,7 +792,24 @@ function syncCompleteDefect(){
         document.getElementById("completeGoodQty").value = good;
     }
 
-    document.getElementById("completeDefectQty").value = completeMax - good;
+    let work = Number(document.getElementById("completeWorkDefectQty").value) || 0;
+    let material = Number(document.getElementById("completeMaterialReturnDefectQty").value) || 0;
+    if (work < 0) work = 0;
+    if (material < 0) material = 0;
+    if (source === "warehouse"){
+        if (work + material > completeMax){
+            material = Math.max(0, completeMax - work);
+            document.getElementById("completeMaterialReturnDefectQty").value = material;
+        }
+        good = completeMax - work - material;
+        document.getElementById("completeGoodQty").value = good;
+    }
+    const totalDefect = completeMax - good;
+    if (work + material > totalDefect){
+        material = Math.max(0, totalDefect - work);
+        document.getElementById("completeMaterialReturnDefectQty").value = material;
+    }
+    document.getElementById("completeDefectQty").value = work + material;
 }
 
 function validateComplete(){
@@ -764,6 +817,12 @@ function validateComplete(){
 
     if (good < 0 || good > completeMax){
         wfAlert("양품 수량이 올바르지 않습니다.");
+        return false;
+    }
+
+    const defect = Number(document.getElementById("completeDefectQty").value) || 0;
+    if (good + defect !== completeMax){
+        wfAlert("양품 수량과 두 불량 창고 수량의 합계가 대상 수량과 같아야 합니다.");
         return false;
     }
 

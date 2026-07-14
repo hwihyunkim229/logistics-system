@@ -1,6 +1,5 @@
 from app.assistant.registry import tool
 
-
 @tool("system.ping")
 def ping(db=None):
 

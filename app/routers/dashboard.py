@@ -52,9 +52,6 @@ def get_group_mode(
         return "month"
 
 def get_earliest_date(db, today):
-    """가장 오래된 입/출고 기록 날짜 - 기간 미지정 시 누적(전체) 보기의
-    시작일로 쓴다. 기록이 없으면 오늘로 대체한다.
-    """
 
     earliest_out = db.query(
         func.min(Outbound.created_at)
@@ -87,8 +84,6 @@ def dashboard_overview(
         ZoneInfo("Asia/Seoul")
     ).date()
 
-    # 기간을 지정하지 않으면(첫 진입) 최초 기록일부터 오늘까지 전체
-    # 누적을 기본으로 보여주고, 기간을 선택하면 그 기간만 반영한다.
     is_cumulative = not start and not end
 
     if not start:
@@ -149,9 +144,6 @@ def dashboard_overview(
         end_date
     )
 
-    # 구간(day/week/month)마다 Outbound/Inbound를 따로 조회하던 것을,
-    # 전체 기간 생성일시를 한 번만 가져와 Python에서 구간별로 나누는
-    # 방식으로 바꿨다 - 결과(구간별 건수)는 동일하고 DB 왕복만 줄어든다.
     out_all_dates = [
         row[0] for row in db.query(Outbound.created_at).filter(
             Outbound.created_at >= start_datetime,
@@ -264,7 +256,6 @@ def dashboard_overview(
 
     size_labels = ["7", "8", "9", "10", "11", "12", "13"]
 
-    # 사이즈별 반복 조회(사이즈 수 x 2쿼리) 대신 GROUP BY 한 번으로 집계.
     in_size_counts = dict(
         db.query(Inbound.size, func.count(Inbound.id))
         .filter(
@@ -294,27 +285,19 @@ def dashboard_overview(
         request=request,
         name="dashboard/overview.html",
         context={
-
             "total_out": total_out,
             "total_in": total_in,
-
             "period_out": period_out,
             "period_in": period_in,
-
             "missing": missing,
-
             "trend_labels": trend_labels,
             "trend_out": trend_out,
             "trend_in": trend_in,
-
             "size_labels": size_labels,
             "size_in": size_in,
             "size_out": size_out,
-
             "group_mode": group_mode,
-
             "is_cumulative": is_cumulative,
-
             "start": start_date.strftime("%Y-%m-%d"),
             "end": end_date.strftime("%Y-%m-%d")
         }
@@ -326,7 +309,6 @@ def dashboard_trend(
     start: str = None,
     end: str = None
 ):
-
     db = SessionLocal()
 
     charts = []
@@ -335,8 +317,6 @@ def dashboard_trend(
         ZoneInfo("Asia/Seoul")
     ).date()
 
-    # 기간을 지정하지 않으면(첫 진입) 최초 기록일부터 오늘까지 전체
-    # 누적을 기본으로 보여주고, 기간을 선택하면 그 기간만 반영한다.
     is_cumulative = not start and not end
 
     if not start:
@@ -386,9 +366,6 @@ def dashboard_trend(
         Inbound.created_at <= end_datetime
     ).count()
 
-    # 서비스(7개) x 구간마다 따로 조회하던 것을, (product, created_at)만
-    # 한 번씩 가져와 Python에서 서비스/구간별로 나누는 방식으로 대체 -
-    # 구간별 건수 결과는 동일하고 DB 왕복만 크게 줄어든다.
     out_rows = db.query(
         Outbound.product, Outbound.created_at
     ).filter(
@@ -536,20 +513,13 @@ def dashboard_trend(
                 current = next_month
 
         charts.append({
-
             "service": service,
-
             "display_name":
                 SERVICE_NAMES[service],
-
             "labels": labels,
-
             "out_counts": out_counts,
-
             "in_counts": in_counts,
-
             "total_out": sum(out_counts),
-
             "total_in": sum(in_counts)
         })
 
@@ -571,13 +541,10 @@ def dashboard_trend(
 
 @router.get("/dashboard/size")
 def dashboard_size(request: Request):
-
     db = SessionLocal()
 
     charts = []
 
-    # 서비스 x 사이즈(7x7)만큼 반복 조회하던 것을, (product, size)별
-    # GROUP BY 집계 2번(입고/출고)으로 대체 - 결과는 동일.
     in_size_totals = {
         (product, size): count
         for product, size, count in db.query(
@@ -685,14 +652,8 @@ def dashboard_activity(
         Movement.created_at.asc()
     ).all()
 
-    # total_logs는 records와 완전히 동일한 조건이라 다시 조회할 필요가
-    # 없다 - 이미 불러온 records 길이를 그대로 쓴다.
     total_logs = len(records)
 
-    # today_in/today_out/missing_client/service_stats/일별 서비스별
-    # 집계가 전부 "같은 기간의 Movement"를 서로 다른 각도로 세던 것이라,
-    # (type, product, client, created_at)만 한 번 가져와 Python에서
-    # 전부 계산한다 - 결과는 기존과 동일하고 반복 조회만 없앤다.
     period_rows = db.query(
         Movement.type, Movement.product, Movement.client, Movement.created_at
     ).filter(

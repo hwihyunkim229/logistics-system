@@ -14,7 +14,6 @@ templates = Jinja2Templates(
     directory="app/templates"
 )
 
-
 def get_sub_category(item_name):
 
     name = item_name.upper()
@@ -44,7 +43,6 @@ def get_raw_category(item_name):
         return "TOP COVER"
 
     return "사급자재"
-
 
 @router.get("/stock/dashboard")
 def stock_dashboard(
@@ -81,7 +79,6 @@ def stock_dashboard(
         StockMovement.movement_type == "OUT"
     ).scalar() or 0
 
-    # 카테고리 3개를 하나씩 따로 조회하던 것을 GROUP BY 한 번으로 대체.
     category_qty_totals = dict(
         db.query(Stock.category, func.sum(Stock.qty))
         .group_by(Stock.category)
@@ -188,8 +185,6 @@ def stock_dashboard(
         }
     }
 
-    # 전체 StockMovement 행을 가져와 Python에서 category/type별로
-    # 더하던 것을 GROUP BY 합산으로 대체 - 결과는 동일.
     movement_query = db.query(
         StockMovement.category,
         StockMovement.movement_type,

@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-
 from app.workflow.utils import get_db, department_name
 from app.workflow.services.notification_service import (
     get_notifications,
@@ -22,7 +21,6 @@ router = APIRouter(
 templates = Jinja2Templates(
     directory="app/templates"
 )
-
 
 @router.get("")
 def notification_page(
@@ -53,18 +51,11 @@ def notification_page(
         },
     )
 
-
 @router.get("/todo")
 def todo(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    """
-    우상단 종 아이콘용 - 각 팀이 지금 처리해야 할 대기 업무를
-    집계해서 반환한다. 팀 계정이면 자기 팀 것만, 팀이 없는 계정
-    (admin/일반)이면 전 팀 것을 보여준다.
-    """
-
     def _stage_items(*stages):
         return (
             db.query(WorkflowItem)

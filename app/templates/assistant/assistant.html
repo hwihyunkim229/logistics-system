@@ -91,10 +91,6 @@
     height:10px;
     flex-shrink:0;
 }
-
-/* 위젯을 숨기면 대신 화면 한쪽에 붙는 작은 탭 - 클릭하면 다시
-   나타난다. 완전히 없애버리면 되돌릴 방법이 없어지므로 항상 이
-   탭을 통해 복구 가능하게 해둔다. */
 #assistant-restore{
     position:fixed;
     right:0;
@@ -123,7 +119,6 @@
     height:18px;
     flex-shrink:0;
 }
-
 #assistant-window{
     position:fixed;
     right:26px;
@@ -148,7 +143,6 @@
     transform:translateY(0) scale(1);
     pointer-events:auto;
 }
-
 #assistant-header{
     background:linear-gradient(135deg,#2563eb,#1e40af);
     color:white;
@@ -217,11 +211,6 @@
     flex-shrink:0;
     transition:background .15s ease;
 }
-/* Missing size + flex-shrink here let this icon's SVG (a replaced
-   element with no width/height attributes, only a viewBox) fall back
-   to the browser's default intrinsic sizing and get treated as a
-   shrinkable flex item - it was silently stretching the button box
-   and rendering invisibly instead of drawing the X. */
 #assistant-close svg{
     width:14px;
     height:14px;
@@ -230,7 +219,6 @@
 #assistant-close:hover{
     background:rgba(255,255,255,.26);
 }
-
 #assistant-body{
     flex:1;
     overflow-y:auto;
@@ -245,7 +233,6 @@
     background:rgba(37,99,235,.2);
     border-radius:6px;
 }
-
 .assistant-message{
     margin-bottom:12px;
     display:flex;
@@ -278,7 +265,6 @@
     border-bottom-left-radius:4px;
     box-shadow:0 1px 2px rgba(15,23,42,.04);
 }
-
 .assistant-move-btn{
     display:inline-flex;
     align-items:center;
@@ -300,7 +286,6 @@
 .assistant-move-btn:active{
     transform:scale(.97);
 }
-
 .assistant-typing{
     display:inline-flex;
     align-items:center;
@@ -324,7 +309,6 @@
     0%, 60%, 100%{ transform:translateY(0); opacity:.5; }
     30%{ transform:translateY(-4px); opacity:1; }
 }
-
 #assistant-footer{
     display:flex;
     align-items:center;
@@ -479,8 +463,6 @@
     }
 
     assistantHide.onclick = (event) => {
-        // 버튼과 겹쳐 있어서 클릭이 assistant-btn의 열기 동작으로
-        // 번지지 않도록 막는다.
         event.stopPropagation();
         setOpen(false);
         setHidden(true);

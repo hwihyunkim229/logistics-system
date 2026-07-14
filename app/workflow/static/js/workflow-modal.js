@@ -277,8 +277,6 @@
         });
     };
 
-    // 커스텀 파일 선택 위젯(.file-picker) - input[type=file] 변경 시
-    // 선택된 파일명을 표시 영역에 반영한다.
     window.updateFilePicker = function (input) {
         const picker = input.closest(".file-picker");
 

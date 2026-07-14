@@ -1,5 +1,4 @@
 import re
-
 from app.ai.responder import make_answer
 from app.assistant.memory import memory
 from app.assistant.query_router import resolve_tool, wants_move
@@ -24,7 +23,6 @@ TOOL_TO_PAGE = {
     "admin.user_summary": "users",
 }
 
-
 ADMIN_ONLY_TOOLS = {
     "admin.user_summary",
     "admin.account_action",
@@ -32,20 +30,9 @@ ADMIN_ONLY_TOOLS = {
     "activity.login_summary",
 }
 
-# resolve_tool() never returns None - it always ends in a catch-all once
-# none of its specific keyword branches match. Only "general.chat" (no
-# keyword at all) is a real "I don't know what this means" signal worth
-# an AI call. "global.search" already found a concrete keyword and
-# searched every domain table for it - that IS the correct, complete
-# answer for an ambiguous item/quantity question, so handing it to the
-# AI planner here would be a downgrade: the planner has to guess a
-# single specific tool (e.g. inventory.search) and often picks the
-# wrong domain, reporting that domain's qty (sometimes 0) as if it were
-# the item's only stock, when other domains for the same item have data.
 GENERIC_FALLBACK_TOOLS = {
     "general.chat",
 }
-
 
 class AssistantAgent:
 
@@ -60,13 +47,6 @@ class AssistantAgent:
 
         if selected_tool is None:
 
-            # The deterministic keyword router costs zero AI tokens and
-            # already covers the vast majority of real questions - only
-            # fall through to the AI planner when it lands on a generic
-            # catch-all, which is its way of saying "I don't know what
-            # this means". This keeps the free-tier token budget for the
-            # questions that actually need it instead of spending it on
-            # every single message regardless of how simple it is.
             selected_tool = resolve_tool(question)
 
             if selected_tool.get("tool") in GENERIC_FALLBACK_TOOLS:
@@ -179,14 +159,6 @@ class AssistantAgent:
         }
 
     def _resolve_page_choice(self, text, choices):
-        """Match a reply like "1번", "2", or "가계상 재고" against the
-        options page.find just offered for an ambiguous item code.
-
-        Returns None (not "no choice matched") when it can't tell -
-        the caller then falls through to normal AI/keyword resolution,
-        so an unrelated message right after the question doesn't get
-        swallowed as a bad answer.
-        """
 
         stripped = text.strip()
 

@@ -1,9 +1,7 @@
 from datetime import datetime
 from sqlalchemy import func
-
 from app.models.user import User
 from app.models.activity_log import ActivityLog
-
 
 class LogisticsAssistant:
 

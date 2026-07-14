@@ -6,6 +6,11 @@ PURCHASE_COLUMNS = {
     "purchase_lot": "VARCHAR",
 }
 
+REMNANT_COLUMNS = {
+    "source_warehouse": "VARCHAR",
+    "transfer_status": "VARCHAR",
+}
+
 def ensure_workflow_schema(engine):
     inspector = inspect(engine)
 
@@ -50,6 +55,42 @@ def ensure_workflow_schema(engine):
                 WHERE purchase_item_code IS NULL
                    OR purchase_item_name IS NULL
                    OR purchase_lot IS NULL
+                """
+            )
+        )
+
+        conn.execute(
+            text(
+                """
+                UPDATE workflow_items
+                SET received_at = COALESCE(created_at, CURRENT_TIMESTAMP)
+                WHERE received_at IS NULL
+                """
+            )
+        )
+
+    if not inspector.has_table("workflow_remnants"):
+        return
+
+    remnant_columns = {
+        column["name"]
+        for column in inspector.get_columns("workflow_remnants")
+    }
+    with engine.begin() as conn:
+        for column, column_type in REMNANT_COLUMNS.items():
+            if column not in remnant_columns:
+                conn.execute(
+                    text(
+                        f"ALTER TABLE workflow_remnants "
+                        f"ADD COLUMN {column} {column_type}"
+                    )
+                )
+        conn.execute(
+            text(
+                """
+                UPDATE workflow_remnants
+                SET transfer_status = COALESCE(transfer_status, 'AVAILABLE')
+                WHERE transfer_status IS NULL
                 """
             )
         )
