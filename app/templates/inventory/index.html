@@ -33,7 +33,9 @@
     flex-direction:column;
     overflow:hidden;
     gap:14px;
-    min-height:760px;
+    height:calc(100vh - 285px);
+    min-height:480px;
+    max-height:760px;
 }
 
 .card-header-row{
@@ -200,6 +202,7 @@ button + button{
 .table-wrapper{
     margin-top:12px;
     flex:1;
+    min-height:0;
     overflow-y:auto;
     max-height:750px;
     border-radius:12px;
@@ -614,23 +617,27 @@ th input[type="checkbox"]{
 
             </tbody>
         </table>
+    </div>
 
-        {% set base_qs = "warehouse_type=" ~ (current_warehouse_type|urlencode) ~ "&category=" ~ (current_category|urlencode) ~ "&keyword=" ~ (keyword|urlencode) ~ "&grade=" ~ (current_grade|urlencode) ~ "&lot=" ~ (current_lot|urlencode) ~ "&rev=" ~ (current_rev|urlencode) ~ "&note=" ~ (current_note|urlencode) %}
-        <div class="pagination">
+    {% set base_qs = "warehouse_type=" ~ (current_warehouse_type|urlencode) ~ "&category=" ~ (current_category|urlencode) ~ "&keyword=" ~ (keyword|urlencode) ~ "&grade=" ~ (current_grade|urlencode) ~ "&lot=" ~ (current_lot|urlencode) ~ "&rev=" ~ (current_rev|urlencode) ~ "&note=" ~ (current_note|urlencode) %}
+    <div class="pagination">
             {% if page > 1 %}
-            <a href="?{{ base_qs }}&page={{ page - 1 }}">이전</a>
+            <a href="?{{ base_qs }}&page=1" aria-label="첫 페이지">«</a>
+            <a href="?{{ base_qs }}&page={{ page - 1 }}" aria-label="이전 페이지">‹</a>
+            {% else %}
+            <span class="page-disabled">«</span>
+            <span class="page-disabled">‹</span>
             {% endif %}
 
-            {% for p in range(1, total_pages + 1) %}
-            <a
-                href="?{{ base_qs }}&page={{ p }}"
-                class="{% if p == page %}active{% endif %}">{{ p }}</a>
-            {% endfor %}
+            <span class="page-indicator">{{ page }} / {{ total_pages }}</span>
 
             {% if page < total_pages %}
-            <a href="?{{ base_qs }}&page={{ page + 1 }}">다음</a>
+            <a href="?{{ base_qs }}&page={{ page + 1 }}" aria-label="다음 페이지">›</a>
+            <a href="?{{ base_qs }}&page={{ total_pages }}" aria-label="마지막 페이지">»</a>
+            {% else %}
+            <span class="page-disabled">›</span>
+            <span class="page-disabled">»</span>
             {% endif %}
-        </div>
     </div>
 </div>
 

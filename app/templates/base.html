@@ -406,6 +406,31 @@ body.sidebar-collapsed .main{
     color:white !important;
     transform:none;
 }
+.child-menu .nested-menu-parent{
+    padding:8px 12px;
+    margin:2px 0 0 !important;
+    border:none;
+    background:none;
+    color:#cbd5e1;
+    font-size:13px;
+    font-weight:600;
+    border-radius:8px;
+}
+.child-menu .nested-menu-parent::before{
+    content:"•";
+    width:auto;
+    height:auto;
+    background:none;
+    color:#60a5fa;
+    font-size:16px;
+}
+.child-menu .nested-menu-parent:hover{
+    background:rgba(59,130,246,.08);
+}
+.nested-child-menu{
+    margin-left:12px;
+    margin-bottom:4px;
+}
 .menu-single{
     position:relative !important;
     display:flex !important;
@@ -613,6 +638,15 @@ body.sidebar-collapsed .main{
                 <a href="/stock/history">입/출고 현황</a>
                 <a href="/stock/dashboard">Dashboard</a>
 
+                <a href="javascript:void(0)" class="menu-parent nested-menu-parent" onclick="toggleSubmenu(this)">
+                    대여 관리
+                </a>
+
+                <div class="child-menu nested-child-menu">
+                    <a href="/rental">재고 현황</a>
+                    <a href="/rental/history">입/출고 현황</a>
+                </div>
+
             </div>
 
         </div>
@@ -777,6 +811,54 @@ body.sidebar-collapsed .main{
 </div>
 
 <div class="main">
+    <style>
+    .pagination,
+    .pager{
+        display:flex !important;
+        justify-content:center !important;
+        align-items:center !important;
+        gap:8px !important;
+        margin-top:20px !important;
+    }
+    .pagination a,
+    .pagination .page-indicator,
+    .pagination .page-disabled,
+    .pager a,
+    .pager b,
+    .pager .disabled{
+        min-width:30px !important;
+        height:30px !important;
+        padding:0 8px !important;
+        box-sizing:border-box !important;
+        display:flex !important;
+        align-items:center !important;
+        justify-content:center !important;
+        border:1px solid #d7dde5 !important;
+        border-radius:7px !important;
+        background:#fff !important;
+        color:#2c3e50 !important;
+        text-decoration:none !important;
+        font-size:13px !important;
+        font-weight:500 !important;
+    }
+    .pagination .page-indicator,
+    .pager b{
+        background:#eef2f6 !important;
+        font-weight:600 !important;
+    }
+    .pagination .page-disabled,
+    .pager .disabled{
+        color:#b8c0ca !important;
+        background:#f8f9fb !important;
+        cursor:default !important;
+    }
+    .pagination a:hover,
+    .pager a:hover{
+        background:#f5f7fa !important;
+        color:#2c3e50 !important;
+    }
+    </style>
+
     {% block content %}{% endblock %}
 </div>
 {% include "assistant/assistant.html" %}
@@ -1006,7 +1088,9 @@ window.addEventListener("pageshow", function(e){
     const USER_TEAM = {{ request.session.get("team", "")|tojson }};
     const USER_ROLE = {{ request.session.get("role", "")|tojson }};
 
-    if (!USER_TEAM || USER_ROLE === "admin") return;
+    const IS_GLOBAL_VIEWER = USER_ROLE === "viewer";
+
+    if (!IS_GLOBAL_VIEWER && (!USER_TEAM || USER_ROLE === "admin")) return;
 
     const TEAM_WRITE_PREFIXES = {
         purchase: ["/workflow/purchase"],
@@ -1015,9 +1099,9 @@ window.addEventListener("pageshow", function(e){
         production: ["/workflow/production"]
     };
 
-    const allowed = (TEAM_WRITE_PREFIXES[USER_TEAM] || []).some(
-        prefix => location.pathname.startsWith(prefix)
-    );
+    const allowed = !IS_GLOBAL_VIEWER && (
+        TEAM_WRITE_PREFIXES[USER_TEAM] || []
+    ).some(prefix => location.pathname.startsWith(prefix));
 
     if (allowed) return;
 
@@ -1029,17 +1113,23 @@ window.addEventListener("pageshow", function(e){
         + "z-index:99998;background:#1e293b;color:#fff;font-size:12.5px;"
         + "font-weight:600;padding:6px 18px;border-radius:0 0 10px 10px;"
         + "box-shadow:0 4px 12px rgba(0,0,0,.15);";
-    banner.innerText = "조회 전용 페이지입니다 (수정 권한: 소속 팀 페이지)";
+    banner.innerText = IS_GLOBAL_VIEWER
+        ? "Viewer 계정입니다 (전체 페이지 조회 전용)"
+        : "조회 전용 페이지입니다 (수정 권한: 소속 팀 페이지)";
     document.body.appendChild(banner);
 
     document.addEventListener("submit", function(e){
         e.preventDefault();
         e.stopPropagation();
 
+        const message = IS_GLOBAL_VIEWER
+            ? "Viewer 계정은 조회만 가능합니다."
+            : "조회 전용 계정입니다.\n소속 팀 페이지에서만 작업할 수 있습니다.";
+
         if (typeof wfAlert === "function") {
-            wfAlert("조회 전용 계정입니다.\n소속 팀 페이지에서만 작업할 수 있습니다.");
+            wfAlert(message);
         } else {
-            alert("조회 전용 계정입니다. 소속 팀 페이지에서만 작업할 수 있습니다.");
+            alert(message);
         }
     }, true);
 })();

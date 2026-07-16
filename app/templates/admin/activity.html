@@ -641,29 +641,36 @@
         </div>
 
         <div class="pagination">
-
             {% if page > 1 %}
-
+            <a
+                href="?page=1&user={{ search_user or '' }}&action={{ selected_action or '' }}&serial={{ search_serial or '' }}&start_date={{ start_date or '' }}&end_date={{ end_date or '' }}"
+            >«</a>
             <a
                 href="?page={{ page - 1 }}&user={{ search_user or '' }}&action={{ selected_action or '' }}&serial={{ search_serial or '' }}&start_date={{ start_date or '' }}&end_date={{ end_date or '' }}"
             >
-                이전
+                ‹
             </a>
-
+            {% else %}
+            <span class="page-disabled">«</span>
+            <span class="page-disabled">‹</span>
             {% endif %}
 
-            <span>
+            <span class="page-indicator">
                 {{ page }} / {{ total_pages }}
             </span>
 
             {% if page < total_pages %}
-
             <a
                 href="?page={{ page + 1 }}&user={{ search_user or '' }}&action={{ selected_action or '' }}&serial={{ search_serial or '' }}&start_date={{ start_date or '' }}&end_date={{ end_date or '' }}"
             >
-                다음
+                ›
             </a>
-
+            <a
+                href="?page={{ total_pages }}&user={{ search_user or '' }}&action={{ selected_action or '' }}&serial={{ search_serial or '' }}&start_date={{ start_date or '' }}&end_date={{ end_date or '' }}"
+            >»</a>
+            {% else %}
+            <span class="page-disabled">›</span>
+            <span class="page-disabled">»</span>
             {% endif %}
 
         </div>

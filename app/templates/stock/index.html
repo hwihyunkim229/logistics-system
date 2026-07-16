@@ -29,13 +29,13 @@
     flex-direction:column;
     overflow:hidden;
     gap:14px;
-    min-height:760px;
+    height:calc(100vh - 285px);
+    min-height:480px;
+    max-height:760px;
 }
 
 .excel-download{
-    position:absolute;
-    top:215px;
-    right:38px;
+    position:static;
     width:36px;
     height:36px;
     border-radius:10px;
@@ -47,6 +47,16 @@
     justify-content:center;
     color:#1D6F42;
     transition:all .2s ease;
+}
+
+.stock-card-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+}
+
+.stock-card-header h3{
+    margin:0;
 }
 
 .excel-download:hover{
@@ -175,6 +185,7 @@ button + button{
 .table-wrapper{
     margin-top:12px;
     flex:1;
+    min-height:0;
     overflow-y:auto;
     max-height:750px;
     border-radius:12px;
@@ -429,13 +440,6 @@ th input[type="checkbox"]{
 
     </form>
 
-    <button
-        class="excel-download"
-        onclick="downloadExcel()"
-        title="엑셀 다운로드">
-
-        <i class="fa-solid fa-file-excel"></i>
-    </button>
 </div>
 
 <div class="category-tabs">
@@ -459,9 +463,18 @@ th input[type="checkbox"]{
 </div>
 
 <div class="card bottom">
-    <h3 id="stockTitle">
-        📄 {{ current_category }} 재고 리스트
-    </h3>
+    <div class="stock-card-header">
+        <h3 id="stockTitle">
+            📄 {{ current_category }} 재고 리스트
+        </h3>
+
+        <button
+            class="excel-download"
+            onclick="downloadExcel()"
+            title="엑셀 다운로드">
+            <i class="fa-solid fa-file-excel"></i>
+        </button>
+    </div>
 
     <div class="toolbar">
         <div class="left-group">
@@ -728,35 +741,27 @@ th input[type="checkbox"]{
         {% endfor %}
         </tbody>
     </table>
+    </div>
 
     {% set base_qs = "category=" ~ (current_category|urlencode) ~ "&keyword=" ~ (keyword|urlencode) ~ "&grade=" ~ (current_grade|urlencode) ~ "&rev=" ~ (current_rev|urlencode) %}
     <div class="pagination">
         {% if page > 1 %}
-
-        <a
-            href="?{{ base_qs }}&page={{ page - 1 }}">
-            이전
-        </a>
-
+        <a href="?{{ base_qs }}&page=1" aria-label="첫 페이지">«</a>
+        <a href="?{{ base_qs }}&page={{ page - 1 }}" aria-label="이전 페이지">‹</a>
+        {% else %}
+        <span class="page-disabled">«</span>
+        <span class="page-disabled">‹</span>
         {% endif %}
 
-        {% for p in range(1, total_pages + 1) %}
-        <a
-            href="?{{ base_qs }}&page={{ p }}"
-            class="{% if p == page %}active{% endif %}">
-            {{ p }}
-        </a>
-
-        {% endfor %}
+        <span class="page-indicator">{{ page }} / {{ total_pages }}</span>
 
         {% if page < total_pages %}
-        <a
-            href="?{{ base_qs }}&page={{ page + 1 }}">
-            다음
-        </a>
-
+        <a href="?{{ base_qs }}&page={{ page + 1 }}" aria-label="다음 페이지">›</a>
+        <a href="?{{ base_qs }}&page={{ total_pages }}" aria-label="마지막 페이지">»</a>
+        {% else %}
+        <span class="page-disabled">›</span>
+        <span class="page-disabled">»</span>
         {% endif %}
-    </div>
 </div>
 
 <div

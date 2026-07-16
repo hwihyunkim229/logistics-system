@@ -611,23 +611,29 @@ th:hover span {
         </div>
 
         <div class="pagination">
-
             {% if page > 1 %}
+            <a href="/product/{{ product }}/{{ mode }}?page=1&sort={{ sort }}&order={{ order }}">«</a>
             <a href="/product/{{ product }}/{{ mode }}?page={{ page - 1 }}&sort={{ sort }}&order={{ order }}">
-                이전
+                ‹
             </a>
+            {% else %}
+            <span class="page-disabled">«</span>
+            <span class="page-disabled">‹</span>
             {% endif %}
 
-            <span>
+            <span class="page-indicator">
                 {{ page }} / {{ total_pages }}
             </span>
 
             {% if page < total_pages %}
             <a href="/product/{{ product }}/{{ mode }}?page={{ page + 1 }}&sort={{ sort }}&order={{ order }}">
-                다음
+                ›
             </a>
+            <a href="/product/{{ product }}/{{ mode }}?page={{ total_pages }}&sort={{ sort }}&order={{ order }}">»</a>
+            {% else %}
+            <span class="page-disabled">›</span>
+            <span class="page-disabled">»</span>
             {% endif %}
-
         </div>
     </div>
 

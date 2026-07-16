@@ -152,6 +152,11 @@
     color:#64748b;
 }
 
+.role-viewer{
+    background:rgba(124,58,237,0.12);
+    color:#7c3aed;
+}
+
 .action-wrap{
     display:flex;
     justify-content:center;
@@ -338,6 +343,10 @@
                     Admin
                 </option>
 
+                <option value="viewer">
+                    Viewer (조회 전용)
+                </option>
+
             </select>
 
             <select
@@ -435,6 +444,8 @@
                                     role-badge
                                     {% if user.role == 'admin' %}
                                         role-admin
+                                    {% elif user.role == 'viewer' %}
+                                        role-viewer
                                     {% else %}
                                         role-user
                                     {% endif %}

@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<script src="/workflow/static/js/workflow-modal.js"></script>
+<style>
+.r-head {
+    margin-bottom: 12px;
+}
+
+.r-head h2 {
+    margin: 0 0 25px;
+    border-left: 4px solid #2c3e50;
+    padding-left: 10px;
+    font-size: 22px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.r-search {
+    width: 350px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-sizing: border-box;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.card-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+.excel {
+    width: 42px;
+    height: 42px;
+    border: 1px solid #ddd;
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #1d6f42;
+    transition: .2s;
+}
+
+.excel:hover {
+    background: #f5f7fa;
+}
+
+.card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 2px 12px #0000000d;
+    margin-top: 16px;
+}
+
+.table-wrap {
+    max-height: 650px;
+    overflow: auto;
+    border-radius: 14px;
+}
+
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    white-space: nowrap;
+}
+
+th {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: #2f4358;
+    color: #fff;
+    padding: 16px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    border-right: 1px solid #fff;
+}
+
+th:first-child {
+    border-top-left-radius: 14px;
+}
+
+th:last-child {
+    border-top-right-radius: 14px;
+}
+
+td {
+    padding: 14px;
+    border-bottom: 1px solid #edf1f5;
+    border-right: 1px solid #edf1f5;
+    text-align: center;
+    font-size: 14px;
+}
+
+tbody tr:hover {
+    background: #f8fafc;
+}
+
+.editable {
+    border: 1px solid transparent;
+    padding: 7px;
+    border-radius: 8px;
+    min-width: 90px;
+    text-align: center;
+}
+
+.editable:focus {
+    border-color: #2f4358;
+    outline: none;
+}
+
+.pager {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.pager a,
+.pager b,
+.pager .disabled {
+    min-width: 30px;
+    height: 30px;
+    padding: 0 8px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #ddd;
+    border-radius: 7px;
+    background: #fff;
+    text-decoration: none;
+    color: #2c3e50;
+}
+
+.pager b {
+    background: #eef2f6;
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+.pager .disabled {
+    color: #b8c0ca;
+    background: #f8f9fb;
+    cursor: default;
+}
+
+.pager a:hover {
+    background: #f5f7fa;
+}
+
+@media (max-width: 800px) {
+    .r-search {
+        width: 100%;
+    }
+}
+</style>
+
+<div class="r-head">
+    <h2>대여 재고 입/출고 현황</h2>
+
+    <form>
+        <input
+            class="r-search"
+            name="keyword"
+            value="{{ keyword }}"
+            placeholder="검색어를 입력하세요"
+        >
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="card-title">
+            📄 대여 재고 이동 리스트
+        </div>
+
+        <button
+            class="excel"
+            onclick="location.href='/rental/history/download-excel'"
+            title="엑셀 다운로드"
+        >
+            <i class="fa-solid fa-file-excel"></i>
+        </button>
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>
+                        <input type="checkbox" id="checkAll">
+                    </th>
+
+                    <th>본부</th>
+                    <th>부서</th>
+                    <th>품목코드</th>
+                    <th>품명</th>
+                    <th>요청자</th>
+                    <th>사이즈</th>
+                    <th>S/N</th>
+                    <th>불출일자</th>
+                    <th>비고</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for row in history %}
+                <tr>
+                    <td>
+                        <input
+                            class="row-check"
+                            type="checkbox"
+                            value="{{ row.id }}"
+                        >
+                    </td>
+
+                    <td>{{ row.headquarters }}</td>
+                    <td>{{ row.department }}</td>
+                    <td>{{ row.item_code }}</td>
+                    <td>{{ row.item_name }}</td>
+
+                    <td>
+                        <input
+                            class="editable"
+                            data-id="{{ row.id }}"
+                            data-field="requester"
+                            value="{{ row.requester }}"
+                        >
+                    </td>
+
+                    <td>{{ row.size }}</td>
+                    <td>{{ row.serial_number }}</td>
+                    <td>{{ row.issue_date }}</td>
+
+                    <td>
+                        <input
+                            class="editable"
+                            data-id="{{ row.id }}"
+                            data-field="remark"
+                            value="{{ row.remark or '' }}"
+                        >
+                    </td>
+                </tr>
+
+                {% else %}
+
+                <tr>
+                    <td colspan="10">
+                        이력이 없습니다.
+                    </td>
+                </tr>
+
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pager">
+        {% if page > 1 %}
+        <a href="?keyword={{ keyword|urlencode }}&page=1" aria-label="첫 페이지">
+            «
+        </a>
+        <a href="?keyword={{ keyword|urlencode }}&page={{ page - 1 }}">
+            ‹
+        </a>
+        {% else %}
+        <span class="disabled">«</span>
+        <span class="disabled">‹</span>
+        {% endif %}
+
+        <b>{{ page }} / {{ total_pages }}</b>
+
+        {% if page < total_pages %}
+        <a href="?keyword={{ keyword|urlencode }}&page={{ page + 1 }}">
+            ›
+        </a>
+        <a
+            href="?keyword={{ keyword|urlencode }}&page={{ total_pages }}"
+            aria-label="마지막 페이지"
+        >
+            »
+        </a>
+        {% else %}
+        <span class="disabled">›</span>
+        <span class="disabled">»</span>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+checkAll.onchange = () => {
+    document.querySelectorAll(".row-check").forEach(x => {
+        x.checked = checkAll.checked;
+    });
+};
+
+document.querySelectorAll(".editable").forEach(x => {
+    x.onchange = async () => {
+        const r = await fetch(`/rental/history/${x.dataset.id}`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                field: x.dataset.field,
+                value: x.value
+            })
+        });
+
+        if (!r.ok) {
+            const d = await r.json();
+            await wfAlert(d.message || "저장하지 못했습니다.");
+            location.reload();
+        }
+    };
+});
+</script>
+
+{% endblock %}

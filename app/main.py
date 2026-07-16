@@ -36,7 +36,10 @@ from app.models import (
     inventory_movement,
     material_note,
     material_master,
-    item_master
+    item_master,
+    rental_stock,
+    rental_movement,
+    rental_category
 )
 from app.models.material_master import MaterialMaster
 from app.models.user import User
@@ -50,7 +53,8 @@ from app.routers import (
     stock_dashboard,
     mrp,
     inventory as inventory_router,
-    assistant
+    assistant,
+    rental
 )
 from app.workflow.routers import (
     purchase,
@@ -64,6 +68,7 @@ from app.workflow.routers import (
 )
 import app.workflow.models
 from app.workflow.schema import ensure_workflow_schema
+from app.rental_schema import ensure_rental_schema
 import time
 from fastapi.responses import JSONResponse, Response
 
@@ -164,6 +169,41 @@ class AuthMiddleware(BaseHTTPMiddleware):
         request.session["team"] = team
         request.session["role"] = role
 
+        if role == "viewer":
+            viewer_allowed_writes = (
+                "/change-password",
+                "/assistant",
+            )
+
+            is_allowed_viewer_write = any(
+                path.startswith(prefix)
+                for prefix in viewer_allowed_writes
+            )
+
+            if (
+                request.method != "GET"
+                and not is_allowed_viewer_write
+            ):
+                return RedirectResponse(
+                    "/search?error=조회 전용 계정입니다.",
+                    status_code=303,
+                )
+
+            lowered = path.lower()
+
+            if request.method == "GET" and any(
+                keyword in lowered
+                for keyword in (
+                    "download",
+                    "export",
+                    "backup",
+                )
+            ):
+                return RedirectResponse(
+                    "/search?error=다운로드 권한이 없습니다.",
+                    status_code=303,
+                )
+
         if team and role != "admin":
             allowed_writes = (
                 TEAM_WRITE_PREFIXES.get(team, [])
@@ -177,9 +217,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
             if request.method != "GET" and not is_allowed_write:
                 return RedirectResponse(
-                    f"/workflow/{team}?error="
-                    "%EC%A1%B0%ED%9A%8C%20%EC%A0%84%EC%9A%A9%20"
-                    "%EA%B3%84%EC%A0%95%EC%9E%85%EB%8B%88%EB%8B%A4.",
+                    f"/workflow/{team}?error=조회 전용 계정입니다.",
                     status_code=303,
                 )
 
@@ -190,10 +228,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 for keyword in ("download", "export", "backup")
             ) and not is_allowed_write:
                 return RedirectResponse(
-                    f"/workflow/{team}?error="
-                    "%EB%8B%A4%EC%9A%B4%EB%A1%9C%EB%93%9C%20"
-                    "%EA%B6%8C%ED%95%9C%EC%9D%B4%20"
-                    "%EC%97%86%EC%8A%B5%EB%8B%88%EB%8B%A4.",
+                    f"/workflow/{team}?error=다운로드 권한이 없습니다.",
                     status_code=303,
                 )
 
@@ -241,6 +276,7 @@ app.include_router(stock_dashboard.router)
 app.include_router(mrp.router)
 app.include_router(inventory_router.router)
 app.include_router(assistant.router)
+app.include_router(rental.router)
 app.include_router(purchase.router)
 app.include_router(quality.router)
 app.include_router(material.router)
@@ -255,3 +291,4 @@ Base.metadata.create_all(
 )
 
 ensure_workflow_schema(engine)
+ensure_rental_schema(engine)
