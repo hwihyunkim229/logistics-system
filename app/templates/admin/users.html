@@ -375,6 +375,10 @@
                     생산팀
                 </option>
 
+                <option value="vsp">
+                    VSP팀
+                </option>
+
             </select>
 
             <button
@@ -462,7 +466,8 @@
                                     "purchase": "구매팀",
                                     "quality": "품질팀",
                                     "material": "자재팀",
-                                    "production": "생산팀"
+                                    "production": "생산팀",
+                                    "vsp": "VSP팀"
                                 } %}
                                 {{ team_names.get(user.team, "-") if user.team else "-" }}
                             </td>

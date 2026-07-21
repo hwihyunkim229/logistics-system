@@ -97,6 +97,7 @@ TEAM_WRITE_PREFIXES = {
     "quality": ["/workflow/quality"],
     "material": ["/workflow/material", "/workflow/remnant"],
     "production": ["/workflow/production"],
+    "vsp": ["/rental"],
 }
 
 TEAM_COMMON_WRITE_PREFIXES = [
@@ -215,9 +216,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 for prefix in allowed_writes
             )
 
+            team_home = (
+                "/rental"
+                if team == "vsp"
+                else f"/workflow/{team}"
+            )
+
             if request.method != "GET" and not is_allowed_write:
                 return RedirectResponse(
-                    f"/workflow/{team}?error=조회 전용 계정입니다.",
+                    f"{team_home}?error=조회 전용 계정입니다.",
                     status_code=303,
                 )
 
@@ -228,7 +235,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 for keyword in ("download", "export", "backup")
             ) and not is_allowed_write:
                 return RedirectResponse(
-                    f"/workflow/{team}?error=다운로드 권한이 없습니다.",
+                    f"{team_home}?error=다운로드 권한이 없습니다.",
                     status_code=303,
                 )
 

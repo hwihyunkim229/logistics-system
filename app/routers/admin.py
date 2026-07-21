@@ -100,6 +100,20 @@ def create_user(
     if role in {"admin", "viewer"}:
         team = ""
 
+    if role == "user" and team not in {
+        "",
+        "purchase",
+        "quality",
+        "material",
+        "production",
+        "vsp",
+    }:
+        db.close()
+        return RedirectResponse(
+            "/admin/users",
+            status_code=303,
+        )
+
     user = User(
         username=username,
         password=hashed_password,
