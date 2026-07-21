@@ -1176,25 +1176,40 @@ window.addEventListener("pageshow", function(e){
 
     window.__VIEWER_MODE__ = true;
 
-    const banner = document.createElement("div");
-    banner.style.cssText =
-        "position:fixed;top:0;left:50%;transform:translateX(-50%);"
-        + "z-index:99998;background:#1e293b;color:#fff;font-size:12.5px;"
-        + "font-weight:600;padding:6px 18px;border-radius:0 0 10px 10px;"
-        + "box-shadow:0 4px 12px rgba(0,0,0,.15);";
-    banner.innerText = IS_GLOBAL_VIEWER
-        ? "Viewer 계정입니다 (전체 페이지 조회 전용)"
-        : "조회 전용 페이지입니다 (수정 권한: 소속 팀 페이지)";
-    document.body.appendChild(banner);
+    const message = IS_GLOBAL_VIEWER
+        ? "Viewer 계정은 조회만 가능합니다."
+        : "조회 전용 계정입니다.\n소속 팀 페이지에서만 작업할 수 있습니다.";
+
+    const isDownloadAction = value =>
+        /download|export|backup/i.test(value || "");
 
     document.addEventListener("submit", function(e){
+        const form = e.target;
+        const method = (form.method || "GET").toUpperCase();
+
+        if (method === "GET" && !isDownloadAction(form.action)) {
+            return;
+        }
+
         e.preventDefault();
         e.stopPropagation();
+        wfAlert(message);
+    }, true);
 
-        const message = IS_GLOBAL_VIEWER
-            ? "Viewer 계정은 조회만 가능합니다."
-            : "조회 전용 계정입니다.\n소속 팀 페이지에서만 작업할 수 있습니다.";
+    document.addEventListener("click", function(e){
+        const control = e.target.closest("a, button");
+        if (!control) return;
 
+        const target = [
+            control.getAttribute("href"),
+            control.getAttribute("onclick"),
+            control.getAttribute("formaction")
+        ].filter(Boolean).join(" ");
+
+        if (!isDownloadAction(target)) return;
+
+        e.preventDefault();
+        e.stopPropagation();
         wfAlert(message);
     }, true);
 })();
