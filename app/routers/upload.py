@@ -15,6 +15,7 @@ from sqlalchemy import func, case
 from fastapi.responses import StreamingResponse
 import io
 from app.utils.logger import save_log
+from app.utils.downloads import download_content_disposition
 from zoneinfo import ZoneInfo
 
 router = APIRouter()
@@ -1121,8 +1122,10 @@ def download_excel(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition":
-            f"attachment; filename={product}_{mode}.xlsx"
+            "Content-Disposition": download_content_disposition(
+                f"{product} {'입고' if mode == 'inbound' else '출고'}",
+                f"{product}_{mode}",
+            )
         }
     )
 
@@ -1210,7 +1213,8 @@ def download_search_excel(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition":
-            "attachment; filename=search.xlsx"
+            "Content-Disposition": download_content_disposition(
+                "제품 물류 전체 조회", "search"
+            )
         }
     )

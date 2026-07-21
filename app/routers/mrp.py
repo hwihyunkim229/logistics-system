@@ -28,6 +28,7 @@ from app.models.material_master import MaterialMaster
 from app.models.material_note import MaterialNote
 from calendar import monthcalendar
 from app.utils.logger import save_log
+from app.utils.downloads import download_content_disposition
 from zoneinfo import ZoneInfo
 
 KST = ZoneInfo("Asia/Seoul")
@@ -1502,8 +1503,9 @@ def download_bom(
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 
         headers={
-            "Content-Disposition":
-            "attachment; filename=bom.xlsx"
+            "Content-Disposition": download_content_disposition(
+                "BOM 목록", "bom"
+            )
         }
 
     )
@@ -2479,7 +2481,6 @@ def download_production_plan(
     )
 
     return StreamingResponse(
-
         output,
 
         media_type=
@@ -2487,11 +2488,10 @@ def download_production_plan(
 
         headers={
 
-            "Content-Disposition":
-            f"attachment; filename=production_plan_{year}_{month:02d}.xlsx"
-
+            "Content-Disposition": download_content_disposition(
+                "생산 계획", f"production_plan_{year}_{month:02d}"
+            )
         }
-
     )
 
 @router.get("/mrp/result")
@@ -2863,8 +2863,9 @@ def download_mrp_result(
         media_type=
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition":
-            "attachment; filename=mrp_result.xlsx"
+            "Content-Disposition": download_content_disposition(
+                "MRP 계산 결과", "mrp_result"
+            )
         }
     )
 
@@ -3072,8 +3073,9 @@ def download_material_master(
         media_type=
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition":
-            "attachment; filename=material_master.xlsx"
+            "Content-Disposition": download_content_disposition(
+                "자재 기준 정보", "material_master"
+            )
         }
     )
 

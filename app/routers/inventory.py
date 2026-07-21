@@ -14,6 +14,7 @@ from app.models.inventory_movement import InventoryMovement
 from app.models.item_master import ItemMaster
 from app.models.stock import Stock
 from app.utils.logger import save_log
+from app.utils.downloads import download_content_disposition
 
 router = APIRouter()
 
@@ -766,7 +767,9 @@ def download_inventory_history_excel(
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=inventory_history.xlsx"}
+        headers={"Content-Disposition": download_content_disposition(
+            "수불 재고 입출고 이력", "inventory_history"
+        )}
     )
 
 @router.get("/inventory/dashboard")
@@ -954,7 +957,9 @@ def download_inventory_excel(request: Request, db: Session = Depends(get_db)):
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=inventory.xlsx"}
+        headers={"Content-Disposition": download_content_disposition(
+            "수불 재고 현황", "inventory"
+        )}
     )
 
 @router.post("/inventory/init-excel")

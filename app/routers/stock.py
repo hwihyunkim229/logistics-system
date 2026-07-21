@@ -27,6 +27,7 @@ from app.models.inventory import Inventory
 from app.models.material_master import MaterialMaster
 from app.models.material_note import MaterialNote
 from app.utils.logger import save_log
+from app.utils.downloads import dated_filename, download_content_disposition
 
 router = APIRouter()
 
@@ -451,8 +452,9 @@ def download_stock_excel(
         media_type=
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition":
-            "attachment; filename=stock.xlsx"
+            "Content-Disposition": download_content_disposition(
+                "가계상 재고 현황", "stock"
+            )
         }
     )
 
@@ -895,7 +897,7 @@ def download_history_excel(
 
     return FileResponse(
         temp_file.name,
-        filename="stock_history.xlsx",
+        filename=dated_filename("가계상 재고 입출고 이력"),
         media_type=
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )

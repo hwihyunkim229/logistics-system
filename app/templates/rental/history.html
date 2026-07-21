@@ -57,6 +57,30 @@
     background: #f5f7fa;
 }
 
+.history-toolbar {
+    display:flex;
+    align-items:center;
+    margin-bottom:16px;
+}
+
+.upload-btn {
+    padding:10px 18px;
+    border-radius:10px;
+    border:1px solid #ddd;
+    background:#fff;
+    color:#333;
+    font-size:14px;
+    font-weight:500;
+    cursor:pointer;
+    transition:.2s;
+}
+
+.upload-btn:hover {
+    background:#000;
+    color:#fff;
+    border-color:#000;
+}
+
 .card {
     background: #fff;
     border-radius: 20px;
@@ -117,6 +141,9 @@ tbody tr:hover {
     border-radius: 8px;
     min-width: 90px;
     text-align: center;
+    font: inherit;
+    color: inherit;
+    background: transparent;
 }
 
 .editable:focus {
@@ -193,11 +220,29 @@ tbody tr:hover {
 
         <button
             class="excel"
+            type="button"
             onclick="location.href='/rental/history/download-excel'"
             title="엑셀 다운로드"
         >
             <i class="fa-solid fa-file-excel"></i>
         </button>
+    </div>
+
+    <div class="history-toolbar">
+        <button
+            class="upload-btn"
+            type="button"
+            onclick="historyExcelFile.click()"
+        >
+            📁 엑셀 업로드
+        </button>
+
+        <input
+            id="historyExcelFile"
+            type="file"
+            accept=".xlsx,.xls"
+            hidden
+        >
     </div>
 
     <div class="table-wrap">
@@ -208,10 +253,13 @@ tbody tr:hover {
                         <input type="checkbox" id="checkAll">
                     </th>
 
+                    <th>구분</th>
+                    <th>분류</th>
                     <th>본부</th>
                     <th>부서</th>
                     <th>품목코드</th>
                     <th>품명</th>
+                    <th>수량</th>
                     <th>요청자</th>
                     <th>사이즈</th>
                     <th>S/N</th>
@@ -231,10 +279,13 @@ tbody tr:hover {
                         >
                     </td>
 
+                    <td>{{ "입고" if row.movement_type == "IN" else "출고" }}</td>
+                    <td>{{ row.category }}</td>
                     <td>{{ row.headquarters }}</td>
                     <td>{{ row.department }}</td>
                     <td>{{ row.item_code }}</td>
                     <td>{{ row.item_name }}</td>
+                    <td>{{ row.qty }}</td>
 
                     <td>
                         <input
@@ -247,7 +298,15 @@ tbody tr:hover {
 
                     <td>{{ row.size }}</td>
                     <td>{{ row.serial_number }}</td>
-                    <td>{{ row.issue_date }}</td>
+                    <td>
+                        <input
+                            class="editable"
+                            type="date"
+                            data-id="{{ row.id }}"
+                            data-field="issue_date"
+                            value="{{ row.issue_date.isoformat() }}"
+                        >
+                    </td>
 
                     <td>
                         <input
@@ -262,7 +321,7 @@ tbody tr:hover {
                 {% else %}
 
                 <tr>
-                    <td colspan="10">
+                    <td colspan="13">
                         이력이 없습니다.
                     </td>
                 </tr>
@@ -331,6 +390,39 @@ document.querySelectorAll(".editable").forEach(x => {
         }
     };
 });
+
+historyExcelFile.onchange = async () => {
+    const file = historyExcelFile.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+        const response = await fetch("/rental/history/upload-excel", {
+            method: "POST",
+            body: formData
+        });
+
+        if (response.redirected) {
+            await wfAlert("엑셀 업로드 권한이 없습니다.");
+            return;
+        }
+
+        const data = await response.json();
+        if (!response.ok) {
+            await wfAlert(data.message || "엑셀 업로드에 실패했습니다.");
+            return;
+        }
+
+        await wfAlert(data.message || `${data.count}건을 반영했습니다.`);
+        location.reload();
+    } catch (error) {
+        await wfAlert("엑셀 업로드 중 오류가 발생했습니다.");
+    } finally {
+        historyExcelFile.value = "";
+    }
+};
 </script>
 
 {% endblock %}

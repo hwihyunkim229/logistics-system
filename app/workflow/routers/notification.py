@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func
 from sqlalchemy.orm import Session
+from threading import Lock
+from time import monotonic
 from app.workflow.utils import get_db, department_name
 from app.workflow.services.notification_service import (
     get_notifications,
@@ -21,6 +24,10 @@ router = APIRouter(
 templates = Jinja2Templates(
     directory="app/templates"
 )
+
+TODO_CACHE_SECONDS = 30
+_todo_cache = {"expires_at": 0.0, "todos": None}
+_todo_cache_lock = Lock()
 
 @router.get("")
 def notification_page(
@@ -56,90 +63,109 @@ def todo(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    def _stage_items(*stages):
-        return (
-            db.query(WorkflowItem)
-            .filter(
-                WorkflowItem.current_stage.in_([int(s) for s in stages]),
-                WorkflowItem.status == "IN_PROGRESS",
+    now = monotonic()
+
+    with _todo_cache_lock:
+        todos = _todo_cache["todos"]
+
+        if todos is None or now >= _todo_cache["expires_at"]:
+            item_rows = (
+                db.query(
+                    WorkflowItem.current_stage,
+                    func.count(WorkflowItem.id),
+                    func.coalesce(func.sum(WorkflowItem.qty), 0),
+                )
+                .filter(WorkflowItem.status == "IN_PROGRESS")
+                .group_by(WorkflowItem.current_stage)
+                .all()
             )
-            .all()
-        )
-
-    def _waiting_requests(stage):
-        return (
-            db.query(WorkflowRequest)
-            .filter(
-                WorkflowRequest.stage == int(stage),
-                WorkflowRequest.status == "WAITING",
+            request_rows = (
+                db.query(
+                    WorkflowRequest.stage,
+                    func.count(WorkflowRequest.id),
+                    func.coalesce(func.sum(WorkflowRequest.request_qty), 0),
+                )
+                .filter(WorkflowRequest.status == "WAITING")
+                .group_by(WorkflowRequest.stage)
+                .all()
             )
-            .all()
-        )
 
-    todos = {
-        "purchase": [],
-        "quality": [],
-        "material": [],
-        "production": [],
-    }
+            item_stats = {
+                int(stage): (int(count), int(qty or 0))
+                for stage, count, qty in item_rows
+            }
+            request_stats = {
+                int(stage): (int(count), int(qty or 0))
+                for stage, count, qty in request_rows
+            }
 
-    def _add(team, label, rows, qty):
-        if rows:
-            todos[team].append({
-                "label": label,
-                "count": len(rows),
-                "qty": qty,
-                "link": f"/workflow/{team}",
-            })
+            todos = {
+                "purchase": [],
+                "quality": [],
+                "material": [],
+                "production": [],
+            }
 
-    rows = _stage_items(WorkflowStage.PURCHASE_RECEIVED)
-    _add("purchase", "입고 검사 의뢰 필요", rows,
-         sum(i.qty or 0 for i in rows))
+            def _stats(source, *stages):
+                values = [
+                    source.get(int(stage), (0, 0))
+                    for stage in stages
+                ]
+                return (
+                    sum(value[0] for value in values),
+                    sum(value[1] for value in values),
+                )
 
-    reqs = _waiting_requests(WorkflowStage.QUALITY_REQUEST)
-    _add("quality", "입고 검사 승인 대기", reqs,
-         sum(r.request_qty or 0 for r in reqs))
+            def _add(team, label, stats):
+                count, qty = stats
+                if count:
+                    todos[team].append({
+                        "label": label,
+                        "count": count,
+                        "qty": qty,
+                        "link": f"/workflow/{team}",
+                    })
 
-    rows = _stage_items(WorkflowStage.QUALITY_APPROVAL)
-    _add("quality", "입고 검사 진행 필요", rows,
-         sum(i.qty or 0 for i in rows))
+            _add("purchase", "입고 검사 의뢰 필요", _stats(
+                item_stats, WorkflowStage.PURCHASE_RECEIVED
+            ))
+            _add("quality", "입고 검사 승인 대기", _stats(
+                request_stats, WorkflowStage.QUALITY_REQUEST
+            ))
+            _add("quality", "입고 검사 진행 필요", _stats(
+                item_stats, WorkflowStage.QUALITY_APPROVAL
+            ))
+            _add("quality", "공정 검사 진행 필요", _stats(
+                item_stats, WorkflowStage.PROCESS_INSPECTION_REQUEST
+            ))
+            _add("material", "확인/승인 필요", _stats(
+                item_stats,
+                WorkflowStage.QUALITY_INSPECTION,
+                WorkflowStage.PRODUCTION_COMPLETE,
+                WorkflowStage.PROCESS_INSPECTION,
+                WorkflowStage.PACKAGING_COMPLETE,
+            ))
+            _add("material", "다음 단계 요청 필요", _stats(
+                item_stats,
+                WorkflowStage.MATERIAL_CONFIRM_1,
+                WorkflowStage.MATERIAL_CONFIRM_2,
+                WorkflowStage.MATERIAL_CONFIRM_3,
+            ))
+            _add("material", "제품 출고 대기", _stats(
+                item_stats, WorkflowStage.MATERIAL_FINAL_CONFIRM
+            ))
+            _add("production", "생산 승인 대기", _stats(
+                request_stats, WorkflowStage.PRODUCTION_REQUEST
+            ))
+            _add("production", "생산 완료 등록 필요", _stats(
+                item_stats, WorkflowStage.PRODUCTION_APPROVAL
+            ))
+            _add("production", "포장 완료 등록 필요", _stats(
+                item_stats, WorkflowStage.PACKAGING_REQUEST
+            ))
 
-    rows = _stage_items(WorkflowStage.PROCESS_INSPECTION_REQUEST)
-    _add("quality", "공정 검사 진행 필요", rows,
-         sum(i.qty or 0 for i in rows))
-
-    rows = _stage_items(
-        WorkflowStage.QUALITY_INSPECTION,
-        WorkflowStage.PRODUCTION_COMPLETE,
-        WorkflowStage.PROCESS_INSPECTION,
-        WorkflowStage.PACKAGING_COMPLETE,
-    )
-    _add("material", "확인/승인 필요", rows,
-         sum(i.qty or 0 for i in rows))
-
-    rows = _stage_items(
-        WorkflowStage.MATERIAL_CONFIRM_1,
-        WorkflowStage.MATERIAL_CONFIRM_2,
-        WorkflowStage.MATERIAL_CONFIRM_3,
-    )
-    _add("material", "다음 단계 요청 필요", rows,
-         sum(i.qty or 0 for i in rows))
-
-    rows = _stage_items(WorkflowStage.MATERIAL_FINAL_CONFIRM)
-    _add("material", "제품 출고 대기", rows,
-         sum(i.qty or 0 for i in rows))
-
-    reqs = _waiting_requests(WorkflowStage.PRODUCTION_REQUEST)
-    _add("production", "생산 승인 대기", reqs,
-         sum(r.request_qty or 0 for r in reqs))
-
-    rows = _stage_items(WorkflowStage.PRODUCTION_APPROVAL)
-    _add("production", "생산 완료 등록 필요", rows,
-         sum(i.qty or 0 for i in rows))
-
-    rows = _stage_items(WorkflowStage.PACKAGING_REQUEST)
-    _add("production", "포장 완료 등록 필요", rows,
-         sum(i.qty or 0 for i in rows))
+            _todo_cache["todos"] = todos
+            _todo_cache["expires_at"] = now + TODO_CACHE_SECONDS
 
     team = request.session.get("team") or ""
 

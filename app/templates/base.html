@@ -1026,9 +1026,14 @@ function toggleUserMenu(){
 
 function toggleBellMenu(){
     const d = document.getElementById("bellDropdown");
+    const willOpen = d.style.display !== "block";
 
     d.style.display =
-        d.style.display === "block" ? "none" : "block";
+        willOpen ? "block" : "none";
+
+    if (willOpen) {
+        loadBellTodo(true);
+    }
 }
 
 document.addEventListener("click", function(e){
@@ -1039,15 +1044,48 @@ document.addEventListener("click", function(e){
     }
 });
 
-async function loadBellTodo(){
+const BELL_POLL_INTERVAL_MS = 3 * 60 * 1000;
+const BELL_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+let bellLastActivityAt = Date.now();
+let bellLastFetchAt = 0;
+let bellTodoLoading = false;
+let bellPollingStopped = false;
+
+async function loadBellTodo(force = false){
+    const now = Date.now();
+
+    if (
+        bellPollingStopped
+        || bellTodoLoading
+        || document.hidden
+        || (!force && now - bellLastActivityAt >= BELL_IDLE_TIMEOUT_MS)
+        || (!force && now - bellLastFetchAt < BELL_POLL_INTERVAL_MS)
+    ) {
+        return;
+    }
+
+    bellTodoLoading = true;
+
     try {
         const res = await fetch("/workflow/notification/todo", {
-            credentials: "include"
+            credentials: "include",
+            cache: "no-store"
         });
+
+        if (
+            res.redirected
+            || res.status === 401
+            || res.status === 403
+            || new URL(res.url).pathname.startsWith("/login")
+        ) {
+            bellPollingStopped = true;
+            return;
+        }
 
         if (!res.ok) return;
 
         const data = await res.json();
+        bellLastFetchAt = Date.now();
         const badge = document.getElementById("bellBadge");
         const list = document.getElementById("bellTodoList");
 
@@ -1073,11 +1111,40 @@ async function loadBellTodo(){
             + '</a>'
         ).join("");
     } catch (e) {
+    } finally {
+        bellTodoLoading = false;
     }
 }
 
-loadBellTodo();
-setInterval(loadBellTodo, 60000);
+function recordBellActivity(){
+    const wasIdle =
+        Date.now() - bellLastActivityAt >= BELL_IDLE_TIMEOUT_MS;
+
+    bellLastActivityAt = Date.now();
+
+    if (wasIdle && !document.hidden) {
+        loadBellTodo(true);
+    }
+}
+
+["pointerdown", "keydown", "touchstart", "scroll"].forEach(eventName => {
+    document.addEventListener(eventName, recordBellActivity, {
+        passive: true,
+        capture: true
+    });
+});
+
+document.addEventListener("visibilitychange", function(){
+    if (!document.hidden) {
+        bellLastActivityAt = Date.now();
+        loadBellTodo(true);
+    }
+});
+
+loadBellTodo(true);
+setInterval(function(){
+    loadBellTodo(false);
+}, 30000);
 
 window.addEventListener("pageshow", function(e){
     if (e.persisted) {

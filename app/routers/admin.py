@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from passlib.context import CryptContext
 from app.utils.logger import save_log
+from app.utils.downloads import download_content_disposition
 from app.database import SessionLocal
 from app.models.user import User
 from app.models.activity_log import ActivityLog
@@ -495,7 +496,8 @@ def export_activity_excel(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition":
-            "attachment; filename=activity_logs.xlsx"
+            "Content-Disposition": download_content_disposition(
+                "활동 로그", "activity_logs"
+            )
         }
     )

@@ -18,6 +18,7 @@ from app.workflow.models.workflow_stage import (
     get_stage_name,
 )
 from app.workflow.config import ITEM_LIST
+from app.utils.downloads import download_content_disposition
 
 router = APIRouter(
     prefix="/workflow/purchase",
@@ -374,6 +375,9 @@ def download_template():
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition": 'attachment; filename="workflow_upload_template.xlsx"'
+            "Content-Disposition": download_content_disposition(
+                "구매 엑셀 업로드 양식",
+                "workflow_upload_template",
+            )
         },
     )
