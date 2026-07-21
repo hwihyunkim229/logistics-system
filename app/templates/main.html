@@ -58,6 +58,17 @@
     margin-bottom:16px;
 }
 
+.table-card-header {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+}
+
+.table-card-header h3 {
+    margin:0;
+}
+
 .scan { width:40%; }
 .result { flex:1; }
 
@@ -398,11 +409,11 @@ th:hover span {
 }
 
 .excel-download {
-    position: absolute;
-    top: 250px;
-    right: 38px;
+    position: static;
+    flex:0 0 36px;
     width: 36px;
     height: 36px;
+    padding:0;
     border-radius: 10px;
     border: 1px solid #ddd;
     background: white;
@@ -448,14 +459,6 @@ th:hover span {
 }
 </style>
 
-    <button
-        class="excel-download"
-        onclick="downloadExcel(currentMode, currentProduct)"
-        title="엑셀 다운로드"
-    >
-        <i class="fa-solid fa-file-excel"></i>
-    </button>
-
     <div class="top">
         <div class="card scan">
             <h3>
@@ -476,13 +479,23 @@ th:hover span {
     </div>
 
     <div class="card bottom">
-        <h3>
-            {% if mode == "outbound" %}
-                📄 출고 리스트
-            {% else %}
-                📄 입고 리스트
-            {% endif %}
-        </h3>
+        <div class="table-card-header">
+            <h3>
+                {% if mode == "outbound" %}
+                    📄 출고 리스트
+                {% else %}
+                    📄 입고 리스트
+                {% endif %}
+            </h3>
+
+            <button
+                class="excel-download"
+                onclick="downloadExcel(currentMode, currentProduct)"
+                title="엑셀 다운로드"
+            >
+                <i class="fa-solid fa-file-excel"></i>
+            </button>
+        </div>
 
         <div class="toolbar">
 

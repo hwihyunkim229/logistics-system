@@ -910,7 +910,7 @@ function getSelectedIds(){
 
 function moveIn(){
     if(getSelectedIds().length===0){
-        alert("품목을 선택하세요.");
+        wfAlert("품목을 선택하세요.");
         return;
     }
     currentAction = "in";
@@ -926,7 +926,7 @@ function moveIn(){
 
 function moveOut(){
     if(getSelectedIds().length===0){
-        alert("품목을 선택하세요.");
+        wfAlert("품목을 선택하세요.");
         return;
     }
     currentAction = "out";
@@ -989,7 +989,7 @@ function deleteSelected(){
         getSelectedIds();
 
     if(ids.length===0){
-        alert("품목을 선택하세요.");
+        wfAlert("품목을 선택하세요.");
         return;
     }
 
@@ -1130,7 +1130,7 @@ document
                 qty === "" ||
                 isNaN(qty)
             ){
-                alert("숫자만 입력 가능합니다.");
+                wfAlert("숫자만 입력 가능합니다.");
                 location.reload();
                 return;
             }

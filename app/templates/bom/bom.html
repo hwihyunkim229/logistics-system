@@ -31,6 +31,10 @@
 
 .card-header{
     padding:22px 22px 16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
 }
 
 .table-main-title{
@@ -45,6 +49,8 @@
     display:flex;
     justify-content:space-between;
     align-items:center;
+    gap:16px;
+    flex-wrap:wrap;
     border-top:none;
     border-bottom:1px solid #e5e7eb;
 }
@@ -54,6 +60,7 @@
     display:flex;
     align-items:center;
     gap:12px;
+    min-width:0;
 }
 
 #searchInput{
@@ -208,11 +215,11 @@ button:hover{
 }
 
 .excel-download{
-    position:absolute;
-    top:95px;
-    right:35px;
+    position:static;
+    flex:0 0 38px;
     width:38px;
     height:38px;
+    padding:0;
     border-radius:10px;
     border:1px solid #dbe2ea;
     background:white;
@@ -232,6 +239,23 @@ button:hover{
 .excel-download i{
     font-size:18px;
 }
+
+@media (max-width: 720px){
+    .toolbar,
+    .left-group,
+    .right-group{
+        width:100%;
+    }
+
+    .right-group{
+        flex-wrap:wrap;
+    }
+
+    #searchInput{
+        flex:1 1 220px;
+        width:auto;
+    }
+}
 </style>
 
 <div class="page-header">
@@ -249,6 +273,14 @@ button:hover{
         <h3 class="table-main-title">
             📄 BOM 리스트
         </h3>
+
+        <button
+            class="excel-download"
+            onclick="location.href='/mrp/bom/download'"
+            title="엑셀 다운로드"
+        >
+            <i class="fa-solid fa-file-excel"></i>
+        </button>
 
     </div>
 
@@ -285,17 +317,6 @@ button:hover{
                 >
 
             </form>
-
-            <button
-                class="excel-download"
-                onclick="
-                location.href=
-                '/mrp/bom/download'
-                "
-                title="엑셀 다운로드"
-            >
-                <i class="fa-solid fa-file-excel"></i>
-            </button>
 
         </div>
 

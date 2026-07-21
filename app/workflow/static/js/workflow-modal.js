@@ -1,4 +1,6 @@
 (function () {
+    if (window.__workflowModalInitialized) return;
+    window.__workflowModalInitialized = true;
 
     const style = document.createElement("style");
 
@@ -204,6 +206,10 @@
         return new Promise(function (resolve) {
             resolver = resolve;
         });
+    };
+
+    window.alert = function (message) {
+        return window.wfAlert(message);
     };
 
     const confirmOverlay = document.createElement("div");
