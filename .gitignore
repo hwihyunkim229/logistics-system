@@ -2,6 +2,15 @@
 __pycache__/
 *.pyc
 *.db
+*.sqlite
+*.sqlite3
 .env
+.env.*
+!.env.example
+*.xlsx
+*.xls
+private_backup/
+work/
+outputs/
 app/workflow/uploads/
 .claude/
