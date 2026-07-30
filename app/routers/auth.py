@@ -7,6 +7,7 @@ from app.models.user import User
 from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
 from app.utils.logger import save_log
+from app.utils.access_logger import save_access_log
 import time
 router = APIRouter()
 
@@ -59,17 +60,33 @@ def login(
     ).first()
 
     if not user:
+        save_access_log(
+            request=request,
+            status_code=401,
+            user=username,
+            action="로그인 시도",
+            result="실패",
+            detail="존재하지 않는 계정",
+        )
         return JSONResponse({
             "success": False
-        })
+        }, status_code=401)
 
     if not pwd_context.verify(
         password,
         user.password
     ):
+        save_access_log(
+            request=request,
+            status_code=401,
+            user=username,
+            action="로그인 시도",
+            result="실패",
+            detail="비밀번호 불일치",
+        )
         return JSONResponse({
             "success": False
-        })
+        }, status_code=401)
 
     request.session["user"] = username
 
@@ -81,6 +98,18 @@ def login(
         user=username,
         product="AUTH",
         action="LOGIN"
+    )
+    save_access_log(
+        request=request,
+        status_code=200,
+        user=username,
+        action="로그인",
+        result="성공",
+        detail=(
+            "최초 로그인 후 비밀번호 변경 필요"
+            if user.must_change_password
+            else "로그인 완료"
+        ),
     )
 
     if user.must_change_password:

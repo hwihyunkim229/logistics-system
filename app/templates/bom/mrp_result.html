@@ -40,10 +40,11 @@
 .filter-grid{
     display:grid;
     grid-template-columns:
-        140px
-        140px
-        180px
-        1fr
+        130px
+        130px
+        170px
+        120px
+        minmax(180px, 1fr)
         auto
         auto
         auto;
@@ -140,25 +141,62 @@ select, input{
 }
 .summary-grid{
     display:grid;
-    grid-template-columns:repeat(5, minmax(150px, 1fr));
-    gap:12px;
+    grid-template-columns:repeat(7, minmax(0, 1fr));
+    gap:10px;
 }
 .metric{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:0;
     border:1px solid #e2e8f0;
-    border-radius:8px;
-    padding:14px;
-    background:#f8fafc;
+    border-radius:12px;
+    padding:12px;
+    background:#fff;
+    box-shadow:0 4px 14px rgba(15,23,42,.05);
+}
+.metric-icon{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex:0 0 36px;
+    width:36px;
+    height:36px;
+    border-radius:10px;
+    background:#eff6ff;
+    color:#2563eb;
+    font-size:15px;
+}
+.metric-icon.purple{background:#f5f3ff;color:#7c3aed}
+.metric-icon.orange{background:#fff7ed;color:#ea580c}
+.metric-icon.red{background:#fef2f2;color:#dc2626}
+.metric-icon.green{background:#f0fdf4;color:#16a34a}
+.metric-icon.teal{background:#f0fdfa;color:#0f766e}
+.metric-body{
+    min-width:0;
+    flex:1;
 }
 .metric span{
     display:block;
     color:#64748b;
-    font-size:12px;
-    font-weight:800;
+    font-size:11px;
+    font-weight:700;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
 }
 .metric strong{
     display:block;
-    margin-top:7px;
-    font-size:26px;
+    margin-top:3px;
+    font-size:21px;
+    line-height:1.2;
+    white-space:nowrap;
+}
+.metric-unit{
+    display:inline !important;
+    margin-left:2px;
+    font-size:10px !important;
+    color:#94a3b8 !important;
 }
 .metric.danger{
     background:#fff7f7;
@@ -567,6 +605,87 @@ td{
         grid-template-columns:1fr;
     }
 }
+.mrp-view-tabs{
+    display:flex;
+    gap:4px;
+    margin-top:18px;
+    border-bottom:1px solid #dbe3ef;
+}
+.mrp-view-tab{
+    border:0;
+    background:transparent;
+    color:#64748b;
+    padding:13px 18px;
+    font-size:14px;
+    font-weight:800;
+    cursor:pointer;
+    border-bottom:3px solid transparent;
+}
+.mrp-view-tab.active{
+    color:#2563eb;
+    border-bottom-color:#2563eb;
+}
+.monthly-panel{margin-top:0;border-radius:0 0 18px 18px}
+.monthly-table{min-width:1320px}
+.monthly-table th{vertical-align:middle}
+.monthly-table td{white-space:nowrap}
+.monthly-code{font-weight:800;color:#1d4ed8}
+.monthly-name{max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.projection-cell{font-variant-numeric:tabular-nums;text-align:right;font-weight:750}
+.projection-cell.positive{background:#ecfdf5;color:#166534}
+.projection-cell.warning{background:#fff7ed;color:#c2410c}
+.projection-cell.shortage{background:#fef2f2;color:#dc2626}
+.projection-cell.first-shortage{
+    box-shadow:inset 0 0 0 2px #ef4444;
+    position:relative;
+}
+.first-shortage-badge{
+    display:block;
+    margin:-7px auto 5px;
+    width:max-content;
+    border-radius:999px;
+    padding:2px 7px;
+    color:white;
+    background:#ef4444;
+    font-size:10px;
+    font-weight:800;
+}
+.monthly-detail-row{display:none}
+.monthly-detail-row.open{display:table-row}
+.monthly-detail{
+    display:grid;
+    grid-template-columns:minmax(230px,.8fr) minmax(380px,1.6fr) minmax(230px,.8fr);
+    gap:14px;
+    padding:8px 0;
+}
+.projection-card{
+    border:1px solid #dbe3ef;
+    border-radius:14px;
+    padding:16px;
+    background:#fff;
+}
+.projection-card h4{margin:0 0 12px;color:#0f172a}
+.stock-line,.order-line{
+    display:flex;
+    justify-content:space-between;
+    gap:14px;
+    padding:7px 0;
+    border-bottom:1px solid #edf2f7;
+}
+.stock-line.total{font-weight:850;color:#1d4ed8;border-bottom:0}
+.order-value{font-size:24px;font-weight:900;color:#dc2626}
+.demand-bars{display:flex;align-items:flex-end;gap:10px;height:125px;padding-top:12px}
+.demand-bar-wrap{flex:1;min-width:42px;text-align:center;font-size:11px;color:#64748b}
+.demand-bar{
+    width:100%;
+    min-height:3px;
+    border-radius:6px 6px 2px 2px;
+    background:linear-gradient(180deg,#fb7185,#ef4444);
+    margin-bottom:5px;
+}
+@media(max-width:1000px){
+    .monthly-detail{grid-template-columns:1fr}
+}
 </style>
 
 <div id="mrpToast" class="mrp-toast"></div>
@@ -583,8 +702,11 @@ td{
         <div class="head-actions">
             <button id="copyShortageBtn" class="btn ghost" type="button" onclick="copyShortageList()">Copy Shortage List</button>
             <a
+                id="mrpDownloadLink"
                 class="btn success"
-                href="/mrp/result/download?year={{ selected_year or '' }}&week={{ selected_week or '' }}&q={{ q|urlencode }}&shortage_only={{ 'true' if shortage_only else 'false' }}"
+                data-monthly-href="/mrp/result/download/monthly?year={{ selected_year or '' }}&month={{ selected_month or '' }}&projection_months={{ projection_months }}&q={{ q|urlencode }}&shortage_only={{ 'true' if shortage_only else 'false' }}"
+                data-detail-href="/mrp/result/download?year={{ selected_year or '' }}&month={{ selected_month or '' }}&week={{ selected_week or '' }}&q={{ q|urlencode }}&shortage_only={{ 'true' if shortage_only else 'false' }}"
+                href="/mrp/result/download/monthly?year={{ selected_year or '' }}&month={{ selected_month or '' }}&projection_months={{ projection_months }}&q={{ q|urlencode }}&shortage_only={{ 'true' if shortage_only else 'false' }}"
             >
                 엑셀 다운로드
             </a>
@@ -604,7 +726,7 @@ td{
                 <div>
                     <label>Year</label>
 
-                    <select name="year">
+                    <select name="year" id="mrpYear">
 
                         <option value="">
                             All Years
@@ -629,7 +751,7 @@ td{
                 <div>
                     <label>Month</label>
 
-                    <select name="month">
+                    <select name="month" id="mrpMonth">
 
                         <option value="">
                             All Months
@@ -654,25 +776,39 @@ td{
                 <div>
                     <label>Week</label>
 
-                    <select name="week">
+                    <select name="week" id="mrpWeek" {% if not selected_month %}disabled{% endif %}>
 
                         <option value="">
-                            All Weeks
+                            {% if selected_month %}전체 주차{% else %}월을 먼저 선택하세요{% endif %}
                         </option>
 
-                        {% for item in weeks %}
+                        {% for week_item in weeks %}
 
                         <option
-                            value="{{ item[1] }}"
-                            {% if selected_week == item[1] %}
+                            value="{{ week_item }}"
+                            {% if selected_week == week_item %}
                             selected
                             {% endif %}
                         >
-                            {{ item[0] }} - Week {{ item[1] }}
+                            {{ selected_month }}월 {{ week_item }}주
                         </option>
 
                         {% endfor %}
 
+                    </select>
+                </div>
+
+                <div>
+                    <label>조회기간</label>
+                    <select name="projection_months">
+                        {% for option in [3, 6, 12] %}
+                        <option
+                            value="{{ option }}"
+                            {% if projection_months == option %}selected{% endif %}
+                        >
+                            {{ option }}개월{% if option == 12 %} (1년){% endif %}
+                        </option>
+                        {% endfor %}
                     </select>
                 </div>
 
@@ -702,46 +838,199 @@ td{
 
     <div class="summary-grid">
         <div class="metric">
-            <span>생산 계획 수량</span>
-            <strong>{{ summary.plan_count }}</strong>
+            <div class="metric-icon"><i class="fa-solid fa-calendar-check"></i></div>
+            <div class="metric-body">
+                <span>생산 계획 수량</span>
+                <strong>{{ "{:,.0f}".format(summary.plan_count) }} <span class="metric-unit">EA</span></strong>
+            </div>
         </div>
         <div class="metric">
-            <span>소요 자재 품목</span>
-            <strong>{{ summary.required_item_count }}</strong>
+            <div class="metric-icon purple"><i class="fa-solid fa-boxes-stacked"></i></div>
+            <div class="metric-body">
+                <span>소요 자재 품목</span>
+                <strong>{{ summary.required_item_count }} <span class="metric-unit">품목</span></strong>
+            </div>
+        </div>
+        <div class="metric">
+            <div class="metric-icon orange"><i class="fa-solid fa-cubes"></i></div>
+            <div class="metric-body">
+                <span>총 소요 수량</span>
+                <strong>{{ "{:,.0f}".format(summary.total_required) }} <span class="metric-unit">EA</span></strong>
+            </div>
         </div>
         <div class="metric danger">
-            <span>부족 자재 품목</span>
-            <strong>{{ summary.shortage_count }}</strong>
+            <div class="metric-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="metric-body">
+                <span>부족 자재 품목</span>
+                <strong>{{ summary.shortage_count }} <span class="metric-unit">품목</span></strong>
+            </div>
         </div>
         <div class="metric ready">
-            <span>조달 가능 자재 품목</span>
-            <strong>{{ summary.ready_count }}</strong>
+            <div class="metric-icon green"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="metric-body">
+                <span>조달 가능 자재 품목</span>
+                <strong>{{ summary.ready_count }} <span class="metric-unit">품목</span></strong>
+            </div>
+        </div>
+        <div class="metric danger">
+            <div class="metric-icon red"><i class="fa-solid fa-truck-fast"></i></div>
+            <div class="metric-body">
+                <span>총 발주 필요 수량</span>
+                <strong>{{ "{:,.0f}".format(summary.total_recommended_order) }} <span class="metric-unit">EA</span></strong>
+            </div>
         </div>
         <div class="metric">
-
-            <span>재고 충족율</span>
-
-            <strong>
+            <div class="metric-icon teal"><i class="fa-solid fa-chart-pie"></i></div>
+            <div class="metric-body">
+                <span>재고 충족율</span>
+                <strong>
+                    {% if summary.coverage_rate is not none %}
+                        {{ "%.1f"|format(summary.coverage_rate) }}%
+                    {% else %}
+                        -
+                    {% endif %}
+                </strong>
                 {% if summary.coverage_rate is not none %}
-                    {{ "%.2f"|format(summary.coverage_rate) }}%
-                {% else %}
-                    -
+                <div class="progress-track">
+                    <div
+                        class="progress-fill"
+                        style="--value: {{ summary.coverage_rate }}%;"
+                    ></div>
+                </div>
                 {% endif %}
-            </strong>
-
-            {% if summary.coverage_rate is not none %}
-            <div class="progress-track">
-                <div
-                    class="progress-fill"
-                    style="--value: {{ summary.coverage_rate }}%;"
-                ></div>
             </div>
-            {% endif %}
-
         </div>
     </div>
 
-    <div class="panel" style="margin-top:16px;">
+    <div class="mrp-view-tabs" role="tablist">
+        <button class="mrp-view-tab active" id="monthlyTab" type="button" onclick="switchMrpView('monthly')">
+            월별 예상재고
+        </button>
+        <button class="mrp-view-tab" id="detailTab" type="button" onclick="switchMrpView('detail')">
+            품목별 상세
+        </button>
+    </div>
+
+    <div id="monthlyView" class="panel monthly-panel">
+        <div class="page-head">
+            <div>
+                <h2 style="font-size:20px;">월별 누적 예상 재고</h2>
+                <div class="page-subtitle">
+                    {{ projection_start.strftime("%Y년 %m월") }} 현재재고를 기준으로 향후 {{ projection_months }}개월 생산계획을 순차 반영합니다.
+                </div>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="monthly-table">
+                <thead>
+                    <tr>
+                        <th>상세</th>
+                        <th>품목코드</th>
+                        <th>품명</th>
+                        <th>업체</th>
+                        <th>LT</th>
+                        <th>MOQ</th>
+                        <th class="number">현재 재고</th>
+                        {% for column in month_columns %}
+                        <th class="number">
+                            {{ column.year }}<br>{{ column.label }}
+                        </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in monthly_rows %}
+                    <tr>
+                        <td>
+                            <button
+                                type="button"
+                                class="detail-toggle"
+                                onclick="toggleMonthlyDetail('monthly-detail-{{ loop.index }}', this)"
+                            >펼치기</button>
+                        </td>
+                        <td class="monthly-code">{{ row.item_code }}</td>
+                        <td class="monthly-name" title="{{ row.item_name }}">{{ row.item_name }}</td>
+                        <td>{{ row.supplier or "-" }}</td>
+                        <td>{{ row.lead_time_week }}주</td>
+                        <td>{{ "{:,.0f}".format(row.moq) if row.moq else "-" }}</td>
+                        <td class="projection-cell">{{ "{:,.0f}".format(row.stock_qty) }}</td>
+                        {% for value in row.monthly_values %}
+                        <td class="projection-cell
+                            {% if value.balance < 0 %} shortage
+                            {% elif row.stock_qty > 0 and value.balance <= row.stock_qty * 0.2 %} warning
+                            {% else %} positive{% endif %}
+                            {% if value.is_first_shortage %} first-shortage{% endif %}">
+                            {% if value.is_first_shortage %}
+                            <span class="first-shortage-badge">최초 부족</span>
+                            {% endif %}
+                            {% if value.balance < 0 %}
+                                ({{ "{:,.0f}".format(-value.balance) }})
+                            {% else %}
+                                {{ "{:,.0f}".format(value.balance) }}
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    <tr id="monthly-detail-{{ loop.index }}" class="monthly-detail-row">
+                        <td colspan="{{ 7 + month_columns|length }}">
+                            <div class="monthly-detail">
+                                <div class="projection-card">
+                                    <h4>재고 구성 (현재)</h4>
+                                    <div class="stock-line"><span>창고재고 A</span><strong>{{ "{:,.0f}".format(row.warehouse_stock) }}</strong></div>
+                                    <div class="stock-line"><span>제공재고</span><strong>{{ "{:,.0f}".format(row.supplier_stock) }}</strong></div>
+                                    <div class="stock-line"><span>외주재고</span><strong>{{ "{:,.0f}".format(row.subcontract_stock) }}</strong></div>
+                                    <div class="stock-line total"><span>합계</span><strong>{{ "{:,.0f}".format(row.stock_qty) }}</strong></div>
+                                </div>
+                                <div class="projection-card">
+                                    <h4>월별 생산계획 소요량</h4>
+                                    {% set max_demand = row.monthly_values|map(attribute='required_qty')|max %}
+                                    <div class="demand-bars">
+                                        {% for value in row.monthly_values %}
+                                        <div class="demand-bar-wrap">
+                                            <strong>{{ "{:,.0f}".format(value.required_qty) }}</strong>
+                                            <div
+                                                class="demand-bar"
+                                                style="height:{{ ((value.required_qty / max_demand * 85) if max_demand else 3)|round }}px"
+                                            ></div>
+                                            <span>{{ month_columns[loop.index0].label }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="projection-card">
+                                    <h4>권장 조치</h4>
+                                    {% if row.projection_shortage_qty > 0 %}
+                                    <div class="order-line"><span>권장 발주</span></div>
+                                    <div class="order-value">{{ "{:,.0f}".format(row.projection_order_qty) }}</div>
+                                    <div class="order-line">
+                                        <span>최초 부족일</span>
+                                        <strong>{{ row.projection_need_date.strftime("%Y-%m-%d") }}</strong>
+                                    </div>
+                                    <div class="order-line">
+                                        <span>발주 필요일</span>
+                                        <strong>{{ row.projection_order_date.strftime("%Y-%m-%d") }}</strong>
+                                    </div>
+                                    {% else %}
+                                    <div style="color:#15803d;font-weight:800;">조회기간 내 재고 충분</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="{{ 7 + month_columns|length }}">
+                            <div class="empty">조회기간에 해당하는 생산계획이 없습니다.</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="detailView" class="panel" style="margin-top:0;display:none;">
         <div class="page-head">
             <div>
                 <h2 style="font-size:20px;">MRP 현황</h2>
@@ -1125,6 +1414,126 @@ td{
 </div>
 
 <script>
+const mrpMonthsByYear = {{ months_by_year | tojson }};
+const mrpWeeksByPeriod = {{ weeks_by_period | tojson }};
+
+function uniqueSortedNumbers(values){
+    return [...new Set(values.map(Number))].sort((a, b) => a - b);
+}
+
+function availableMonths(year){
+    if(year && mrpMonthsByYear[year]){
+        return mrpMonthsByYear[year];
+    }
+    return uniqueSortedNumbers(Object.values(mrpMonthsByYear).flat());
+}
+
+function availableWeeks(year, month){
+    if(!month) return [];
+    if(year){
+        return mrpWeeksByPeriod[`${year}-${month}`] || [];
+    }
+    return uniqueSortedNumbers(
+        Object.entries(mrpWeeksByPeriod)
+            .filter(([key]) => key.endsWith(`-${month}`))
+            .flatMap(([, weeks]) => weeks)
+    );
+}
+
+function replaceOptions(select, values, currentValue, emptyLabel, labelBuilder){
+    select.replaceChildren();
+
+    const emptyOption = document.createElement("option");
+    emptyOption.value = "";
+    emptyOption.textContent = emptyLabel;
+    select.appendChild(emptyOption);
+
+    values.forEach(value => {
+        const option = document.createElement("option");
+        option.value = String(value);
+        option.textContent = labelBuilder(value);
+        option.selected = String(value) === String(currentValue);
+        select.appendChild(option);
+    });
+}
+
+function syncMrpWeekOptions(){
+    const yearSelect = document.getElementById("mrpYear");
+    const monthSelect = document.getElementById("mrpMonth");
+    const weekSelect = document.getElementById("mrpWeek");
+    if(!yearSelect || !monthSelect || !weekSelect) return;
+
+    const currentWeek = weekSelect.value;
+    weekSelect.disabled = !monthSelect.value;
+    replaceOptions(
+        weekSelect,
+        availableWeeks(yearSelect.value, monthSelect.value),
+        currentWeek,
+        monthSelect.value ? "전체 주차" : "월을 먼저 선택하세요",
+        week => `${monthSelect.value}월 ${week}주`
+    );
+}
+
+function syncMrpMonthOptions(){
+    const yearSelect = document.getElementById("mrpYear");
+    const monthSelect = document.getElementById("mrpMonth");
+    if(!yearSelect || !monthSelect) return;
+
+    const currentMonth = monthSelect.value;
+    replaceOptions(
+        monthSelect,
+        availableMonths(yearSelect.value),
+        currentMonth,
+        "전체 월",
+        month => `${month}월`
+    );
+    syncMrpWeekOptions();
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+    const yearSelect = document.getElementById("mrpYear");
+    const monthSelect = document.getElementById("mrpMonth");
+    const filterForm = yearSelect && yearSelect.form;
+
+    yearSelect?.addEventListener("change", syncMrpMonthOptions);
+    monthSelect?.addEventListener("change", syncMrpWeekOptions);
+
+    filterForm?.addEventListener("submit", function(){
+        const submitButton = filterForm.querySelector('button[type="submit"]');
+        if(!submitButton) return;
+        submitButton.disabled = true;
+        submitButton.textContent = "계산 중...";
+    });
+});
+
+function switchMrpView(view){
+    const monthly = view === "monthly";
+    const downloadLink = document.getElementById("mrpDownloadLink");
+    document.getElementById("monthlyView").style.display =
+        monthly ? "block" : "none";
+    document.getElementById("detailView").style.display =
+        monthly ? "none" : "block";
+    document.getElementById("monthlyTab").classList.toggle(
+        "active",
+        monthly
+    );
+    document.getElementById("detailTab").classList.toggle(
+        "active",
+        !monthly
+    );
+    if(downloadLink){
+        downloadLink.href = monthly
+            ? downloadLink.dataset.monthlyHref
+            : downloadLink.dataset.detailHref;
+    }
+}
+
+function toggleMonthlyDetail(id, button){
+    const row = document.getElementById(id);
+    const isOpen = row.classList.toggle("open");
+    button.textContent = isOpen ? "접기" : "펼치기";
+}
+
 function toggleDetail(id, button){
     const row = document.getElementById(id);
     const isOpen = row.classList.toggle("open");

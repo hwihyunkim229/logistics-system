@@ -39,7 +39,8 @@ from app.models import (
     item_master,
     rental_stock,
     rental_movement,
-    rental_category
+    rental_category,
+    access_log,
 )
 from app.models.material_master import MaterialMaster
 from app.models.user import User
@@ -71,6 +72,7 @@ from app.workflow.schema import ensure_workflow_schema
 from app.rental_schema import ensure_rental_schema
 import time
 from fastapi.responses import JSONResponse, Response
+from app.utils.access_logger import save_access_log, should_record
 
 app = FastAPI()
 
@@ -124,14 +126,21 @@ class AuthMiddleware(BaseHTTPMiddleware):
             or path == "/favicon.ico"
         ):
 
-            return await call_next(
-                request
-            )
+            return await call_next(request)
 
         user = request.session.get("user")
 
         if not user:
-            return RedirectResponse("/login")
+            response = RedirectResponse("/login")
+            if should_record(path):
+                save_access_log(
+                    request=request,
+                    status_code=response.status_code,
+                    user="anonymous",
+                    result="인증필요",
+                    detail="로그인 세션 없이 접근",
+                )
+            return response
 
         last_activity = request.session.get(
             "last_activity",
@@ -142,10 +151,18 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
             request.session.clear()
 
-            return RedirectResponse(
+            response = RedirectResponse(
                 "/login?expired=1",
                 status_code=302
             )
+            save_access_log(
+                request=request,
+                status_code=response.status_code,
+                user=user,
+                result="세션만료",
+                detail="2시간 이상 활동이 없어 세션 만료",
+            )
+            return response
 
         request.session["last_activity"] = time.time()
 
@@ -162,7 +179,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         if account is None:
             request.session.clear()
-            return RedirectResponse("/login")
+            response = RedirectResponse("/login")
+            save_access_log(
+                request=request,
+                status_code=response.status_code,
+                user=user,
+                result="계정없음",
+                detail="세션의 사용자 계정이 DB에 없음",
+            )
+            return response
 
         team = (account.team or "").strip()
         role = account.role or "user"
@@ -245,6 +270,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
             "no-store, no-cache, must-revalidate"
         )
         response.headers["Pragma"] = "no-cache"
+
+        if should_record(path):
+            save_access_log(
+                request=request,
+                status_code=response.status_code,
+                user=user,
+            )
 
         return response
 

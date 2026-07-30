@@ -28,6 +28,7 @@ from app.models.material_master import MaterialMaster
 from app.models.material_note import MaterialNote
 from app.utils.logger import save_log
 from app.utils.downloads import dated_filename, download_content_disposition
+from app.utils.item_codes import normalize_item_code
 
 router = APIRouter()
 
@@ -498,9 +499,9 @@ async def init_stock_excel(
 
     for _, row in df.iterrows():
 
-        item_code = str(
+        item_code = normalize_item_code(
             row["품목코드"]
-        ).strip()
+        )
 
         category = str(
             row["구분"]
@@ -583,9 +584,9 @@ async def upload_stock_excel(
 
     for _, row in df.iterrows():
 
-        item_code = str(
+        item_code = normalize_item_code(
             row["품목코드"]
-        ).strip()
+        )
 
         category = str(
             row["구분"]
@@ -953,7 +954,9 @@ def update_item(
         old_name = item.item_name
         old_rev = item.rev
 
-        new_code = data["item_code"].strip()
+        new_code = normalize_item_code(
+            data["item_code"]
+        )
         new_name = data["item_name"].strip()
         new_rev = (data.get("rev") or "").strip()
 
@@ -1136,9 +1139,9 @@ async def upload_item_master(
 
     for _, row in df.iterrows():
 
-        item_code = str(
+        item_code = normalize_item_code(
             row["품목코드"]
-        ).strip()
+        )
 
         item_name = str(
             row["품명"]

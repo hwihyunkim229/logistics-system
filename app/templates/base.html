@@ -3,6 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <title>Logistics Hub</title>
+<script>
+try {
+    if (localStorage.getItem("sidebar_collapsed") === "true") {
+        document.documentElement.classList.add("sidebar-collapsed-preload");
+    }
+} catch (error) {
+    // localStorage may be unavailable in a restricted browser context.
+}
+</script>
 <script src="/workflow/static/js/workflow-modal.js"></script>
 
 <style>
@@ -48,22 +57,28 @@ body{
     color:white;
     opacity:0.95;
 }
-.sidebar.collapsed{
+.sidebar.collapsed,
+html.sidebar-collapsed-preload .sidebar{
     width:80px;
 }
-.sidebar.collapsed h3{
+.sidebar.collapsed h3,
+html.sidebar-collapsed-preload .sidebar h3{
     display:none;
 }
-.sidebar.collapsed .menu-title{
+.sidebar.collapsed .menu-title,
+html.sidebar-collapsed-preload .sidebar .menu-title{
     display:none;
 }
-.sidebar.collapsed .menu-parent::after{
+.sidebar.collapsed .menu-parent::after,
+html.sidebar-collapsed-preload .sidebar .menu-parent::after{
     display:none;
 }
-.sidebar.collapsed .child-menu{
+.sidebar.collapsed .child-menu,
+html.sidebar-collapsed-preload .sidebar .child-menu{
     display:none !important;
 }
-.sidebar.collapsed .submenu{
+.sidebar.collapsed .submenu,
+html.sidebar-collapsed-preload .sidebar .submenu{
     max-height:none;
     display:none !important;
     opacity:1;
@@ -90,7 +105,8 @@ body{
     overflow-x:hidden;
     padding:20px;
 }
-body.sidebar-collapsed .main{
+body.sidebar-collapsed .main,
+html.sidebar-collapsed-preload .main{
     margin-left:80px;
 }
 .menu-group{
@@ -962,6 +978,10 @@ window.addEventListener(
                     "collapsed"
                 );
         }
+
+        document.documentElement.classList.remove(
+            "sidebar-collapsed-preload"
+        );
 
         const openMenus =
             JSON.parse(

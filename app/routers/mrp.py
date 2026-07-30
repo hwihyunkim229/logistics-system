@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 import re, calendar, io, math
 from app.database import SessionLocal
 from app.models.bom import BOM
@@ -29,6 +30,7 @@ from app.models.material_note import MaterialNote
 from calendar import monthcalendar
 from app.utils.logger import save_log
 from app.utils.downloads import download_content_disposition
+from app.utils.item_codes import normalize_item_code
 from zoneinfo import ZoneInfo
 
 KST = ZoneInfo("Asia/Seoul")
@@ -106,7 +108,9 @@ def normalize_bom_dataframe(df):
     )
 
     rows["product_name"] = rows["product_name"].astype(str).str.strip()
-    rows["component_code"] = rows["component_code"].astype(str).str.strip()
+    rows["component_code"] = rows["component_code"].map(
+        normalize_item_code
+    )
     rows["component_name"] = (
         rows["component_name"].fillna("").astype(str).str.strip()
     )
@@ -122,13 +126,17 @@ def get_bom_rows(db):
     )
 
 def get_week_label(dt):
+    return f"{dt.month}월 {get_week_of_month(dt)}주"
+
+
+def get_week_of_month(dt):
     cal = calendar.monthcalendar(dt.year, dt.month)
 
-    for idx, week in enumerate(cal, start=1):
-        if dt.day in week:
-            return f"{dt.month}월 {idx}주"
+    for index, calendar_week in enumerate(cal, start=1):
+        if dt.day in calendar_week:
+            return index
 
-    return f"{dt.month}월 1주"
+    return 1
 
 def calculate_mrp(
     db,
@@ -158,8 +166,12 @@ def calculate_mrp(
         if month and plan.plan_date.month != month:
             return False
 
-        if week and plan.plan_date.isocalendar().week != week:
-            return False
+        if week:
+            if month:
+                if get_week_of_month(plan.plan_date) != week:
+                    return False
+            elif plan.plan_date.isocalendar().week != week:
+                return False
 
         return True
 
@@ -222,10 +234,14 @@ def calculate_mrp(
                 (bom.qty or 0)
             )
 
+            component_code = normalize_item_code(
+                bom.component_code
+            )
+
             item = required_by_item.setdefault(
-                bom.component_code,
+                component_code,
                 {
-                    "item_code": bom.component_code,
+                    "item_code": component_code,
                     "item_name": bom.component_name,
                     "required_qty": 0,
                     "products": defaultdict(float),
@@ -269,12 +285,12 @@ def calculate_mrp(
         note_rows = db.query(MaterialNote).all()
 
     material_map = {
-        row.item_code: row
+        normalize_item_code(row.item_code): row
         for row in material_rows
     }
 
     note_map = {
-        row.item_code: row
+        normalize_item_code(row.item_code): row
         for row in note_rows
     }
 
@@ -283,7 +299,7 @@ def calculate_mrp(
     for inv in inventory_rows:
 
         inventory_by_code[
-            inv.item_code
+            normalize_item_code(inv.item_code)
         ].append(inv)
 
     results = []
@@ -652,6 +668,136 @@ def filter_mrp_rows(rows, q="", shortage_only=False):
 
     return rows
 
+
+def build_monthly_projection(
+    rows,
+    start_year,
+    start_month,
+    month_count=6,
+    q="",
+    shortage_only=False,
+):
+    month_columns = []
+    year = start_year
+    month = start_month
+
+    for _ in range(month_count):
+        month_columns.append(
+            {
+                "year": year,
+                "month": month,
+                "key": f"{year}-{month:02d}",
+                "label": f"{month}월",
+            }
+        )
+        month += 1
+        if month > 12:
+            year += 1
+            month = 1
+
+    keyword = (q or "").strip().lower()
+    projected_rows = []
+
+    for row in rows:
+        if keyword and not (
+            keyword in (row["item_code"] or "").lower()
+            or keyword in (row["item_name"] or "").lower()
+            or keyword in (row["supplier"] or "").lower()
+            or any(
+                keyword in product.lower()
+                for product in row["product_names"]
+            )
+        ):
+            continue
+
+        required_by_month = defaultdict(float)
+        dates_by_month = defaultdict(list)
+
+        for detail in row["details"]:
+            key = f"{detail['date'].year}-{detail['date'].month:02d}"
+            required_by_month[key] += detail["required_qty"]
+            dates_by_month[key].append(detail["date"])
+
+        if not any(
+            required_by_month[column["key"]] > 0
+            for column in month_columns
+        ):
+            continue
+
+        balance = row["physical_stock_qty"]
+        monthly_values = []
+        first_shortage_index = None
+        first_shortage_date = None
+
+        for index, column in enumerate(month_columns):
+            required = required_by_month[column["key"]]
+            balance -= required
+
+            if balance < 0 and first_shortage_index is None:
+                first_shortage_index = index
+                month_dates = dates_by_month[column["key"]]
+                first_shortage_date = (
+                    min(month_dates)
+                    if month_dates
+                    else date(column["year"], column["month"], 1)
+                )
+
+            monthly_values.append(
+                {
+                    "key": column["key"],
+                    "required_qty": required,
+                    "balance": balance,
+                    "is_first_shortage": first_shortage_index == index,
+                }
+            )
+
+        max_shortage = max(-balance, 0)
+
+        if shortage_only and max_shortage <= 0:
+            continue
+
+        recommended_order_qty = max_shortage
+        if max_shortage > 0 and row["moq"] > 0:
+            recommended_order_qty = (
+                math.ceil(max_shortage / row["moq"])
+                * row["moq"]
+            )
+
+        order_date = (
+            first_shortage_date
+            - timedelta(weeks=row["lead_time_week"])
+            if first_shortage_date
+            else None
+        )
+
+        projected_rows.append(
+            {
+                **row,
+                "stock_qty": row["physical_stock_qty"],
+                "monthly_values": monthly_values,
+                "first_shortage_index": first_shortage_index,
+                "projection_shortage_qty": max_shortage,
+                "projection_order_qty": recommended_order_qty,
+                "projection_need_date": first_shortage_date,
+                "projection_order_date": order_date,
+            }
+        )
+
+    projected_rows.sort(
+        key=lambda row: (
+            row["first_shortage_index"] is None,
+            (
+                row["first_shortage_index"]
+                if row["first_shortage_index"] is not None
+                else month_count
+            ),
+            -row["projection_shortage_qty"],
+            row["item_code"],
+        )
+    )
+
+    return month_columns, projected_rows
+
 def build_week_dashboard_summary(
     db,
     plans,
@@ -676,16 +822,22 @@ def build_week_dashboard_summary(
 
         if inv.warehouse_type == "창고재고":
             if inv.grade == "A":
-                remain_inventory[inv.item_code] += qty
+                remain_inventory[
+                    normalize_item_code(inv.item_code)
+                ] += qty
 
         elif inv.warehouse_type in ["제공재고", "외주재고"]:
-            remain_inventory[inv.item_code] += qty
+            remain_inventory[
+                normalize_item_code(inv.item_code)
+            ] += qty
 
     bom_map = defaultdict(list)
 
     for bom in bom_rows:
         bom_map[bom.product_name].append({
-            "item_code": bom.component_code,
+            "item_code": normalize_item_code(
+                bom.component_code
+            ),
             "qty": bom.qty or 0
         })
 
@@ -701,8 +853,12 @@ def build_week_dashboard_summary(
         if month and plan.plan_date.month != month:
             return False
 
-        if week and plan.plan_date.isocalendar().week != week:
-            return False
+        if week:
+            if month:
+                if get_week_of_month(plan.plan_date) != week:
+                    return False
+            elif plan.plan_date.isocalendar().week != week:
+                return False
 
         return True
 
@@ -826,6 +982,10 @@ def build_mrp_summary(plans, rows, filtered_rows, inventory_count):
         total_required
         - total_stock
     )
+    total_recommended_order = sum(
+        row["recommended_order_qty"]
+        for row in shortage_rows
+    )
 
     return {
         "plan_count": sum(
@@ -840,6 +1000,7 @@ def build_mrp_summary(plans, rows, filtered_rows, inventory_count):
         "total_required": total_required,
         "total_stock": total_stock,
         "total_shortage": total_shortage,
+        "total_recommended_order": total_recommended_order,
         "shortage_rate": (
             len(shortage_rows) / len(rows) * 100
             if rows
@@ -920,7 +1081,7 @@ def build_mrp_dashboard_context(
     )
 
     material_codes = {
-        row.item_code
+        normalize_item_code(row.item_code)
         for row in material_rows
     }
     required_codes = {
@@ -2503,10 +2664,21 @@ def mrp_result(
     year = request.query_params.get("year")
     month = request.query_params.get("month")
     week = request.query_params.get("week")
+    projection_months = request.query_params.get(
+        "projection_months",
+        "6"
+    )
 
     year = int(year) if year else None
     month = int(month) if month else None
     week = int(week) if week else None
+    try:
+        projection_months = int(projection_months)
+    except (TypeError, ValueError):
+        projection_months = 6
+
+    if projection_months not in {3, 6, 12}:
+        projection_months = 6
 
     q = request.query_params.get(
         "q",
@@ -2518,21 +2690,6 @@ def mrp_result(
             "shortage_only"
         )
         == "true"
-    )
-
-    plans, rows, shortage_count, _ = calculate_mrp(db)
-
-    filtered_rows = filter_mrp_rows(
-        rows,
-        q=q,
-        shortage_only=shortage_only,
-    )
-    inventory_count = db.query(Inventory).count()
-    summary = build_mrp_summary(
-        plans,
-        rows,
-        filtered_rows,
-        inventory_count,
     )
 
     plans_for_filter = (
@@ -2548,22 +2705,103 @@ def mrp_result(
         reverse=True
     )
 
-    weeks = sorted(
-        {
-            (
-                p.plan_date.year,
-                p.plan_date.isocalendar().week
-            )
-            for p in plans_for_filter
-        },
-        reverse=True
-    )
+    months_by_year = {}
+    weeks_by_period = {}
+    for plan in plans_for_filter:
+        plan_year = plan.plan_date.year
+        plan_month = plan.plan_date.month
+        months_by_year.setdefault(str(plan_year), set()).add(plan_month)
+        period_key = f"{plan_year}-{plan_month}"
+        weeks_by_period.setdefault(period_key, set()).add(
+            get_week_of_month(plan.plan_date)
+        )
+
+    months_by_year = {
+        key: sorted(values)
+        for key, values in months_by_year.items()
+    }
+    weeks_by_period = {
+        key: sorted(values)
+        for key, values in weeks_by_period.items()
+    }
 
     months = sorted(
         {
             p.plan_date.month
             for p in plans_for_filter
+            if not year or p.plan_date.year == year
         }
+    )
+
+    if month and month not in months:
+        month = None
+
+    weeks = sorted(
+        {
+            get_week_of_month(p.plan_date)
+            for p in plans_for_filter
+            if month
+            and p.plan_date.month == month
+            and (not year or p.plan_date.year == year)
+        }
+    )
+
+    if week and week not in weeks:
+        week = None
+
+    inventory_rows = db.query(Inventory).all()
+    bom_rows = db.query(BOM).all()
+    material_rows = db.query(MaterialMaster).all()
+    note_rows = db.query(MaterialNote).all()
+
+    plans, rows, shortage_count, _ = calculate_mrp(
+        db,
+        year=year,
+        month=month,
+        week=week,
+        all_plans=plans_for_filter,
+        inventory_rows=inventory_rows,
+        bom_rows=bom_rows,
+        material_rows=material_rows,
+        note_rows=note_rows,
+    )
+
+    filtered_rows = filter_mrp_rows(
+        rows,
+        q=q,
+        shortage_only=shortage_only,
+    )
+    inventory_count = len(inventory_rows)
+    summary = build_mrp_summary(
+        plans,
+        rows,
+        filtered_rows,
+        inventory_count,
+    )
+
+    if year is None and month is None and week is None:
+        all_rows = rows
+    else:
+        _, all_rows, _, _ = calculate_mrp(
+            db,
+            all_plans=plans_for_filter,
+            inventory_rows=inventory_rows,
+            bom_rows=bom_rows,
+            material_rows=material_rows,
+            note_rows=note_rows,
+        )
+
+    projection_start = date.today().replace(day=1)
+    if year and month:
+        projection_start = date(year, month, 1)
+
+    month_columns, monthly_rows = build_monthly_projection(
+        all_rows,
+        projection_start.year,
+        projection_start.month,
+        month_count=projection_months,
+        q=q,
+        shortage_only=shortage_only,
     )
 
     return templates.TemplateResponse(
@@ -2575,6 +2813,8 @@ def mrp_result(
             "years": years,
             "weeks": weeks,
             "months": months,
+            "months_by_year": months_by_year,
+            "weeks_by_period": weeks_by_period,
             "selected_year": year,
             "selected_month": month,
             "selected_week": week,
@@ -2582,8 +2822,220 @@ def mrp_result(
             "shortage_only": shortage_only,
             "shortage_count": shortage_count,
             "summary": summary,
+            "month_columns": month_columns,
+            "monthly_rows": monthly_rows,
+            "projection_start": projection_start,
+            "projection_months": projection_months,
         },
     )
+
+@router.get("/mrp/result/download/monthly")
+def download_monthly_mrp_result(
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    year = request.query_params.get("year")
+    month = request.query_params.get("month")
+    projection_months = request.query_params.get(
+        "projection_months",
+        "6",
+    )
+
+    year = int(year) if year else None
+    month = int(month) if month else None
+
+    try:
+        projection_months = int(projection_months)
+    except (TypeError, ValueError):
+        projection_months = 6
+
+    if projection_months not in {3, 6, 12}:
+        projection_months = 6
+
+    q = request.query_params.get("q", "")
+    shortage_only = (
+        request.query_params.get("shortage_only") == "true"
+    )
+
+    all_plans = db.query(ProductionPlan).all()
+    inventory_rows = db.query(Inventory).all()
+    bom_rows = db.query(BOM).all()
+    material_rows = db.query(MaterialMaster).all()
+    note_rows = db.query(MaterialNote).all()
+
+    _, all_rows, _, _ = calculate_mrp(
+        db,
+        all_plans=all_plans,
+        inventory_rows=inventory_rows,
+        bom_rows=bom_rows,
+        material_rows=material_rows,
+        note_rows=note_rows,
+    )
+
+    projection_start = date.today().replace(day=1)
+    if year and month:
+        projection_start = date(year, month, 1)
+
+    month_columns, monthly_rows = build_monthly_projection(
+        all_rows,
+        projection_start.year,
+        projection_start.month,
+        month_count=projection_months,
+        q=q,
+        shortage_only=shortage_only,
+    )
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "월별 예상재고"
+    ws.sheet_view.showGridLines = False
+
+    headers = [
+        "품목코드",
+        "품명",
+        "업체",
+        "LT(주)",
+        "MOQ",
+        "현재재고",
+        *[
+            f"{column['year']}년 {column['month']}월"
+            for column in month_columns
+        ],
+        "최초 부족일",
+        "발주 필요일",
+        "권장 발주량",
+    ]
+
+    header_fill = PatternFill("solid", fgColor="2C3E50")
+    header_font = Font(color="FFFFFF", bold=True)
+    center = Alignment(horizontal="center", vertical="center")
+    thin_border = Border(
+        left=Side(style="thin", color="D9E2EC"),
+        right=Side(style="thin", color="D9E2EC"),
+        top=Side(style="thin", color="D9E2EC"),
+        bottom=Side(style="thin", color="D9E2EC"),
+    )
+    first_shortage_border = Border(
+        left=Side(style="medium", color="E74C3C"),
+        right=Side(style="medium", color="E74C3C"),
+        top=Side(style="medium", color="E74C3C"),
+        bottom=Side(style="medium", color="E74C3C"),
+    )
+
+    for col_num, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = center
+        cell.border = thin_border
+
+    first_month_col = 7
+    first_action_col = first_month_col + len(month_columns)
+
+    for row_idx, row in enumerate(monthly_rows, start=2):
+        base_values = [
+            row["item_code"],
+            row["item_name"],
+            row["supplier"] or "",
+            row["lead_time_week"],
+            row["moq"],
+            row["stock_qty"],
+        ]
+
+        for col_num, value in enumerate(base_values, start=1):
+            ws.cell(row=row_idx, column=col_num).value = value
+
+        need_date_cell = ws.cell(
+            row=row_idx,
+            column=first_action_col,
+        )
+        order_date_cell = ws.cell(
+            row=row_idx,
+            column=first_action_col + 1,
+        )
+        order_qty_cell = ws.cell(
+            row=row_idx,
+            column=first_action_col + 2,
+        )
+        need_date_cell.value = row["projection_need_date"]
+        order_date_cell.value = row["projection_order_date"]
+        order_qty_cell.value = row["projection_order_qty"]
+        need_date_cell.number_format = "yyyy-mm-dd"
+        order_date_cell.number_format = "yyyy-mm-dd"
+        order_qty_cell.number_format = "#,##0"
+
+        for col_num in range(1, len(headers) + 1):
+            cell = ws.cell(row=row_idx, column=col_num)
+            cell.alignment = center
+            cell.border = thin_border
+
+        for month_idx, value in enumerate(row["monthly_values"]):
+            cell = ws.cell(
+                row=row_idx,
+                column=first_month_col + month_idx,
+            )
+            cell.value = value["balance"]
+            cell.number_format = '#,##0;[Red](#,##0)'
+
+            if value["balance"] < 0:
+                cell.fill = PatternFill("solid", fgColor="FDECEC")
+                cell.font = Font(color="C00000", bold=True)
+            elif (
+                row["stock_qty"] > 0
+                and value["balance"] <= row["stock_qty"] * 0.2
+            ):
+                cell.fill = PatternFill("solid", fgColor="FFF4E5")
+                cell.font = Font(color="C65911")
+            else:
+                cell.fill = PatternFill("solid", fgColor="EAF7EE")
+                cell.font = Font(color="166534")
+
+            if value["is_first_shortage"]:
+                cell.border = first_shortage_border
+
+    ws.freeze_panes = "G2"
+    ws.auto_filter.ref = (
+        f"A1:{get_column_letter(len(headers))}{ws.max_row}"
+    )
+    ws.row_dimensions[1].height = 28
+    ws.column_dimensions["A"].width = 20
+    ws.column_dimensions["B"].width = 32
+    ws.column_dimensions["C"].width = 18
+
+    for col_num in range(4, len(headers) + 1):
+        ws.column_dimensions[
+            get_column_letter(col_num)
+        ].width = 14
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    save_log(
+        user=current_user(request),
+        product=MRP_LOG_PRODUCT,
+        action="MRP_MONTHLY_RESULT_DOWNLOAD",
+        detail=(
+            f"MRP 월별 예상재고 다운로드: "
+            f"{len(monthly_rows)}건/{projection_months}개월"
+        ),
+    )
+
+    return StreamingResponse(
+        output,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument."
+            "spreadsheetml.sheet"
+        ),
+        headers={
+            "Content-Disposition": download_content_disposition(
+                "MRP 월별 예상재고",
+                "mrp_monthly_projection",
+            )
+        },
+    )
+
 
 @router.get("/mrp/result/download")
 def download_mrp_result(
@@ -2611,7 +3063,12 @@ def download_mrp_result(
         == "true"
     )
 
-    _, rows, _, _ = calculate_mrp(db)
+    _, rows, _, _ = calculate_mrp(
+        db,
+        year=year,
+        month=month,
+        week=week,
+    )
 
     rows = filter_mrp_rows(
         rows,
@@ -2904,12 +3361,16 @@ def add_material_master(
     db: Session = Depends(get_db)
 
 ):
+    item_code = normalize_item_code(item_code)
 
     existing = (
         db.query(MaterialMaster)
         .filter(
-            MaterialMaster.item_code
-            == item_code
+            func.replace(
+                MaterialMaster.item_code,
+                " ",
+                ""
+            ) == item_code
         )
         .first()
     )
@@ -3128,26 +3589,24 @@ async def upload_material_master(
                     f"{col} 컬럼이 없습니다."
                 )
 
+        existing_by_code = {
+            normalize_item_code(existing.item_code): existing
+            for existing in db.query(MaterialMaster).all()
+        }
+
         for _, row in df.iterrows():
 
             if pd.isna(row["품목코드"]):
                 continue
 
-            item_code = str(
+            item_code = normalize_item_code(
                 row["품목코드"]
-            ).strip()
+            )
 
             if item_code == "":
                 continue
 
-            existing = (
-                db.query(MaterialMaster)
-                .filter(
-                    MaterialMaster.item_code
-                    == item_code
-                )
-                .first()
-            )
+            existing = existing_by_code.get(item_code)
 
             if existing:
 
@@ -3171,9 +3630,7 @@ async def upload_material_master(
 
             else:
 
-                db.add(
-
-                    MaterialMaster(
+                new_material = MaterialMaster(
 
                         item_code=item_code,
 
@@ -3195,9 +3652,9 @@ async def upload_material_master(
                             row["MOQ"]
                         )
 
-                    )
-
                 )
+                db.add(new_material)
+                existing_by_code[item_code] = new_material
 
         db.commit()
 
@@ -3235,12 +3692,16 @@ def get_material_note(
     item_code: str,
     db: Session = Depends(get_db)
 ):
+    item_code = normalize_item_code(item_code)
 
     row = (
         db.query(MaterialNote)
         .filter(
-            MaterialNote.item_code
-            == item_code
+            func.replace(
+                MaterialNote.item_code,
+                " ",
+                ""
+            ) == item_code
         )
         .first()
     )
@@ -3260,8 +3721,8 @@ async def save_material_note(
 
     data = await request.json()
 
-    item_code = data.get(
-        "item_code"
+    item_code = normalize_item_code(
+        data.get("item_code")
     )
 
     note = data.get(
@@ -3272,8 +3733,11 @@ async def save_material_note(
     row = (
         db.query(MaterialNote)
         .filter(
-            MaterialNote.item_code
-            == item_code
+            func.replace(
+                MaterialNote.item_code,
+                " ",
+                ""
+            ) == item_code
         )
         .first()
     )

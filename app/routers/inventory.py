@@ -15,6 +15,7 @@ from app.models.item_master import ItemMaster
 from app.models.stock import Stock
 from app.utils.logger import save_log
 from app.utils.downloads import download_content_disposition
+from app.utils.item_codes import normalize_item_code
 
 router = APIRouter()
 
@@ -97,7 +98,8 @@ def get_raw_category(item_name):
     return "사급자재"
 
 def lookup_item_defaults(db, item_code):
-    
+    item_code = normalize_item_code(item_code)
+
     item_name = ""
     rev = ""
     category = ""
@@ -108,6 +110,19 @@ def lookup_item_defaults(db, item_code):
         .first()
     )
 
+    if not master:
+        master = (
+            db.query(ItemMaster)
+            .filter(
+                func.replace(
+                    ItemMaster.item_code,
+                    " ",
+                    ""
+                ) == item_code
+            )
+            .first()
+        )
+
     if master:
         item_name = master.item_name or ""
         rev = master.rev or ""
@@ -117,6 +132,19 @@ def lookup_item_defaults(db, item_code):
         .filter(Stock.item_code == item_code)
         .first()
     )
+
+    if not stock:
+        stock = (
+            db.query(Stock)
+            .filter(
+                func.replace(
+                    Stock.item_code,
+                    " ",
+                    ""
+                ) == item_code
+            )
+            .first()
+        )
 
     if stock:
         category = stock.category or ""
@@ -130,6 +158,7 @@ def lookup_item_defaults(db, item_code):
     return item_name, rev, category
 
 def ensure_grade_siblings(db, item_code, warehouse_type, lot, category, item_name, rev):
+    item_code = normalize_item_code(item_code)
 
     if warehouse_type != "창고재고":
         return
@@ -139,7 +168,11 @@ def ensure_grade_siblings(db, item_code, warehouse_type, lot, category, item_nam
         exists = (
             db.query(Inventory)
             .filter(
-                Inventory.item_code == item_code,
+                func.replace(
+                    Inventory.item_code,
+                    " ",
+                    ""
+                ) == item_code,
                 Inventory.warehouse_type == warehouse_type,
                 Inventory.lot == lot,
                 Inventory.grade == grade,
@@ -271,7 +304,7 @@ async def add_inventory(
     data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
-    item_code = (data.get("item_code") or "").strip()
+    item_code = normalize_item_code(data.get("item_code"))
     warehouse_type = (data.get("warehouse_type") or "").strip()
     category = (data.get("category") or "").strip()
     lot = (data.get("lot") or "").strip()
@@ -992,9 +1025,9 @@ async def init_inventory_excel(
 
     for _, row in df.iterrows():
 
-        item_code = str(
+        item_code = normalize_item_code(
             row["품목코드"]
-        ).strip()
+        )
 
         warehouse_type = str(
             row["창고구분"]
@@ -1152,7 +1185,9 @@ async def upload_inventory_excel(
 
     for _, row in df.iterrows():
 
-        item_code = str(row["품목코드"]).strip()
+        item_code = normalize_item_code(
+            row["품목코드"]
+        )
         warehouse_type = str(row["창고구분"]).strip()
 
         lot = (

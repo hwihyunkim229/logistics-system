@@ -7,6 +7,7 @@ from app.utils.downloads import download_content_disposition
 from app.database import SessionLocal
 from app.models.user import User
 from app.models.activity_log import ActivityLog
+from app.models.access_log import AccessLog
 from fastapi.responses import FileResponse
 import shutil
 import os
@@ -514,4 +515,54 @@ def export_activity_excel(
                 "활동 로그", "activity_logs"
             )
         }
+    )
+
+
+@router.get("/admin/access")
+def admin_access_log(request: Request):
+    if request.session.get("role") != "admin":
+        return RedirectResponse("/search", status_code=303)
+
+    db = SessionLocal()
+    query = db.query(AccessLog)
+
+    user = request.query_params.get("user", "").strip()
+    ip_address = request.query_params.get("ip", "").strip()
+    result = request.query_params.get("result", "").strip()
+    path = request.query_params.get("path", "").strip()
+    page = max(int(request.query_params.get("page", 1)), 1)
+    per_page = 50
+
+    if user:
+        query = query.filter(AccessLog.user.contains(user))
+    if ip_address:
+        query = query.filter(AccessLog.ip_address.contains(ip_address))
+    if result:
+        query = query.filter(AccessLog.result == result)
+    if path:
+        query = query.filter(AccessLog.path.contains(path))
+
+    total_count = query.count()
+    total_pages = max((total_count + per_page - 1) // per_page, 1)
+    page = min(page, total_pages)
+    logs = (
+        query.order_by(AccessLog.id.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+    db.close()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="admin/access.html",
+        context={
+            "logs": logs,
+            "page": page,
+            "total_pages": total_pages,
+            "search_user": user,
+            "search_ip": ip_address,
+            "selected_result": result,
+            "search_path": path,
+        },
     )
