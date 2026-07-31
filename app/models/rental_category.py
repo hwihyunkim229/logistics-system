@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, String
 from app.database import Base
 
-
 class RentalCategory(Base):
     __tablename__ = "rental_category"
 

@@ -2,16 +2,13 @@ from datetime import datetime, timedelta
 from threading import Lock
 from urllib.parse import unquote
 from zoneinfo import ZoneInfo
-
 from app.database import SessionLocal
 from app.models.access_log import AccessLog
-
 
 KST = ZoneInfo("Asia/Seoul")
 ACCESS_LOG_RETENTION_DAYS = 180
 _cleanup_lock = Lock()
 _last_cleanup_date = None
-
 
 IGNORED_PATHS = {
     "/health",
@@ -36,7 +33,6 @@ PAGE_ACTIONS = {
     "/admin/access": "접근 감사 로그 조회",
     "/admin/users": "사용자 관리 조회",
 }
-
 
 def cleanup_expired_access_logs():
     global _last_cleanup_date
@@ -66,7 +62,6 @@ def cleanup_expired_access_logs():
         finally:
             db.close()
 
-
 def client_ip(request):
     forwarded = request.headers.get("x-forwarded-for", "")
     if forwarded:
@@ -78,7 +73,6 @@ def client_ip(request):
 
     return request.client.host if request.client else ""
 
-
 def should_record(path):
     return (
         path not in IGNORED_PATHS
@@ -86,6 +80,11 @@ def should_record(path):
         and not path.startswith("/workflow/static/")
     )
 
+def is_internal_head_request(request):
+    return (
+        request.method.upper() == "HEAD"
+        and client_ip(request) in {"127.0.0.1", "::1"}
+    )
 
 def describe_action(method, path):
     if path in PAGE_ACTIONS and method == "GET":
@@ -109,7 +108,6 @@ def describe_action(method, path):
         return "데이터 삭제"
     return f"{method} 요청"
 
-
 def result_from_status(status_code):
     if status_code < 300:
         return "성공"
@@ -125,7 +123,6 @@ def result_from_status(status_code):
         return "요청제한"
     return "실패"
 
-
 def save_access_log(
     *,
     request,
@@ -136,7 +133,10 @@ def save_access_log(
     detail="",
 ):
     path = request.url.path
-    if not should_record(path):
+    if (
+        not should_record(path)
+        or is_internal_head_request(request)
+    ):
         return
 
     query = unquote(request.url.query)

@@ -9,7 +9,6 @@ try {
         document.documentElement.classList.add("sidebar-collapsed-preload");
     }
 } catch (error) {
-    // localStorage may be unavailable in a restricted browser context.
 }
 </script>
 <script src="/workflow/static/js/workflow-modal.js"></script>
@@ -514,13 +513,204 @@ html.sidebar-collapsed-preload .main{
             0 8px 22px rgba(15,23,42,.08);
     }
 }
+.page-tabs{
+    display:flex;
+    align-items:flex-end;
+    gap:4px;
+    width:100%;
+    margin:10px 0 16px;
+    border-bottom:1px solid #dbe3ef;
+    overflow-x:auto;
+    overflow-y:hidden;
+    scrollbar-width:thin;
+}
+.page-tab{
+    flex:0 0 auto;
+    appearance:none;
+    border:0;
+    border-bottom:3px solid transparent;
+    border-radius:0;
+    padding:12px 16px 11px;
+    background:transparent;
+    color:#64748b;
+    font-size:14px;
+    font-weight:800;
+    line-height:1.2;
+    white-space:nowrap;
+    cursor:pointer;
+    transition:color .18s ease, border-color .18s ease, background .18s ease;
+}
+.page-tab:hover{
+    background:#f8fafc;
+    color:#334155;
+}
+.page-tab.active{
+    background:transparent;
+    color:#2563eb;
+    border-bottom-color:#2563eb;
+}
+.page-tabs.compact{
+    margin-top:-6px;
+}
+.page-tab.small{
+    padding:10px 13px 9px;
+    font-size:13px;
+}
+.page-tabs .category-add-btn{
+    flex:0 0 auto;
+    margin-left:auto;
+    margin-bottom:5px;
+}
+.dashboard-kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(var(--kpi-columns, 4), minmax(0, 1fr));
+    gap:12px;
+    margin-bottom:24px;
+}
+.dashboard-kpi-card{
+    display:flex;
+    align-items:center;
+    gap:13px;
+    min-width:0;
+    min-height:92px;
+    padding:16px;
+    border:1px solid #e2e8f0;
+    border-radius:14px;
+    background:#fff;
+    box-shadow:0 5px 16px rgba(15,23,42,.055);
+    transition:border-color .18s ease, transform .18s ease;
+}
+.dashboard-kpi-card:hover{
+    border-color:#cbd5e1;
+    transform:translateY(-1px);
+}
+.dashboard-kpi-icon{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex:0 0 42px;
+    width:42px;
+    height:42px;
+    border-radius:11px;
+    background:#eff6ff;
+    color:#2563eb;
+    font-size:17px;
+}
+.dashboard-kpi-icon.purple{
+    background:#f5f3ff;
+    color:#7c3aed
+}
+.dashboard-kpi-icon.green{
+    background:#f0fdf4;
+    color:#16a34a
+}
+.dashboard-kpi-icon.orange{
+    background:#fff7ed;
+    color:#ea580c
+}
+.dashboard-kpi-icon.red{
+    background:#fef2f2;
+    color:#dc2626
+}
+.dashboard-kpi-icon.teal{
+    background:#f0fdfa;
+    color:#0f766e
+}
+.dashboard-kpi-body{
+    min-width:0;
+    flex:1
+}
+.dashboard-kpi-title{
+    color:#64748b;
+    font-size:12px;
+    font-weight:700;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.dashboard-kpi-value{
+    margin-top:3px;
+    color:#0f172a;
+    font-size:25px;
+    line-height:1.2;
+    font-weight:800;
+    font-variant-numeric:tabular-nums;
+}
+.dashboard-kpi-footer{
+    margin-top:2px;
+    color:#94a3b8;
+    font-size:11px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+.dashboard-kpi-dual{
+    display:grid;
+    grid-template-columns:1fr 1px 1fr;
+    align-items:center;
+    gap:12px;
+    margin-top:7px;
+}
+.dashboard-kpi-divider{
+    height:34px;
+    background:#e2e8f0
+}
+.dashboard-kpi-dual .dashboard-kpi-value{
+    font-size:21px
+}
+.permission-readonly form[method="post"]:not([action^="/assistant"]){
+    display:none !important;
+}
+.permission-readonly button[onclick*="save" i],
+.permission-readonly button[onclick*="delete" i],
+.permission-readonly button[onclick*="upload" i],
+.permission-readonly button[onclick*="add" i],
+.permission-readonly button[onclick*="edit" i]{
+    display:none !important;
+}
+.permission-no-download a[href*="download" i],
+.permission-no-download a[href*="export" i],
+.permission-no-download button[onclick*="download" i],
+.permission-no-download button[onclick*="export" i]{
+    display:none !important;
+}
+@media(max-width:1400px){
+    .dashboard-kpi-grid{
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+    }
+}
+@media(max-width:760px){
+    .dashboard-kpi-grid{
+        grid-template-columns:1fr;
+    }
+}
 </style>
 
 <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"></noscript>
 </head>
 
-<body>
+{% set state_data = request.scope.get("state", {}) %}
+{% set current_feature = state_data.get("current_feature", "") %}
+{% set current_permissions = state_data.get("permissions", {}) %}
+{% set is_admin = state_data.get("is_admin", false) %}
+<body
+    {% if current_feature and not current_permissions.get(current_feature ~ ".edit", false) %}
+    class="permission-readonly{% if not current_permissions.get(current_feature ~ '.download', false) %} permission-no-download{% endif %}"
+    {% elif current_feature and not current_permissions.get(current_feature ~ ".download", false) %}
+    class="permission-no-download"
+    {% endif %}
+>
+<script>
+window.__CURRENT_CAN_EDIT__ = {{ (
+    not current_feature
+    or current_permissions.get(current_feature ~ ".edit", false)
+)|tojson }};
+window.__CURRENT_CAN_DOWNLOAD__ = {{ (
+    not current_feature
+    or current_permissions.get(current_feature ~ ".download", false)
+)|tojson }};
+</script>
 
 <div class="sidebar">
 
@@ -531,6 +721,7 @@ html.sidebar-collapsed-preload .main{
 
     <h3>📦 Logistics</h3>
 
+    {% if is_admin or current_permissions.get("logistics.view", false) %}
     <div class="menu-group" data-menu="logistics">
 
         <div class="menu-title" onclick="toggleMenu(this)">
@@ -613,7 +804,13 @@ html.sidebar-collapsed-preload .main{
 
         </div>
     </div>
+    {% endif %}
 
+    {% if is_admin
+        or current_permissions.get("inventory.view", false)
+        or current_permissions.get("stock.view", false)
+        or current_permissions.get("rental.view", false)
+    %}
     <div class="menu-group" data-menu="total-stock">
 
         <div
@@ -625,6 +822,7 @@ html.sidebar-collapsed-preload .main{
 
         <div class="submenu">
 
+            {% if is_admin or current_permissions.get("inventory.view", false) %}
             <a
                 href="javascript:void(0)"
                 class="menu-parent"
@@ -640,7 +838,12 @@ html.sidebar-collapsed-preload .main{
                 <a href="/inventory/dashboard">Dashboard</a>
 
             </div>
+            {% endif %}
 
+            {% if is_admin
+                or current_permissions.get("stock.view", false)
+                or current_permissions.get("rental.view", false)
+            %}
             <a
                 href="javascript:void(0)"
                 class="menu-parent"
@@ -651,10 +854,13 @@ html.sidebar-collapsed-preload .main{
 
             <div class="child-menu">
 
+                {% if is_admin or current_permissions.get("stock.view", false) %}
                 <a href="/stock">재고 현황</a>
                 <a href="/stock/history">입/출고 현황</a>
                 <a href="/stock/dashboard">Dashboard</a>
+                {% endif %}
 
+                {% if is_admin or current_permissions.get("rental.view", false) %}
                 <a href="javascript:void(0)" class="menu-parent nested-menu-parent" onclick="toggleSubmenu(this)">
                     대여 관리
                 </a>
@@ -663,13 +869,23 @@ html.sidebar-collapsed-preload .main{
                     <a href="/rental">재고 현황</a>
                     <a href="/rental/history">입/출고 현황</a>
                 </div>
+                {% endif %}
 
             </div>
+            {% endif %}
 
         </div>
 
     </div>
+    {% endif %}
 
+    {% if is_admin
+        or current_permissions.get("workflow_overview.view", false)
+        or current_permissions.get("workflow_purchase.view", false)
+        or current_permissions.get("workflow_quality.view", false)
+        or current_permissions.get("workflow_material.view", false)
+        or current_permissions.get("workflow_production.view", false)
+    %}
     <div class="menu-group" data-menu="workflow">
 
         <div
@@ -681,25 +897,35 @@ html.sidebar-collapsed-preload .main{
 
         <div class="submenu">
 
+            {% if is_admin or current_permissions.get("workflow_overview.view", false) %}
             <a href="/workflow/dashboard" class="menu-single">
                 Dashboard
             </a>
+            {% endif %}
 
+            {% if is_admin or current_permissions.get("workflow_purchase.view", false) %}
             <a href="/workflow/purchase" class="menu-single">
                 구매 관리
             </a>
+            {% endif %}
 
+            {% if is_admin or current_permissions.get("workflow_quality.view", false) %}
             <a href="/workflow/quality" class="menu-single">
                 품질 관리
             </a>
+            {% endif %}
 
+            {% if is_admin or current_permissions.get("workflow_material.view", false) %}
             <a href="/workflow/material" class="menu-single">
                 자재 관리
             </a>
+            {% endif %}
 
+            {% if is_admin or current_permissions.get("workflow_production.view", false) %}
             <a href="/workflow/production" class="menu-single">
                 생산 관리
             </a>
+            {% endif %}
 
             <!-- <a href="/workflow/history" class="menu-single"> -->
                 <!-- 이력 조회 -->
@@ -713,7 +939,9 @@ html.sidebar-collapsed-preload .main{
         </div>
 
     </div>
+    {% endif %}
 
+    {% if is_admin or current_permissions.get("mrp.view", false) %}
     <div class="menu-group" data-menu="mrp">
 
         <div
@@ -748,7 +976,9 @@ html.sidebar-collapsed-preload .main{
         </div>
 
     </div>
+    {% endif %}
 
+    {% if is_admin or current_permissions.get("stock.view", false) %}
     <div class="menu-group" data-menu="master">
 
         <div
@@ -767,6 +997,7 @@ html.sidebar-collapsed-preload .main{
         </div>
 
     </div>
+    {% endif %}
 
     {% if request.session.get("role") == "admin" %}
 
@@ -1172,67 +1403,6 @@ window.addEventListener("pageshow", function(e){
     }
 });
 
-(function(){
-    const USER_TEAM = {{ request.session.get("team", "")|tojson }};
-    const USER_ROLE = {{ request.session.get("role", "")|tojson }};
-
-    const IS_GLOBAL_VIEWER = USER_ROLE === "viewer";
-
-    if (!IS_GLOBAL_VIEWER && (!USER_TEAM || USER_ROLE === "admin")) return;
-
-    const TEAM_WRITE_PREFIXES = {
-        purchase: ["/workflow/purchase"],
-        quality: ["/workflow/quality"],
-        material: ["/workflow/material", "/workflow/remnant"],
-        production: ["/workflow/production"],
-        vsp: ["/rental"]
-    };
-
-    const allowed = !IS_GLOBAL_VIEWER && (
-        TEAM_WRITE_PREFIXES[USER_TEAM] || []
-    ).some(prefix => location.pathname.startsWith(prefix));
-
-    if (allowed) return;
-
-    window.__VIEWER_MODE__ = true;
-
-    const message = IS_GLOBAL_VIEWER
-        ? "Viewer 계정은 조회만 가능합니다."
-        : "조회 전용 계정입니다.\n소속 팀 페이지에서만 작업할 수 있습니다.";
-
-    const isDownloadAction = value =>
-        /download|export|backup/i.test(value || "");
-
-    document.addEventListener("submit", function(e){
-        const form = e.target;
-        const method = (form.method || "GET").toUpperCase();
-
-        if (method === "GET" && !isDownloadAction(form.action)) {
-            return;
-        }
-
-        e.preventDefault();
-        e.stopPropagation();
-        wfAlert(message);
-    }, true);
-
-    document.addEventListener("click", function(e){
-        const control = e.target.closest("a, button");
-        if (!control) return;
-
-        const target = [
-            control.getAttribute("href"),
-            control.getAttribute("onclick"),
-            control.getAttribute("formaction")
-        ].filter(Boolean).join(" ");
-
-        if (!isDownloadAction(target)) return;
-
-        e.preventDefault();
-        e.stopPropagation();
-        wfAlert(message);
-    }, true);
-})();
 const SIDEBAR_KEY = "sidebar_collapsed";
 
 function toggleSidebar(){

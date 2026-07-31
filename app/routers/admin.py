@@ -8,6 +8,13 @@ from app.database import SessionLocal
 from app.models.user import User
 from app.models.activity_log import ActivityLog
 from app.models.access_log import AccessLog
+from app.models.user_permission import UserPermission
+from app.utils.permissions import (
+    PERMISSION_ACTIONS,
+    PERMISSION_FEATURES,
+    permission_map,
+    replace_user_permissions,
+)
 from fastapi.responses import FileResponse
 import shutil
 import os
@@ -44,6 +51,10 @@ def admin_users(request: Request):
     db = SessionLocal()
 
     users = db.query(User).all()
+    user_permissions = {
+        user.id: permission_map(db, user)
+        for user in users
+    }
 
     db.close()
 
@@ -52,7 +63,10 @@ def admin_users(request: Request):
         name="admin/users.html",
         context={
             "users": users,
-            "current_user": request.session.get("user")
+            "current_user": request.session.get("user"),
+            "permission_features": PERMISSION_FEATURES,
+            "permission_actions": PERMISSION_ACTIONS,
+            "user_permissions": user_permissions,
         }
     )
 
@@ -62,7 +76,6 @@ def create_user(
     username: str = Form(...),
     password: str = Form(...),
     role: str = Form(...),
-    team: str = Form("")
 ):
 
     if request.session.get("role") != "admin":
@@ -98,32 +111,28 @@ def create_user(
             status_code=303
         )
 
-    if role in {"admin", "viewer"}:
-        team = ""
-
-    if role == "user" and team not in {
-        "",
-        "purchase",
-        "quality",
-        "material",
-        "production",
-        "vsp",
-    }:
-        db.close()
-        return RedirectResponse(
-            "/admin/users",
-            status_code=303,
-        )
-
     user = User(
         username=username,
         password=hashed_password,
         role=role,
-        team=team,
+        team="",
         must_change_password=True
     )
 
     db.add(user)
+
+    db.flush()
+
+    if role != "admin":
+        selected = {
+            (feature, "view")
+            for feature, _ in PERMISSION_FEATURES
+        }
+        replace_user_permissions(
+            db,
+            user.id,
+            selected,
+        )
 
     db.commit()
 
@@ -141,6 +150,58 @@ def create_user(
         "/admin/users",
         status_code=303
     )
+
+
+@router.post("/admin/users/{user_id}/permissions")
+async def update_user_permissions(
+    request: Request,
+    user_id: int,
+):
+    if request.session.get("role") != "admin":
+        return RedirectResponse("/search", status_code=303)
+
+    db = SessionLocal()
+    user = db.query(User).filter(User.id == user_id).first()
+
+    if user is None:
+        db.close()
+        return RedirectResponse("/admin/users", status_code=303)
+
+    if user.role == "admin":
+        db.close()
+        return RedirectResponse("/admin/users", status_code=303)
+
+    form = await request.form()
+    selected = set()
+
+    for feature, _ in PERMISSION_FEATURES:
+        for action, _ in PERMISSION_ACTIONS:
+            field_name = f"perm__{feature}__{action}"
+            if form.get(field_name) == "on":
+                selected.add((feature, action))
+
+    for feature, _ in PERMISSION_FEATURES:
+        if (
+            (feature, "edit") in selected
+            or (feature, "download") in selected
+        ):
+            selected.add((feature, "view"))
+
+    replace_user_permissions(db, user.id, selected)
+    user.team = ""
+    db.commit()
+
+    save_log(
+        user=request.session.get("user"),
+        product="ADMIN",
+        action="UPDATE_USER_PERMISSIONS",
+        serial=user.username,
+        detail=f"사용자별 권한 변경 ({len(selected)}개 허용)",
+    )
+
+    db.close()
+    return RedirectResponse("/admin/users", status_code=303)
+
 
 @router.post("/admin/reset-password/{user_id}")
 def reset_password(
@@ -210,6 +271,11 @@ def delete_user(
     )
 
     if user and user.username != current_user:
+        (
+            db.query(UserPermission)
+            .filter(UserPermission.user_id == user.id)
+            .delete(synchronize_session=False)
+        )
 
         db.delete(user)
 
@@ -516,7 +582,6 @@ def export_activity_excel(
             )
         }
     )
-
 
 @router.get("/admin/access")
 def admin_access_log(request: Request):

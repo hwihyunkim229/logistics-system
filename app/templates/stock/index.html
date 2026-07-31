@@ -442,21 +442,21 @@ th input[type="checkbox"]{
 
 </div>
 
-<div class="category-tabs">
+<div class="page-tabs" role="tablist">
     <button
-        class="tab-btn {% if current_category == '반제품' %}active{% endif %}"
+        class="page-tab {% if current_category == '반제품' %}active{% endif %}"
         onclick="location.href='/stock?category=반제품&keyword={{ keyword }}&page=1'">
         반제품
     </button>
 
     <button
-        class="tab-btn {% if current_category == '제품' %}active{% endif %}"
+        class="page-tab {% if current_category == '제품' %}active{% endif %}"
         onclick="location.href='/stock?category=제품&keyword={{ keyword }}&page=1'">
         제품
     </button>
 
     <button
-        class="tab-btn {% if current_category == '원자재' %}active{% endif %}"
+        class="page-tab {% if current_category == '원자재' %}active{% endif %}"
         onclick="location.href='/stock?category=원자재&keyword={{ keyword }}&page=1'">
         원자재
     </button>

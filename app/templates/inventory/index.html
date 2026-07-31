@@ -441,10 +441,10 @@ th input[type="checkbox"]{
     </form>
 </div>
 
-<div class="category-tabs">
+<div class="page-tabs" role="tablist">
     {% for wt in warehouse_types %}
     <button
-        class="tab-btn {% if current_warehouse_type == wt %}active{% endif %}"
+        class="page-tab {% if current_warehouse_type == wt %}active{% endif %}"
         onclick="location.href='/inventory?warehouse_type={{ wt }}&category=&keyword={{ keyword|urlencode }}&page=1'">
         {{ wt }}
     </button>
@@ -452,15 +452,15 @@ th input[type="checkbox"]{
 </div>
 
 {% if current_warehouse_type == "창고재고" %}
-<div class="category-tabs">
+<div class="page-tabs compact" role="tablist">
     <button
-        class="tab-btn small {% if not current_category %}active{% endif %}"
+        class="page-tab small {% if not current_category %}active{% endif %}"
         onclick="location.href='/inventory?warehouse_type=창고재고&category=&keyword={{ keyword|urlencode }}&page=1'">
         전체
     </button>
     {% for cat in categories %}
     <button
-        class="tab-btn small {% if current_category == cat %}active{% endif %}"
+        class="page-tab small {% if current_category == cat %}active{% endif %}"
         onclick="location.href='/inventory?warehouse_type=창고재고&category={{ cat }}&keyword={{ keyword|urlencode }}&page=1'">
         {{ cat }}
     </button>

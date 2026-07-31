@@ -1,22 +1,107 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-.audit-card{background:#fff;border-radius:22px;padding:26px;box-shadow:0 8px 24px rgba(15,23,42,.06)}
-.audit-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap}
-.audit-title{font-size:27px;font-weight:800;color:#0f172a}
-.audit-desc{color:#64748b;margin-top:5px}
-.audit-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
-.audit-filter input,.audit-filter select{height:42px;border:1px solid #cbd5e1;border-radius:10px;padding:0 12px;background:#f8fafc}
-.audit-filter button,.audit-link{height:42px;border:0;border-radius:10px;padding:0 15px;background:#2563eb;color:#fff;font-weight:700;display:inline-flex;align-items:center;text-decoration:none}
-.audit-table-wrap{overflow:auto;border:1px solid #e2e8f0;border-radius:14px}
-.audit-table{width:100%;min-width:1250px;border-collapse:collapse}
-.audit-table th{background:#314766;color:#fff;padding:13px;white-space:nowrap}
-.audit-table td{padding:12px;border-bottom:1px solid #e2e8f0;vertical-align:top;font-size:13px}
-.audit-path{max-width:390px;word-break:break-all}
-.audit-agent{max-width:260px;word-break:break-word;color:#64748b}
-.result-success{color:#15803d;font-weight:800}.result-fail{color:#dc2626;font-weight:800}
-.pager{display:flex;justify-content:center;gap:10px;align-items:center;margin-top:18px}
-.pager a{padding:8px 12px;border-radius:9px;background:#e2e8f0;color:#0f172a;text-decoration:none}
+.audit-card{
+    background:#fff;
+    border-radius:22px;
+    padding:26px;
+    box-shadow:0 8px 24px rgba(15,23,42,.06)
+}
+.audit-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:16px;
+    margin-bottom:20px;
+    flex-wrap:wrap
+}
+.audit-title{
+    font-size:27px;
+    font-weight:800;
+    color:#0f172a
+}
+.audit-desc{
+    color:#64748b;
+    margin-top:5px
+}
+.audit-filter{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom:18px
+}
+.audit-filter input,.audit-filter select{
+    height:42px;
+    border:1px solid #cbd5e1;
+    border-radius:10px;
+    padding:0 12px;
+    background:#f8fafc
+}
+.audit-filter button,.audit-link{
+    height:42px;
+    border:0;
+    border-radius:10px;
+    padding:0 15px;
+    background:#2563eb;
+    color:#fff;
+    font-weight:700;
+    display:inline-flex;
+    align-items:center;
+    text-decoration:none
+}
+.audit-table-wrap{
+    overflow:auto;
+    border:1px solid #e2e8f0;
+    border-radius:14px
+}
+.audit-table{
+    width:100%;
+    min-width:1250px;
+    border-collapse:collapse
+}
+.audit-table th{
+    background:#314766;
+    color:#fff;
+    padding:13px;
+    white-space:nowrap
+}
+.audit-table td{
+    padding:12px;
+    border-bottom:1px solid #e2e8f0;
+    vertical-align:top;
+    font-size:13px
+}
+.audit-path{
+    max-width:390px;
+    word-break:break-all
+}
+.audit-agent{
+    max-width:260px;
+    word-break:break-word;
+    color:#64748b
+}
+.result-success{
+    color:#15803d;
+    font-weight:800
+}
+.result-fail{
+    color:#dc2626;
+    font-weight:800
+}
+.pager{
+    display:flex;
+    justify-content:center;
+    gap:10px;
+    align-items:center;
+    margin-top:18px
+}
+.pager a{
+    padding:8px 12px;
+    border-radius:9px;
+    background:#e2e8f0;
+    color:#0f172a;
+    text-decoration:none
+}
 </style>
 
 <div class="audit-card">

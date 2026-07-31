@@ -41,6 +41,7 @@ from app.models import (
     rental_movement,
     rental_category,
     access_log,
+    user_permission,
 )
 from app.models.material_master import MaterialMaster
 from app.models.user import User
@@ -73,6 +74,13 @@ from app.rental_schema import ensure_rental_schema
 import time
 from fastapi.responses import JSONResponse, Response
 from app.utils.access_logger import save_access_log, should_record
+from app.utils.permissions import (
+    ALWAYS_ALLOWED_PREFIXES,
+    action_for_request,
+    feature_for_path,
+    first_allowed_home,
+    permission_map,
+)
 
 app = FastAPI()
 
@@ -93,20 +101,6 @@ if not SECRET_KEY:
     raise RuntimeError(
         "SECRET_KEY 환경변수가 설정되지 않았습니다."
     )
-
-TEAM_WRITE_PREFIXES = {
-    "purchase": ["/workflow/purchase"],
-    "quality": ["/workflow/quality"],
-    "material": ["/workflow/material", "/workflow/remnant"],
-    "production": ["/workflow/production"],
-    "vsp": ["/rental"],
-}
-
-TEAM_COMMON_WRITE_PREFIXES = [
-    "/change-password",
-    "/assistant",
-    "/workflow/notification",
-]
 
 class AuthMiddleware(BaseHTTPMiddleware):
 
@@ -195,72 +189,59 @@ class AuthMiddleware(BaseHTTPMiddleware):
         request.session["team"] = team
         request.session["role"] = role
 
-        if role == "viewer":
-            viewer_allowed_writes = (
-                "/change-password",
-                "/assistant",
+        permission_db = SessionLocal()
+        try:
+            permissions = permission_map(permission_db, account)
+        finally:
+            permission_db.close()
+
+        request.state.permissions = {
+            f"{feature}.{action}": allowed
+            for (feature, action), allowed in permissions.items()
+        }
+        request.state.is_admin = role == "admin"
+
+        is_common_path = any(
+            path.startswith(prefix)
+            for prefix in ALWAYS_ALLOWED_PREFIXES
+        )
+        request.state.current_feature = (
+            ""
+            if is_common_path or role == "admin"
+            else feature_for_path(path)
+        )
+
+        if not is_common_path:
+            feature = feature_for_path(path)
+            action = action_for_request(request.method, path)
+            allowed = (
+                role == "admin"
+                if feature == "admin"
+                else permissions.get((feature, action), False)
             )
 
-            is_allowed_viewer_write = any(
-                path.startswith(prefix)
-                for prefix in viewer_allowed_writes
-            )
-
-            if (
-                request.method != "GET"
-                and not is_allowed_viewer_write
-            ):
-                return RedirectResponse(
-                    "/search?error=조회 전용 계정입니다.",
-                    status_code=303,
+            if not allowed:
+                action_name = {
+                    "view": "조회",
+                    "edit": "수정",
+                    "download": "다운로드",
+                }[action]
+                allowed_home = first_allowed_home(
+                    permissions,
+                    preferred_feature=feature,
                 )
-
-            lowered = path.lower()
-
-            if request.method == "GET" and any(
-                keyword in lowered
-                for keyword in (
-                    "download",
-                    "export",
-                    "backup",
-                )
-            ):
+                if allowed_home is None:
+                    return Response(
+                        content=(
+                            "<h2>사용 가능한 페이지가 없습니다.</h2>"
+                            "<p>관리자에게 조회 권한을 요청해 주세요.</p>"
+                            '<a href="/logout">로그아웃</a>'
+                        ),
+                        status_code=403,
+                        media_type="text/html",
+                    )
                 return RedirectResponse(
-                    "/search?error=다운로드 권한이 없습니다.",
-                    status_code=303,
-                )
-
-        if team and role != "admin":
-            allowed_writes = (
-                TEAM_WRITE_PREFIXES.get(team, [])
-                + TEAM_COMMON_WRITE_PREFIXES
-            )
-
-            is_allowed_write = any(
-                path.startswith(prefix)
-                for prefix in allowed_writes
-            )
-
-            team_home = (
-                "/rental"
-                if team == "vsp"
-                else f"/workflow/{team}"
-            )
-
-            if request.method != "GET" and not is_allowed_write:
-                return RedirectResponse(
-                    f"{team_home}?error=조회 전용 계정입니다.",
-                    status_code=303,
-                )
-
-            lowered = path.lower()
-
-            if request.method == "GET" and any(
-                keyword in lowered
-                for keyword in ("download", "export", "backup")
-            ) and not is_allowed_write:
-                return RedirectResponse(
-                    f"{team_home}?error=다운로드 권한이 없습니다.",
+                    f"{allowed_home}?error={action_name} 권한이 없습니다.",
                     status_code=303,
                 )
 

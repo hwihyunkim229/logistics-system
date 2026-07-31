@@ -407,44 +407,40 @@
     Dashboard
 </h2>
 
-<div class="kpi-grid">
-    <div class="kpi-card">
-        <div class="kpi-product">
-            총 품목 수
-        </div>
-
-        <div class="kpi-value in">
-            {{ total_items }}
-        </div>
-    </div>
-
-    <div class="kpi-card">
-        <div class="kpi-product">
-            총 재고
-        </div>
-
-        <div class="kpi-value in">
-            {{ "{:,}".format(total_qty) }}
+<div class="dashboard-kpi-grid">
+    <div class="dashboard-kpi-card">
+        <div class="dashboard-kpi-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+        <div class="dashboard-kpi-body">
+            <div class="dashboard-kpi-title">총 품목 수</div>
+            <div class="dashboard-kpi-value">{{ total_items }}</div>
+            <div class="dashboard-kpi-footer">등록된 전체 품목</div>
         </div>
     </div>
 
-    <div class="kpi-card">
-        <div class="kpi-product">
-            입고
-        </div>
-
-        <div class="kpi-value in">
-            {{ "{:,}".format(today_in) }}
+    <div class="dashboard-kpi-card">
+        <div class="dashboard-kpi-icon purple"><i class="fa-solid fa-warehouse"></i></div>
+        <div class="dashboard-kpi-body">
+            <div class="dashboard-kpi-title">총 재고</div>
+            <div class="dashboard-kpi-value">{{ "{:,}".format(total_qty) }}</div>
+            <div class="dashboard-kpi-footer">현재 보유 수량</div>
         </div>
     </div>
 
-    <div class="kpi-card">
-        <div class="kpi-product">
-            출고
+    <div class="dashboard-kpi-card">
+        <div class="dashboard-kpi-icon green"><i class="fa-solid fa-arrow-down"></i></div>
+        <div class="dashboard-kpi-body">
+            <div class="dashboard-kpi-title">입고</div>
+            <div class="dashboard-kpi-value">{{ "{:,}".format(today_in) }}</div>
+            <div class="dashboard-kpi-footer">선택 기간 입고</div>
         </div>
+    </div>
 
-        <div class="kpi-value out">
-            {{ "{:,}".format(today_out) }}
+    <div class="dashboard-kpi-card">
+        <div class="dashboard-kpi-icon orange"><i class="fa-solid fa-arrow-up"></i></div>
+        <div class="dashboard-kpi-body">
+            <div class="dashboard-kpi-title">출고</div>
+            <div class="dashboard-kpi-value">{{ "{:,}".format(today_out) }}</div>
+            <div class="dashboard-kpi-footer">선택 기간 출고</div>
         </div>
     </div>
 </div>

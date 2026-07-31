@@ -192,54 +192,26 @@
     Dashboard
 </h2>
 
-<div class="kpi-grid">
+<div class="dashboard-kpi-grid">
 
 {% for chart in charts %}
 
-<div class="kpi-card">
-
-    <div class="kpi-product">
-        {{ chart.display_name }}
-    </div>
-
-    <div class="kpi-stats">
-
-        <div class="kpi-stat">
-
-            <div class="kpi-label">
-                출고 TOP
+<div class="dashboard-kpi-card">
+    <div class="dashboard-kpi-icon teal"><i class="fa-solid fa-ruler-combined"></i></div>
+    <div class="dashboard-kpi-body">
+        <div class="dashboard-kpi-title">{{ chart.display_name }}</div>
+        <div class="dashboard-kpi-dual">
+            <div>
+                <div class="dashboard-kpi-footer">출고 TOP · Size</div>
+                <div class="dashboard-kpi-value">{{ chart.top_out_size }}</div>
             </div>
-
-            <div class="kpi-value out">
-                {{ chart.top_out_size }}
+            <div class="dashboard-kpi-divider"></div>
+            <div>
+                <div class="dashboard-kpi-footer">입고 TOP · Size</div>
+                <div class="dashboard-kpi-value">{{ chart.top_in_size }}</div>
             </div>
-
-            <div class="kpi-unit">
-                Size
-            </div>
-
         </div>
-
-        <div class="kpi-divider"></div>
-
-        <div class="kpi-stat">
-
-            <div class="kpi-label">
-                입고 TOP
-            </div>
-
-            <div class="kpi-value in">
-                {{ chart.top_in_size }}
-            </div>
-
-            <div class="kpi-unit">
-                Size
-            </div>
-
-        </div>
-
     </div>
-
 </div>
 
 {% endfor %}

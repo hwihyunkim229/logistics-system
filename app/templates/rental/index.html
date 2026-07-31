@@ -3,11 +3,10 @@
 {% block content %}
 
 {% set rental_can_edit =
-    request.session.get("role") == "admin"
-    or (
-        request.session.get("role") == "user"
-        and request.session.get("team", "") in ["", "vsp"]
-    )
+    request.scope.get("state", {}).get("is_admin", false)
+    or request.scope.get("state", {}).get(
+        "permissions", {}
+    ).get("rental.edit", false)
 %}
 
 <script src="/workflow/static/js/workflow-modal.js"></script>
@@ -431,10 +430,10 @@ th input[type="checkbox"] {
     </form>
 </div>
 
-<div class="category-tabs">
+<div class="page-tabs" role="tablist">
     {% for name in categories %}
     <button
-        class="r-btn tab-btn {% if name == category %}active{% endif %}"
+        class="page-tab {% if name == category %}active{% endif %}"
         onclick="location.href='/rental?category={{ name|urlencode }}&page=1'"
     >
         {{ name }}

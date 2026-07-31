@@ -390,106 +390,55 @@
 
 </div>
 
-    <div class="kpi-grid">
+    <div class="dashboard-kpi-grid" style="--kpi-columns:5;">
 
-        <div class="kpi-card">
-
-            <div class="kpi-top">
-
-                <div class="kpi-title">
-                    전체 누적 출고
-                </div>
-
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-icon orange"><i class="fa-solid fa-truck-fast"></i></div>
+            <div class="dashboard-kpi-body">
+                <div class="dashboard-kpi-title">전체 누적 출고</div>
+                <div class="dashboard-kpi-value">{{ total_out }}</div>
+                <div class="dashboard-kpi-footer">Total outbound</div>
             </div>
-
-            <div class="kpi-value">
-                {{ total_out }}
-            </div>
-
-            <div class="kpi-sub">
-                Total outbound
-            </div>
-
         </div>
 
-        <div class="kpi-card">
-
-            <div class="kpi-top">
-
-                <div class="kpi-title">
-                    전체 누적 입고
-                </div>
-
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-icon green"><i class="fa-solid fa-dolly"></i></div>
+            <div class="dashboard-kpi-body">
+                <div class="dashboard-kpi-title">전체 누적 입고</div>
+                <div class="dashboard-kpi-value">{{ total_in }}</div>
+                <div class="dashboard-kpi-footer">Total inbound</div>
             </div>
-
-            <div class="kpi-value">
-                {{ total_in }}
-            </div>
-
-            <div class="kpi-sub">
-                Total inbound
-            </div>
-
         </div>
 
-        <div class="kpi-card">
-
-            <div class="kpi-top">
-
-                <div class="kpi-title">
-                    선택 기간 출고
-                </div>
-
-            </div>
-
-            <div class="kpi-value">
-                {{ period_out }}
-            </div>
-
-            <div class="kpi-sub">
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-icon"><i class="fa-solid fa-arrow-up"></i></div>
+            <div class="dashboard-kpi-body">
+                <div class="dashboard-kpi-title">선택 기간 출고</div>
+                <div class="dashboard-kpi-value">{{ period_out }}</div>
+                <div class="dashboard-kpi-footer">
                 {% if is_cumulative %}전체 기간{% else %}{{ start }} ~ {{ end }}{% endif %}
+                </div>
             </div>
-
         </div>
 
-        <div class="kpi-card">
-
-            <div class="kpi-top">
-
-                <div class="kpi-title">
-                    선택 기간 입고
-                </div>
-
-            </div>
-
-            <div class="kpi-value">
-                {{ period_in }}
-            </div>
-
-            <div class="kpi-sub">
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-icon teal"><i class="fa-solid fa-arrow-down"></i></div>
+            <div class="dashboard-kpi-body">
+                <div class="dashboard-kpi-title">선택 기간 입고</div>
+                <div class="dashboard-kpi-value">{{ period_in }}</div>
+                <div class="dashboard-kpi-footer">
                 {% if is_cumulative %}전체 기간{% else %}{{ start }} ~ {{ end }}{% endif %}
+                </div>
             </div>
-
         </div>
 
-        <div class="kpi-card">
-
-            <div class="kpi-top">
-
-                <div class="kpi-title">
-                    출고 정보 미입력
-                </div>
-
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="dashboard-kpi-body">
+                <div class="dashboard-kpi-title">출고 정보 미입력</div>
+                <div class="dashboard-kpi-value">{{ missing }}</div>
+                <div class="dashboard-kpi-footer">Missing outbound info</div>
             </div>
-
-            <div class="kpi-value">
-                {{ missing }}
-            </div>
-
-            <div class="kpi-sub">
-                Missing outbound info
-            </div>
-
         </div>
 
     </div>

@@ -768,31 +768,46 @@
 
     </div>
 
-    <div class="exec-grid">
-        <div class="metric-card plan">
-            <span class="metric-label">생산 계획 수량</span>
-            <strong class="metric-value">{{ "{:,.0f}".format(summary.plan_count) }}</strong>
-            <small>등록된 생산 계획 합계</small>
+    <div class="dashboard-kpi-grid" style="--kpi-columns:5;">
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-icon"><i class="fa-solid fa-calendar-check"></i></div>
+            <div class="dashboard-kpi-body">
+                <div class="dashboard-kpi-title">생산 계획 수량</div>
+                <div class="dashboard-kpi-value">{{ "{:,.0f}".format(summary.plan_count) }}</div>
+                <div class="dashboard-kpi-footer">등록된 생산 계획 합계</div>
+            </div>
         </div>
-        <div class="metric-card material">
-            <span class="metric-label">필요 자재 수량</span>
-            <strong class="metric-value">{{ "{:,.0f}".format(total_required) }}</strong>
-            <small>BOM 기준 총 소요 자재</small>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-icon purple"><i class="fa-solid fa-cubes"></i></div>
+            <div class="dashboard-kpi-body">
+                <div class="dashboard-kpi-title">필요 자재 수량</div>
+                <div class="dashboard-kpi-value">{{ "{:,.0f}".format(total_required) }}</div>
+                <div class="dashboard-kpi-footer">BOM 기준 총 소요 자재</div>
+            </div>
         </div>
-        <div class="metric-card focus">
-            <span class="metric-label">부족 품목</span>
-            <strong class="metric-value">{{ shortage_count }}</strong>
-            <small>긴급 {{ critical_count }}개 · 전체 {{ summary.required_item_count }}개 품목</small>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="dashboard-kpi-body">
+                <div class="dashboard-kpi-title">부족 품목</div>
+                <div class="dashboard-kpi-value">{{ shortage_count }}</div>
+                <div class="dashboard-kpi-footer">긴급 {{ critical_count }}개 · 전체 {{ summary.required_item_count }}개</div>
+            </div>
         </div>
-        <div class="metric-card focus">
-            <span class="metric-label">추천 발주 수량</span>
-            <strong class="metric-value">{{ "{:,.0f}".format(total_recommended_order) }}</strong>
-            <small>MOQ 반영 기준</small>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-icon orange"><i class="fa-solid fa-truck-fast"></i></div>
+            <div class="dashboard-kpi-body">
+                <div class="dashboard-kpi-title">추천 발주 수량</div>
+                <div class="dashboard-kpi-value">{{ "{:,.0f}".format(total_recommended_order) }}</div>
+                <div class="dashboard-kpi-footer">MOQ 반영 기준</div>
+            </div>
         </div>
-        <div class="metric-card good">
-            <span class="metric-label">조달 가능 품목</span>
-            <strong class="metric-value">{{ ready_count }}</strong>
-            <small>즉시 생산 대응 가능</small>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-icon green"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="dashboard-kpi-body">
+                <div class="dashboard-kpi-title">조달 가능 품목</div>
+                <div class="dashboard-kpi-value">{{ ready_count }}</div>
+                <div class="dashboard-kpi-footer">즉시 생산 대응 가능</div>
+            </div>
         </div>
     </div>
 

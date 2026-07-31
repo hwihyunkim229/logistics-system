@@ -26,7 +26,5 @@ def save_log(
     )
 
     db.add(log)
-
     db.commit()
-
     db.close()

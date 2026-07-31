@@ -1,10 +1,7 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
-
 from sqlalchemy import Column, DateTime, Integer, String, Text
-
 from app.database import Base
-
 
 class AccessLog(Base):
     __tablename__ = "access_logs"

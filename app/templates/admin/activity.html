@@ -2,33 +2,28 @@
 {% block content %}
 
 <style>
-
 .log-page{
     display:flex;
     flex-direction:column;
     gap:24px;
 }
-
 .log-card{
     background:white;
     border-radius:24px;
     padding:28px;
     box-shadow:0 8px 24px rgba(15,23,42,0.06);
 }
-
 .log-title{
     font-size:28px;
     font-weight:800;
     color:#0f172a;
     margin-bottom:8px;
 }
-
 .log-desc{
     font-size:14px;
     color:#94a3b8;
     margin-bottom:24px;
 }
-
 .filter-wrap{
     display:flex;
     gap:12px;
@@ -37,7 +32,6 @@
     align-items:center;
     margin:0;
 }
-
 .filter-input,
 .filter-select{
     height:44px;
@@ -47,11 +41,9 @@
     font-size:14px;
     background:#f8fafc;
 }
-
 .filter-select{
     min-width:180px;
 }
-
 .filter-btn{
     height:44px;
     padding:0 18px;
@@ -62,11 +54,9 @@
     font-weight:700;
     cursor:pointer;
 }
-
 .word-break{
     word-break:break-all;
 }
-
 .action-badge{
     display:inline-flex;
     align-items:center;
@@ -78,77 +68,62 @@
     font-weight:700;
     padding:0 12px;
 }
-
 .action-login{
     background:#dbeafe;
     color:#2563eb;
 }
-
 .action-create{
     background:#dcfce7;
     color:#16a34a;
 }
-
 .action-reset{
     background:#fef3c7;
     color:#d97706;
 }
-
 .action-delete{
     background:#fee2e2;
     color:#dc2626;
 }
-
 .action-out{
     background:#ede9fe;
     color:#7c3aed;
 }
-
 .action-in{
     background:#cffafe;
     color:#0891b2;
 }
-
 .action-download{
     background:#e0f2fe;
     color:#0284c7;
 }
-
 .action-upload{
     background:#dcfce7;
     color:#16a34a;
 }
-
 .action-move{
     background:#ede9fe;
     color:#7c3aed;
 }
-
 .action-update{
     background:#f1f5f9;
     color:#475569;
 }
-
 .empty-row{
     padding:40px !important;
     color:#94a3b8;
 }
-
 .serial-link{
     color:#2563eb;
     text-decoration:none;
     font-weight:600;
 }
-
 .serial-link:hover{
     text-decoration:underline;
 }
-
 .action-logout{
     background:#e2e8f0;
     color:#334155;
 }
-
 .table-wrap{
     min-height:500px;
     max-height:850px;
@@ -159,7 +134,6 @@
     border-radius:18px;
     background:white;
 }
-
 .log-table{
     width:100%;
     min-width:1200px;
@@ -167,8 +141,6 @@
     background:white;
     max-height: 1000px;
 }
-
-
 .log-table thead th{
     position:sticky;
     top:0;
@@ -180,15 +152,12 @@
     text-align:center;
     white-space:nowrap;
 }
-
 .log-table thead th:first-child{
     border-top-left-radius:18px;
 }
-
 .log-table thead th:last-child{
     border-top-right-radius:18px;
 }
-
 .log-table tbody td{
     background:white;
     padding:18px;
@@ -197,11 +166,9 @@
     border-bottom:1px solid #e2e8f0;
     vertical-align:middle;
 }
-
 .log-table tbody tr:hover td{
     background:#f8fafc;
 }
-
 .calendar-btn{
     width:42px;
     height:42px;
@@ -211,11 +178,9 @@
     cursor:pointer;
     font-size:18px;
 }
-
 .calendar-btn:hover{
     background:#f8fafc;
 }
-
 .date-popup{
     position:absolute;
     top:52px;
@@ -229,41 +194,34 @@
     display:none;
     z-index:999;
 }
-
 .date-popup.show{
     display:block;
 }
-
 .popup-title{
     font-size:16px;
     font-weight:700;
     margin-bottom:16px;
 }
-
 .date-row{
     display:flex;
     align-items:center;
     gap:10px;
     margin-bottom:16px;
 }
-
 .date-row input{
     flex:1;
     padding:10px;
     border-radius:10px;
     border:1px solid #ddd;
 }
-
 .quick-range{
     display:flex;
     gap:8px;
     margin-bottom:16px;
 }
-
 .quick-range button{
     flex:1;
 }
-
 .apply-btn{
     width:100%;
     padding:12px;
@@ -274,7 +232,6 @@
     font-weight:600;
     cursor:pointer;
 }
-
 .date-filter-wrap{
     display:flex;
     justify-content:flex-end;
@@ -282,7 +239,6 @@
     position:relative;
     flex-shrink:0;
 }
-
 .top-filter-row{
     display:flex;
     align-items:center;
@@ -290,7 +246,6 @@
     gap:16px;
     margin-bottom:24px;
 }
-
 .pagination{
     display:flex;
     justify-content:center;
@@ -298,7 +253,6 @@
     gap:12px;
     margin-top:20px;
 }
-
 .pagination a{
     padding:8px 14px;
     border-radius:8px;
@@ -308,7 +262,6 @@
     background:white;
     font-weight:600;
 }
-
 .pagination a:hover{
     background:#314766;
     color:white;
@@ -316,9 +269,7 @@
 
 </style>
 <div class="log-page">
-
     <div class="log-card">
-
         <div class="log-title">
             활동 로그
         </div>
@@ -328,12 +279,10 @@
         </div>
 
         <div class="top-filter-row">
-
             <form
                 method="get"
                 class="filter-wrap"
             >
-
                 <input
                     type="text"
                     name="user"
@@ -341,12 +290,10 @@
                     value="{{ search_user or '' }}"
                     class="filter-input"
                 >
-
                 <select
                     name="action"
                     class="filter-select"
                 >
-
                     <option value="">
                         전체 작업
                     </option>
@@ -363,7 +310,6 @@
                     </option>
 
                     {% endfor %}
-
                 </select>
 
                 <input
@@ -373,18 +319,15 @@
                     value="{{ search_serial or '' }}"
                     class="filter-input"
                 >
-
                 <button
                     type="submit"
                     class="filter-btn"
                 >
                     검색
                 </button>
-
             </form>
 
             <div class="date-filter-wrap">
-
                 <button
                     id="dateFilterBtn"
                     class="calendar-btn"
@@ -397,27 +340,22 @@
                     id="dateFilterPopup"
                     class="date-popup"
                 >
-
                     <div class="popup-title">
                         기간 선택
                     </div>
 
                     <div class="date-row">
-
                         <input
                             type="date"
                             id="startDate"
                             value="{{ start_date or '' }}"
                         >
-
                         <span>~</span>
-
                         <input
                             type="date"
                             id="endDate"
                             value="{{ end_date or '' }}"
                         >
-
                     </div>
 
                     <button
@@ -427,11 +365,8 @@
                     >
                         적용
                     </button>
-
                 </div>
-
             </div>
-
         </div>
 
         <div
@@ -441,7 +376,6 @@
                 margin-bottom:20px;
             "
         >
-
             <a
                 href="/admin/access"
                 class="filter-btn"
@@ -464,11 +398,8 @@
         </div>
 
         <div class="table-wrap">
-
             <table class="log-table">
-
                 <thead>
-
                     <tr>
                         <th>Product</th>
                         <th>시간</th>
@@ -477,17 +408,12 @@
                         <th>작업 대상 Serial</th>
                         <th>작업 내용</th>
                     </tr>
-
                 </thead>
-
                 <tbody>
 
                     {% if logs %}
-
                         {% for log in logs %}
-
                         <tr>
-
                             <td>
                                 {{ log.product }}
                             </td>
@@ -501,7 +427,6 @@
                             </td>
 
                             <td>
-
                                 {% if log.action == "LOGIN" %}
                                     <span class="action-badge action-login">
                                         로그인
@@ -604,9 +529,7 @@
                             </td>
 
                             <td class="word-break">
-
                                 {% if log.serial %}
-
                                 <a
                                     href="/movement-history/{{ log.serial.split(',')[0].strip() }}"
                                     class="serial-link"
@@ -614,9 +537,7 @@
                                 >
                                     {{ log.serial }}
                                 </a>
-
                                 {% endif %}
-
                             </td>
 
                             <td class="word-break">
@@ -624,28 +545,19 @@
                             </td>
 
                         </tr>
-
                         {% endfor %}
-
                     {% else %}
-
                         <tr>
-
                             <td
                                 colspan="6"
                                 class="empty-row"
                             >
                                 활동 로그가 없습니다.
                             </td>
-
                         </tr>
-
                     {% endif %}
-
                 </tbody>
-
             </table>
-
         </div>
 
         <div class="pagination">
@@ -680,27 +592,19 @@
             <span class="page-disabled">›</span>
             <span class="page-disabled">»</span>
             {% endif %}
-
         </div>
-
 <script>
-
 const filterBtn =
     document.getElementById("dateFilterBtn");
-
 const filterPopup =
     document.getElementById("dateFilterPopup");
 
 filterBtn.addEventListener("click", function(e){
-
     e.stopPropagation();
-
     filterPopup.classList.toggle("show");
-
 });
 
 document.addEventListener("click", function(e){
-
     if(
         !filterPopup.contains(e.target)
         && !filterBtn.contains(e.target)
@@ -710,32 +614,25 @@ document.addEventListener("click", function(e){
 });
 
 function applyDateFilter(){
-
     const start =
         document.getElementById("startDate").value;
-
     const end =
         document.getElementById("endDate").value;
-
     const url =
         new URL(window.location.href);
-
     if(start){
         url.searchParams.set(
             "start_date",
             start
         );
     }
-
     if(end){
         url.searchParams.set(
             "end_date",
             end
         );
     }
-
     window.location.href = url.toString();
 }
-
 </script>
 {% endblock %}

@@ -2,13 +2,11 @@
 {% block content %}
 
 <style>
-
 .admin-page{
     display:flex;
     flex-direction:column;
     gap:24px;
 }
-
 .admin-card{
     background:white;
     border-radius:24px;
@@ -17,7 +15,6 @@
     position:relative;
     overflow:hidden;
 }
-
 .admin-card::after{
     content:"";
     position:absolute;
@@ -28,33 +25,28 @@
     border-radius:50%;
     background:rgba(37,99,235,0.04);
 }
-
 .admin-header{
     display:flex;
     align-items:center;
     justify-content:space-between;
     margin-bottom:18px;
 }
-
 .admin-title{
     font-size:28px;
     font-weight:800;
     color:#0f172a;
 }
-
 .admin-desc{
     font-size:13px;
     color:#94a3b8;
     margin-top:6px;
 }
-
 .create-form{
     display:flex;
     gap:14px;
     align-items:center;
     flex-wrap:wrap;
 }
-
 .form-input{
     height:48px;
     border:1px solid #dbe2ea;
@@ -65,13 +57,11 @@
     background:#f8fafc;
     transition:0.2s;
 }
-
 .form-input:focus{
     outline:none;
     border-color:#2563eb;
     background:white;
 }
-
 .create-btn{
     height:48px;
     padding:0 24px;
@@ -83,11 +73,9 @@
     cursor:pointer;
     transition:0.2s;
 }
-
 .create-btn:hover{
     background:#1d4ed8;
 }
-
 .user-table{
     width:100%;
     border-collapse:separate;
@@ -95,7 +83,6 @@
     overflow:hidden;
     border-radius:18px;
 }
-
 .user-table thead th{
     background:#314766;
     color:white;
@@ -105,11 +92,9 @@
     text-align:center;
     border-right:1px solid rgba(255,255,255,0.08);
 }
-
 .user-table thead th:last-child{
     border-right:none;
 }
-
 .user-table tbody td{
     background:white;
     padding:22px 20px;
@@ -119,15 +104,12 @@
     border-bottom:1px solid #e2e8f0;
     border-right:1px solid #eef2f7;
 }
-
 .user-table tbody td:last-child{
     border-right:none;
 }
-
 .user-table tbody tr:hover td{
     background:#f8fafc;
 }
-
 .role-badge{
     display:inline-flex;
     align-items:center;
@@ -141,29 +123,24 @@
     font-size:13px;
     font-weight:700;
 }
-
 .role-admin{
     background:rgba(37,99,235,0.12);
     color:#2563eb;
 }
-
 .role-user{
     background:rgba(100,116,139,0.12);
     color:#64748b;
 }
-
 .role-viewer{
     background:rgba(124,58,237,0.12);
     color:#7c3aed;
 }
-
 .action-wrap{
     display:flex;
     justify-content:center;
     align-items:center;
     gap:10px;
 }
-
 .reset-btn{
     border:none;
     background:#eff6ff;
@@ -175,11 +152,9 @@
     cursor:pointer;
     transition:0.2s;
 }
-
 .reset-btn:hover{
     background:#dbeafe;
 }
-
 .delete-btn{
     border:none;
     background:#fef2f2;
@@ -191,17 +166,14 @@
     cursor:pointer;
     transition:0.2s;
 }
-
 .delete-btn:hover{
     background:#fee2e2;
 }
-
 .empty-row{
     text-align:center;
     color:#94a3b8;
     padding:40px !important;
 }
-
 .confirm-modal{
     position:fixed;
     inset:0;
@@ -212,11 +184,9 @@
     z-index:9999;
     backdrop-filter:blur(4px);
 }
-
 .confirm-modal.show{
     display:flex;
 }
-
 .confirm-box{
     width:360px;
     background:white;
@@ -225,27 +195,23 @@
     box-shadow:0 20px 50px rgba(15,23,42,0.18);
     animation:modalFade 0.18s ease;
 }
-
 .confirm-title{
     font-size:22px;
     font-weight:800;
     color:#0f172a;
     margin-bottom:10px;
 }
-
 .confirm-desc{
     font-size:15px;
     color:#64748b;
     line-height:1.5;
     margin-bottom:28px;
 }
-
 .confirm-actions{
     display:flex;
     justify-content:flex-end;
     gap:12px;
 }
-
 .confirm-cancel{
     height:44px;
     padding:0 20px;
@@ -256,7 +222,6 @@
     font-weight:700;
     cursor:pointer;
 }
-
 .confirm-ok{
     height:44px;
     padding:0 20px;
@@ -267,34 +232,83 @@
     font-weight:700;
     cursor:pointer;
 }
-
 .confirm-ok:hover{
     background:#1d4ed8;
 }
-
 @keyframes modalFade{
-
     from{
         opacity:0;
         transform:translateY(10px) scale(0.98);
     }
-
     to{
         opacity:1;
         transform:translateY(0) scale(1);
     }
 }
-
+.permission-btn{
+    height:36px;
+    padding:0 13px;
+    border:1px solid #bfdbfe;
+    border-radius:9px;
+    background:#eff6ff;
+    color:#1d4ed8;
+    font-size:12px;
+    font-weight:800;
+    cursor:pointer;
+}
+.permission-row{display:none}
+.permission-row.open{display:table-row}
+.permission-row td{padding:18px !important;background:#f8fafc !important}
+.permission-panel{
+    border:1px solid #dbe3ef;
+    border-radius:12px;
+    padding:16px;
+    background:white;
+}
+.permission-help{
+    margin-bottom:12px;
+    color:#64748b;
+    font-size:13px;
+}
+.permission-matrix{
+    width:100%;
+    border-collapse:collapse;
+}
+.permission-matrix th,
+.permission-matrix td{
+    padding:10px 12px !important;
+    border-bottom:1px solid #edf2f7 !important;
+    background:white !important;
+    color:#334155 !important;
+    text-align:center;
+}
+.permission-matrix th{
+    font-size:13px;
+    font-weight:800;
+}
+.permission-matrix th:first-child,
+.permission-matrix td:first-child{text-align:left}
+.permission-save{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:14px;
+}
+.permission-save button{
+    height:38px;
+    padding:0 16px;
+    border:0;
+    border-radius:9px;
+    background:#2563eb;
+    color:white;
+    font-weight:800;
+    cursor:pointer;
+}
 </style>
 
 <div class="admin-page">
-
     <div class="admin-card">
-
         <div class="admin-header">
-
             <div>
-
                 <div class="admin-title">
                     계정 관리
                 </div>
@@ -302,9 +316,7 @@
                 <div class="admin-desc">
                     관리자 계정 생성 및 사용자 관리
                 </div>
-
             </div>
-
         </div>
 
         <form
@@ -312,7 +324,6 @@
             action="/admin/create-user"
             class="create-form"
         >
-
             <input
                 type="text"
                 name="username"
@@ -320,7 +331,6 @@
                 placeholder="아이디"
                 required
             >
-
             <input
                 type="password"
                 name="password"
@@ -328,13 +338,11 @@
                 placeholder="초기 비밀번호"
                 required
             >
-
             <select
                 name="role"
                 class="form-input"
                 style="min-width:140px;"
             >
-
                 <option value="user">
                     User
                 </option>
@@ -346,39 +354,6 @@
                 <option value="viewer">
                     Viewer (조회 전용)
                 </option>
-
-            </select>
-
-            <select
-                name="team"
-                class="form-input"
-                style="min-width:180px;"
-            >
-
-                <option value="">
-                    팀 없음 (전체 접근)
-                </option>
-
-                <option value="purchase">
-                    구매팀
-                </option>
-
-                <option value="quality">
-                    품질팀
-                </option>
-
-                <option value="material">
-                    자재팀
-                </option>
-
-                <option value="production">
-                    생산팀
-                </option>
-
-                <option value="vsp">
-                    VSP팀
-                </option>
-
             </select>
 
             <button
@@ -387,17 +362,12 @@
             >
                 계정 생성
             </button>
-
         </form>
-
     </div>
 
     <div class="admin-card">
-
         <div class="admin-header">
-
             <div>
-
                 <div
                     class="admin-title"
                     style="font-size:22px;"
@@ -408,42 +378,30 @@
                 <div class="admin-desc">
                     현재 등록된 사용자 계정
                 </div>
-
             </div>
-
         </div>
 
         <div class="user-table-wrap">
-
             <table class="user-table">
-
                 <thead>
-
                     <tr>
                         <th>ID</th>
                         <th>ROLE</th>
-                        <th>TEAM</th>
                         <th>관리</th>
                     </tr>
-
                 </thead>
 
                 <tbody>
-
                     {% if users %}
-
                         {% for user in users %}
-
                         <tr>
-
                             <td>
                                 <strong>
-                                    {{ user.username }}
+                                    #{{ user.id }} · {{ user.username }}
                                 </strong>
                             </td>
 
                             <td>
-
                                 <span class="
                                     role-badge
                                     {% if user.role == 'admin' %}
@@ -454,41 +412,30 @@
                                         role-user
                                     {% endif %}
                                 ">
-
                                     {{ user.role }}
-
                                 </span>
-
                             </td>
 
                             <td>
-                                {% set team_names = {
-                                    "purchase": "구매팀",
-                                    "quality": "품질팀",
-                                    "material": "자재팀",
-                                    "production": "생산팀",
-                                    "vsp": "VSP팀"
-                                } %}
-                                {{ team_names.get(user.team, "-") if user.team else "-" }}
-                            </td>
-
-                            <td>
-
                                 <div class="action-wrap">
-
+                                    <button
+                                        type="button"
+                                        class="permission-btn"
+                                        onclick="togglePermissions('permission-row-{{ user.id }}')"
+                                    >
+                                        권한 설정
+                                    </button>
                                     <form
                                         method="post"
                                         action="/admin/reset-password/{{ user.id }}"
                                         class="reset-form"
                                     >
-
                                         <button
                                             type="submit"
                                             class="reset-btn"
                                         >
                                             비밀번호 초기화
                                         </button>
-
                                     </form>
 
                                     {% if user.username != current_user %}
@@ -498,49 +445,82 @@
                                         action="/admin/delete-user/{{ user.id }}"
                                         class="delete-form"
                                     >
-
                                         <button
                                             type="submit"
                                             class="delete-btn"
                                         >
                                             삭제
                                         </button>
-
                                     </form>
-
                                     {% endif %}
-
                                 </div>
-
                             </td>
-
                         </tr>
-
+                        <tr
+                            id="permission-row-{{ user.id }}"
+                            class="permission-row"
+                        >
+                            <td colspan="3">
+                                <div class="permission-panel">
+                                    {% if user.role == "admin" %}
+                                    관리자는 모든 기능의 조회·수정·다운로드 권한을 가집니다.
+                                    {% else %}
+                                    <form
+                                        method="post"
+                                        action="/admin/users/{{ user.id }}/permissions"
+                                    >
+                                        <div class="permission-help">
+                                            수정 또는 다운로드를 허용하면 조회 권한도 함께 필요합니다.
+                                        </div>
+                                        <table class="permission-matrix">
+                                            <thead>
+                                                <tr>
+                                                    <th>기능</th>
+                                                    {% for action, action_name in permission_actions %}
+                                                    <th>{{ action_name }}</th>
+                                                    {% endfor %}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for feature, feature_name in permission_features %}
+                                                <tr>
+                                                    <td><strong>{{ feature_name }}</strong></td>
+                                                    {% for action, action_name in permission_actions %}
+                                                    <td>
+                                                        <input
+                                                            type="checkbox"
+                                                            name="perm__{{ feature }}__{{ action }}"
+                                                            {% if user_permissions[user.id].get((feature, action), false) %}checked{% endif %}
+                                                        >
+                                                    </td>
+                                                    {% endfor %}
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                        <div class="permission-save">
+                                            <button type="submit">권한 저장</button>
+                                        </div>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
                         {% endfor %}
-
                     {% else %}
-
                         <tr>
-
                             <td
                                 colspan="3"
                                 class="empty-row"
                             >
                                 등록된 사용자가 없습니다.
                             </td>
-
                         </tr>
-
                     {% endif %}
-
                 </tbody>
-
             </table>
-
         </div>
-
     </div>
-
 </div>
 
 <div
@@ -557,7 +537,6 @@
         </div>
 
         <div class="confirm-actions">
-
             <button
                 class="confirm-cancel"
                 onclick="closeConfirm()"
@@ -571,16 +550,41 @@
             >
                 확인
             </button>
-
         </div>
-
     </div>
-
 </div>
 
 <script>
 
 let currentForm = null;
+
+function togglePermissions(rowId){
+    const row = document.getElementById(rowId);
+    if(row){
+        row.classList.toggle("open");
+    }
+}
+
+document.querySelectorAll(".permission-matrix").forEach(matrix => {
+    matrix.addEventListener("change", event => {
+        const checkbox = event.target;
+        if(checkbox.type !== "checkbox") return;
+
+        const row = checkbox.closest("tr");
+        const boxes = Array.from(
+            row.querySelectorAll('input[type="checkbox"]')
+        );
+        const [viewBox, editBox, downloadBox] = boxes;
+
+        if((checkbox === editBox || checkbox === downloadBox) && checkbox.checked){
+            viewBox.checked = true;
+        }
+        if(checkbox === viewBox && !checkbox.checked){
+            editBox.checked = false;
+            downloadBox.checked = false;
+        }
+    });
+});
 
 function openConfirm(form, message){
 
@@ -654,5 +658,4 @@ document.getElementById(
 );
 
 </script>
-
 {% endblock %}

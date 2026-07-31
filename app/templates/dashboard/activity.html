@@ -543,26 +543,42 @@
 
 </div>
 
-<div class="kpi-grid">
+<div class="dashboard-kpi-grid">
 
-    <div class="kpi-card">
-        <div class="kpi-title">기간 내 출고</div>
-        <div class="kpi-value">{{ today_out }}</div>
+    <div class="dashboard-kpi-card">
+        <div class="dashboard-kpi-icon orange"><i class="fa-solid fa-arrow-up"></i></div>
+        <div class="dashboard-kpi-body">
+            <div class="dashboard-kpi-title">기간 내 출고</div>
+            <div class="dashboard-kpi-value">{{ today_out }}</div>
+            <div class="dashboard-kpi-footer">선택 기간 출고 건수</div>
+        </div>
     </div>
 
-    <div class="kpi-card">
-        <div class="kpi-title">기간 내 입고</div>
-        <div class="kpi-value">{{ today_in }}</div>
+    <div class="dashboard-kpi-card">
+        <div class="dashboard-kpi-icon green"><i class="fa-solid fa-arrow-down"></i></div>
+        <div class="dashboard-kpi-body">
+            <div class="dashboard-kpi-title">기간 내 입고</div>
+            <div class="dashboard-kpi-value">{{ today_in }}</div>
+            <div class="dashboard-kpi-footer">선택 기간 입고 건수</div>
+        </div>
     </div>
 
-    <div class="kpi-card">
-        <div class="kpi-title">미입력 출고 건수</div>
-        <div class="kpi-value">{{ missing_client }}</div>
+    <div class="dashboard-kpi-card">
+        <div class="dashboard-kpi-icon red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="dashboard-kpi-body">
+            <div class="dashboard-kpi-title">미입력 출고 건수</div>
+            <div class="dashboard-kpi-value">{{ missing_client }}</div>
+            <div class="dashboard-kpi-footer">출고처 확인 필요</div>
+        </div>
     </div>
 
-    <div class="kpi-card">
-        <div class="kpi-title">최근 1시간 활동</div>
-        <div class="kpi-value">{{ recent_hour }}</div>
+    <div class="dashboard-kpi-card">
+        <div class="dashboard-kpi-icon purple"><i class="fa-solid fa-clock-rotate-left"></i></div>
+        <div class="dashboard-kpi-body">
+            <div class="dashboard-kpi-title">최근 1시간 활동</div>
+            <div class="dashboard-kpi-value">{{ recent_hour }}</div>
+            <div class="dashboard-kpi-footer">최근 처리 건수</div>
+        </div>
     </div>
 
 </div>

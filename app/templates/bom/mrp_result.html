@@ -605,36 +605,45 @@ td{
         grid-template-columns:1fr;
     }
 }
-.mrp-view-tabs{
-    display:flex;
-    gap:4px;
-    margin-top:18px;
-    border-bottom:1px solid #dbe3ef;
+.monthly-panel{
+    margin-top:0;
+    border-radius:0 0 18px 18px
 }
-.mrp-view-tab{
-    border:0;
-    background:transparent;
-    color:#64748b;
-    padding:13px 18px;
-    font-size:14px;
+.monthly-table{
+    min-width:1320px
+}
+.monthly-table th{
+    vertical-align:middle
+}
+.monthly-table td{
+    white-space:nowrap
+}
+.monthly-code{
     font-weight:800;
-    cursor:pointer;
-    border-bottom:3px solid transparent;
+    color:#1d4ed8
 }
-.mrp-view-tab.active{
-    color:#2563eb;
-    border-bottom-color:#2563eb;
+.monthly-name{
+    max-width:260px;
+    overflow:hidden;
+    text-overflow:ellipsis
 }
-.monthly-panel{margin-top:0;border-radius:0 0 18px 18px}
-.monthly-table{min-width:1320px}
-.monthly-table th{vertical-align:middle}
-.monthly-table td{white-space:nowrap}
-.monthly-code{font-weight:800;color:#1d4ed8}
-.monthly-name{max-width:260px;overflow:hidden;text-overflow:ellipsis}
-.projection-cell{font-variant-numeric:tabular-nums;text-align:right;font-weight:750}
-.projection-cell.positive{background:#ecfdf5;color:#166534}
-.projection-cell.warning{background:#fff7ed;color:#c2410c}
-.projection-cell.shortage{background:#fef2f2;color:#dc2626}
+.projection-cell{
+    font-variant-numeric:tabular-nums;
+    text-align:right;
+    font-weight:750
+}
+.projection-cell.positive{
+    background:#ecfdf5;
+    color:#166534
+}
+.projection-cell.warning{
+    background:#fff7ed;
+    color:#c2410c
+}
+.projection-cell.shortage{
+    background:#fef2f2;
+    color:#dc2626
+}
 .projection-cell.first-shortage{
     box-shadow:inset 0 0 0 2px #ef4444;
     position:relative;
@@ -650,8 +659,12 @@ td{
     font-size:10px;
     font-weight:800;
 }
-.monthly-detail-row{display:none}
-.monthly-detail-row.open{display:table-row}
+.monthly-detail-row{
+    display:none
+}
+.monthly-detail-row.open{
+    display:table-row
+}
 .monthly-detail{
     display:grid;
     grid-template-columns:minmax(230px,.8fr) minmax(380px,1.6fr) minmax(230px,.8fr);
@@ -672,10 +685,30 @@ td{
     padding:7px 0;
     border-bottom:1px solid #edf2f7;
 }
-.stock-line.total{font-weight:850;color:#1d4ed8;border-bottom:0}
-.order-value{font-size:24px;font-weight:900;color:#dc2626}
-.demand-bars{display:flex;align-items:flex-end;gap:10px;height:125px;padding-top:12px}
-.demand-bar-wrap{flex:1;min-width:42px;text-align:center;font-size:11px;color:#64748b}
+.stock-line.total{
+    font-weight:850;
+    color:#1d4ed8;
+    border-bottom:0
+}
+.order-value{
+    font-size:24px;
+    font-weight:900;
+    color:#dc2626
+}
+.demand-bars{
+    display:flex;
+    align-items:flex-end;
+    gap:10px;
+    height:125px;
+    padding-top:12px
+}
+.demand-bar-wrap{
+    flex:1;
+    min-width:42px;
+    text-align:center;
+    font-size:11px;
+    color:#64748b
+}
 .demand-bar{
     width:100%;
     min-height:3px;
@@ -902,11 +935,11 @@ td{
         </div>
     </div>
 
-    <div class="mrp-view-tabs" role="tablist">
-        <button class="mrp-view-tab active" id="monthlyTab" type="button" onclick="switchMrpView('monthly')">
+    <div class="page-tabs" role="tablist">
+        <button class="page-tab active" id="monthlyTab" type="button" onclick="switchMrpView('monthly')">
             월별 예상재고
         </button>
-        <button class="mrp-view-tab" id="detailTab" type="button" onclick="switchMrpView('detail')">
+        <button class="page-tab" id="detailTab" type="button" onclick="switchMrpView('detail')">
             품목별 상세
         </button>
     </div>
@@ -977,11 +1010,35 @@ td{
                             <div class="monthly-detail">
                                 <div class="projection-card">
                                     <h4>재고 구성 (현재)</h4>
-                                    <div class="stock-line"><span>창고재고 A</span><strong>{{ "{:,.0f}".format(row.warehouse_stock) }}</strong></div>
-                                    <div class="stock-line"><span>제공재고</span><strong>{{ "{:,.0f}".format(row.supplier_stock) }}</strong></div>
-                                    <div class="stock-line"><span>외주재고</span><strong>{{ "{:,.0f}".format(row.subcontract_stock) }}</strong></div>
-                                    <div class="stock-line total"><span>합계</span><strong>{{ "{:,.0f}".format(row.stock_qty) }}</strong></div>
+                                    <div class="stock-line">
+                                        <span>창고재고 A</span>
+                                        <strong>
+                                            {{ "{:,.0f}".format(row.warehouse_stock) }}
+                                        </strong>
+                                    </div>
+
+                                    <div class="stock-line">
+                                        <span>제공재고</span>
+                                        <strong>
+                                            {{ "{:,.0f}".format(row.supplier_stock) }}
+                                        </strong>
+                                    </div>
+
+                                    <div class="stock-line">
+                                        <span>외주재고</span>
+                                        <strong>
+                                            {{ "{:,.0f}".format(row.subcontract_stock) }}
+                                        </strong>
+                                    </div>
+
+                                    <div class="stock-line total">
+                                        <span>합계</span>
+                                        <strong>
+                                            {{ "{:,.0f}".format(row.stock_qty) }}
+                                        </strong>
+                                    </div>
                                 </div>
+
                                 <div class="projection-card">
                                     <h4>월별 생산계획 소요량</h4>
                                     {% set max_demand = row.monthly_values|map(attribute='required_qty')|max %}
@@ -1001,18 +1058,28 @@ td{
                                 <div class="projection-card">
                                     <h4>권장 조치</h4>
                                     {% if row.projection_shortage_qty > 0 %}
-                                    <div class="order-line"><span>권장 발주</span></div>
-                                    <div class="order-value">{{ "{:,.0f}".format(row.projection_order_qty) }}</div>
+                                    <div class="order-line">
+                                        <span>권장 발주</span>
+                                    </div>
+
+                                    <div class="order-value">
+                                        {{ "{:,.0f}".format(row.projection_order_qty) }}
+                                    </div>
+
                                     <div class="order-line">
                                         <span>최초 부족일</span>
                                         <strong>{{ row.projection_need_date.strftime("%Y-%m-%d") }}</strong>
                                     </div>
+
                                     <div class="order-line">
                                         <span>발주 필요일</span>
                                         <strong>{{ row.projection_order_date.strftime("%Y-%m-%d") }}</strong>
                                     </div>
+
                                     {% else %}
-                                    <div style="color:#15803d;font-weight:800;">조회기간 내 재고 충분</div>
+                                    <div style="color:#15803d;font-weight:800;">
+                                        조회기간 내 재고 충분
+                                    </div>
                                     {% endif %}
                                 </div>
                             </div>
@@ -1555,8 +1622,8 @@ function showMrpToast(msg, type){
 }
 
 function copyShortageList(){
-    if (window.__VIEWER_MODE__) {
-        showMrpToast("조회 전용 계정은 복사할 수 없습니다.", "error");
+    if (!window.__CURRENT_CAN_DOWNLOAD__) {
+        showMrpToast("다운로드 권한이 없습니다.", "error");
         return;
     }
 
@@ -1584,19 +1651,21 @@ function copyShortageList(){
 }
 
 document.addEventListener("DOMContentLoaded", function(){
-    if (!window.__VIEWER_MODE__) return;
+    if (window.__CURRENT_CAN_DOWNLOAD__) return;
 
     const btn = document.getElementById("copyShortageBtn");
     if (!btn) return;
 
     btn.disabled = true;
-    btn.title = "조회 전용 계정은 복사할 수 없습니다.";
+    btn.title = "다운로드 권한이 없습니다.";
 });
 
 let currentItemCode = "";
+let currentNoteCell = null;
 
 async function openNoteModal(cell){
 
+    currentNoteCell = cell;
     currentItemCode =
         cell.dataset.itemCode;
 
@@ -1650,7 +1719,7 @@ async function saveNote(){
         )
         .value;
 
-    await fetch(
+    const response = await fetch(
         "/mrp/material-note/save",
         {
             method:"POST",
@@ -1672,9 +1741,34 @@ async function saveNote(){
         }
     );
 
-    closeNoteModal();
+    if(!response.ok || response.redirected){
+        showMrpToast("메모를 저장하지 못했습니다.", "error");
+        return;
+    }
 
-    location.reload();
+    const result = await response.json();
+    if(!result.success){
+        showMrpToast("메모를 저장하지 못했습니다.", "error");
+        return;
+    }
+
+    if(currentNoteCell){
+        const savedNote = note.trim();
+        currentNoteCell.dataset.note = note;
+        currentNoteCell.title = note;
+
+        let indicator = currentNoteCell.querySelector(".note-indicator");
+        if(savedNote && !indicator){
+            indicator = document.createElement("span");
+            indicator.className = "note-indicator";
+            currentNoteCell.appendChild(indicator);
+        }else if(!savedNote && indicator){
+            indicator.remove();
+        }
+    }
+
+    closeNoteModal();
+    showMrpToast("메모가 저장되었습니다.");
 }
 </script>
 

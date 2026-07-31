@@ -340,10 +340,10 @@
 
 </div>
 
-<div class="history-tabs">
+<div class="page-tabs" role="tablist">
 
     <button
-        class="history-tab {% if movement_type == 'IN' %}active{% endif %}"
+        class="page-tab {% if movement_type == 'IN' %}active{% endif %}"
         onclick="location.href='/stock/history?movement_type=IN&keyword={{ keyword }}&category={{ category }}&page=1'">
 
         입고
@@ -351,7 +351,7 @@
     </button>
 
     <button
-        class="history-tab {% if movement_type == 'OUT' %}active{% endif %}"
+        class="page-tab {% if movement_type == 'OUT' %}active{% endif %}"
         onclick="location.href='/stock/history?movement_type=OUT&keyword={{ keyword }}&category={{ category }}&page=1'">
 
         출고

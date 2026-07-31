@@ -167,12 +167,24 @@ def todo(
             _todo_cache["todos"] = todos
             _todo_cache["expires_at"] = now + TODO_CACHE_SECONDS
 
-    team = request.session.get("team") or ""
-
-    if team and request.session.get("role") != "admin":
-        visible = {team: todos.get(team, [])}
-    else:
-        visible = todos
+    state = request.scope.get("state", {})
+    permissions = state.get("permissions", {})
+    is_admin = state.get("is_admin", False)
+    team_features = {
+        "purchase": "workflow_purchase",
+        "quality": "workflow_quality",
+        "material": "workflow_material",
+        "production": "workflow_production",
+    }
+    visible = {
+        team_code: entries
+        for team_code, entries in todos.items()
+        if is_admin
+        or permissions.get(
+            f"{team_features.get(team_code, 'workflow_overview')}.view",
+            False,
+        )
+    }
 
     result = []
 
