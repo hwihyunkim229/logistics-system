@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from math import ceil
 from typing import Optional
@@ -26,6 +27,26 @@ INVENTORY_LOG_PRODUCT = "수불 재고"
 WAREHOUSE_TYPES = ["창고재고", "제공재고", "외주재고"]
 CATEGORIES = ["반제품", "제품", "원자재"]
 GRADES = ["A", "B", "F"]
+
+def parse_excel_quantity(value):
+    """엑셀 수량을 정수로 변환하고 비어 있음을 뜻하는 값은 0으로 처리한다."""
+    if pd.isna(value):
+        return 0
+
+    text = str(value).strip().replace(",", "")
+
+    if text in {"", "-", "–", "—"}:
+        return 0
+
+    try:
+        number = Decimal(text)
+    except InvalidOperation as exc:
+        raise ValueError("숫자로 변환할 수 없는 수량") from exc
+
+    if not number.is_finite() or number != number.to_integral_value():
+        raise ValueError("수량은 정수여야 합니다")
+
+    return int(number)
 
 def get_db():
     db = SessionLocal()
@@ -1183,7 +1204,7 @@ async def upload_inventory_excel(
     has_grade_col = "Grade" in df.columns
     has_qty_col = "수량" in df.columns
 
-    for _, row in df.iterrows():
+    for row_number, (_, row) in enumerate(df.iterrows(), start=2):
 
         item_code = normalize_item_code(
             row["품목코드"]
@@ -1202,11 +1223,16 @@ async def upload_inventory_excel(
             else ""
         )
 
-        qty = (
-            int(row["수량"])
-            if has_qty_col and pd.notna(row["수량"])
-            else 0
-        )
+        try:
+            qty = parse_excel_quantity(row["수량"]) if has_qty_col else 0
+        except ValueError:
+            return JSONResponse(
+                {
+                    "status": "error",
+                    "message": f"엑셀 {row_number}행의 수량 값이 올바르지 않습니다: {row['수량']}"
+                },
+                status_code=400
+            )
 
         note = (
             str(row["비고"]).strip()

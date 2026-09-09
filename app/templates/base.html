@@ -10,8 +10,34 @@ try {
     }
 } catch (error) {
 }
+
+window.toggleSidebar = function () {
+    const sidebar = document.querySelector(".sidebar");
+    const toggle = document.getElementById("sidebarToggle");
+    if (!sidebar) return;
+
+    const willCollapse = !sidebar.classList.contains("collapsed");
+    sidebar.classList.toggle("collapsed", willCollapse);
+    document.body.classList.toggle("sidebar-collapsed", willCollapse);
+
+    if (willCollapse) {
+        document.querySelectorAll(".child-menu.open, .menu-parent.open")
+            .forEach(element => element.classList.remove("open"));
+    }
+
+    if (toggle) {
+        toggle.setAttribute("aria-expanded", String(!willCollapse));
+        toggle.setAttribute("aria-label", willCollapse ? "사이드바 펼치기" : "사이드바 접기");
+    }
+
+    try {
+        localStorage.setItem("sidebar_collapsed", String(willCollapse));
+    } catch (error) {
+    }
+};
 </script>
 <script src="/workflow/static/js/workflow-modal.js"></script>
+<script src="/static/js/product-select.js?v=20260909-5" defer></script>
 
 <style>
 *{
@@ -686,6 +712,8 @@ html.sidebar-collapsed-preload .main{
 }
 </style>
 
+<link rel="stylesheet" href="/static/css/app-modern.css?v=20260909-7">
+
 <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"></noscript>
 </head>
@@ -714,12 +742,19 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
 
 <div class="sidebar">
 
-    <div class="sidebar-toggle"
-         onclick="toggleSidebar()">
-        ☰
-    </div>
+    <button class="sidebar-toggle" id="sidebarToggle" type="button" onclick="window.toggleSidebar()"
+            aria-label="사이드바 접기" aria-expanded="true">
+        <span class="sr-only">사이드바 접기</span>
+    </button>
 
-    <h3>📦 Logistics</h3>
+    <h3><span class="brand-mark"><i class="fa-solid fa-cubes-stacked"></i></span><span class="brand-copy">LOGISTICS <small>OPERATIONS</small></span></h3>
+
+    <div class="sidebar-search-link-wrap">
+        <a href="/search" class="sidebar-search-link {% if request.url.path == '/search' %}active{% endif %}">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <span>통합 검색</span>
+        </a>
+    </div>
 
     {% if is_admin or current_permissions.get("logistics.view", false) %}
     <div class="menu-group" data-menu="logistics">
@@ -730,77 +765,17 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
 
         <div class="submenu">
 
-            <a href="/search" class="menu-single">
-                전체 조회
-            </a>
-
-            <a
-                href="javascript:void(0)"
-                class="menu-parent"
-                onclick="toggleSubmenu(this)"
-            >
+            <a href="/product/cart_bp_pro/outbound" class="menu-single">
                 출고 관리
             </a>
 
-            <div class="child-menu">
-
-                <a href="/product/cart_bp_pro/outbound">CART BP pro</a>
-                <a href="/product/cart_bp/outbound">CART BP</a>
-                <a href="/product/cart_on/outbound">CART ON</a>
-                <a href="/product/cart_platform/outbound">CART PLATFORM</a>
-                <a href="/product/cart_ring/outbound">CART RING</a>
-                <a href="/product/cart_o2/outbound">CART O2</a>
-                <a href="/product/hanbang/outbound">한방 병원</a>
-
-            </div>
-
-            <a
-                href="javascript:void(0)"
-                class="menu-parent"
-                onclick="toggleSubmenu(this)"
-            >
+            <a href="/product/cart_bp_pro/inbound" class="menu-single">
                 입고 관리
             </a>
 
-            <div class="child-menu">
-
-                <a href="/product/cart_bp_pro/inbound">CART BP pro</a>
-                <a href="/product/cart_bp/inbound">CART BP</a>
-                <a href="/product/cart_on/inbound">CART ON</a>
-                <a href="/product/cart_platform/inbound">CART PLATFORM</a>
-                <a href="/product/cart_ring/inbound">CART RING</a>
-                <a href="/product/cart_o2/inbound">CART O2</a>
-                <a href="/product/hanbang/inbound">한방 병원</a>
-
-            </div>
-
-            <a
-                href="javascript:void(0)"
-                class="menu-parent"
-                onclick="toggleSubmenu(this)"
-            >
+            <a href="/dashboard/overview" class="menu-single">
                 Dashboard
             </a>
-
-            <div class="child-menu">
-
-                <a href="/dashboard/overview">
-                    전체 현황
-                </a>
-
-                <a href="/dashboard/trend">
-                    입출고 추이
-                </a>
-
-                <a href="/dashboard/size">
-                    사이즈별 분포
-                </a>
-
-                <a href="/dashboard/activity">
-                    최근 활동
-                </a>
-
-            </div>
 
         </div>
     </div>
@@ -1029,6 +1004,16 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
 </div>
 
 <div class="top-bar">
+    <a class="gnb-search-trigger" href="/search" title="통합 검색">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <span class="gnb-search-label">S/N 또는 품목코드 검색</span>
+        <kbd>Ctrl K</kbd>
+    </a>
+
+    <a class="system-status" href="/search" aria-label="통합 검색 열기">
+        <span></span> 운영 중
+    </a>
+
     <div class="bell-menu" id="bellMenu">
         <div class="bell-trigger" onclick="toggleBellMenu()">
             🔔
@@ -1057,6 +1042,15 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
     </div>
 
 </div>
+
+<script>
+document.addEventListener("keydown", function (event) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        window.location.href = "/search";
+    }
+});
+</script>
 
 <div class="main">
     <style>
@@ -1110,6 +1104,9 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
     {% block content %}{% endblock %}
 </div>
 {% include "assistant/assistant.html" %}
+<!-- Re-apply the shared layer after page-level legacy styles. The same file is
+     already loaded in <head>, so the browser reuses its cached response. -->
+<link rel="stylesheet" href="/static/css/app-modern.css?v=20260909-7">
 </body>
 </html>
 
@@ -1404,30 +1401,6 @@ window.addEventListener("pageshow", function(e){
 });
 
 const SIDEBAR_KEY = "sidebar_collapsed";
-
-function toggleSidebar(){
-
-    const sidebar = document.querySelector(".sidebar");
-
-    if(!sidebar.classList.contains("collapsed")){
-
-        document
-            .querySelectorAll(".child-menu")
-            .forEach(el=>el.classList.remove("open"));
-
-        document
-            .querySelectorAll(".menu-parent")
-            .forEach(el=>el.classList.remove("open"));
-    }
-
-    document.body.classList.toggle("sidebar-collapsed");
-    sidebar.classList.toggle("collapsed");
-
-    localStorage.setItem(
-        SIDEBAR_KEY,
-        sidebar.classList.contains("collapsed")
-    );
-}
 
 function highlightAssistantTarget(){
 

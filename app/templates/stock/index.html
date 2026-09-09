@@ -443,6 +443,7 @@ th input[type="checkbox"]{
 </div>
 
 <div class="page-tabs" role="tablist">
+    <span class="page-tabs-label"><i class="fa-solid fa-layer-group"></i>&nbsp; 재고 구분</span>
     <button
         class="page-tab {% if current_category == '반제품' %}active{% endif %}"
         onclick="location.href='/stock?category=반제품&keyword={{ keyword }}&page=1'">
@@ -695,8 +696,7 @@ th input[type="checkbox"]{
             <td class="grade-cell">
 
                 <span
-                    class="grade-text"
-                    onclick="showGradeSelect(this)">
+                    class="grade-text">
 
                     {{ item.grade if item.grade else "-" }}
                 </span>
@@ -1154,16 +1154,6 @@ document
 
 });
 
-function showGradeSelect(span){
-    span.style.display = "none";
-
-    const select =
-        span.nextElementSibling;
-
-    select.style.display = "inline-block";
-    select.focus();
-}
-
 async function updateGrade(select){
     await fetch(
         "/stock/update-grade",
@@ -1179,15 +1169,14 @@ async function updateGrade(select){
         }
     );
 
-    const span =
-        select.previousElementSibling;
+    const cell = select.closest("td");
+    const span = cell.querySelector(".grade-text");
 
     span.innerText =
         select.value || "-";
 
-    select.style.display = "none";
-
-    span.style.display = "block";
+    cell.classList.remove("product-select-editing");
+    span.style.display = "";
 }
 
 function openGradeModal(){

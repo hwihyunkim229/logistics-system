@@ -441,18 +441,23 @@ th input[type="checkbox"]{
     </form>
 </div>
 
-<div class="page-tabs" role="tablist">
+<div class="inventory-overview" aria-label="창고별 재고 요약">
     {% for wt in warehouse_types %}
-    <button
-        class="page-tab {% if current_warehouse_type == wt %}active{% endif %}"
-        onclick="location.href='/inventory?warehouse_type={{ wt }}&category=&keyword={{ keyword|urlencode }}&page=1'">
-        {{ wt }}
-    </button>
+    <a class="inventory-overview-item {% if current_warehouse_type == wt %}active{% endif %}"
+       href="/inventory?warehouse_type={{ wt|urlencode }}&category=&keyword=&page=1">
+        <span class="inventory-overview-icon"><i class="fa-solid {% if wt == '창고재고' %}fa-warehouse{% elif wt == '제공재고' %}fa-handshake{% else %}fa-truck-ramp-box{% endif %}"></i></span>
+        <span class="inventory-overview-copy">
+            <small>{{ wt }}</small>
+            <strong>{{ "{:,}".format(warehouse_totals.get(wt, 0)) }} <em>EA</em></strong>
+        </span>
+        <i class="fa-solid fa-chevron-right inventory-overview-arrow"></i>
+    </a>
     {% endfor %}
 </div>
 
 {% if current_warehouse_type == "창고재고" %}
-<div class="page-tabs compact" role="tablist">
+<div class="page-tabs compact inventory-category-nav" role="tablist" aria-label="품목 분류">
+    <span class="page-tabs-label">품목 분류</span>
     <button
         class="page-tab small {% if not current_category %}active{% endif %}"
         onclick="location.href='/inventory?warehouse_type=창고재고&category=&keyword={{ keyword|urlencode }}&page=1'">

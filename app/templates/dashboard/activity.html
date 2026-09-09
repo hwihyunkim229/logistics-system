@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
 
+{% include "dashboard/_navigation.html" %}
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
@@ -482,66 +484,6 @@
     background:#cbd5e1;
 }
 </style>
-
-<h2 class="page-title">
-    Dashboard
-</h2>
-
-<div class="filter-bar">
-
-    <div class="filter-wrap">
-
-        <button
-            id="dateFilterBtn"
-            type="button"
-            class="filter-button"
-        >
-            📅
-        </button>
-
-        <div
-            id="dateFilterPopup"
-            class="filter-popup"
-        >
-
-            <form method="get">
-
-                <div class="filter-title">
-                    기간 선택
-                </div>
-
-                <div class="filter-inputs">
-
-                    <input
-                        type="date"
-                        name="start"
-                        value="{{ start }}"
-                    >
-
-                    <span>~</span>
-
-                    <input
-                        type="date"
-                        name="end"
-                        value="{{ end }}"
-                    >
-
-                </div>
-
-                <button
-                    type="submit"
-                    class="filter-submit"
-                >
-                    적용
-                </button>
-
-            </form>
-
-        </div>
-
-    </div>
-
-</div>
 
 <div class="dashboard-kpi-grid">
 

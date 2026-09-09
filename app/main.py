@@ -40,6 +40,7 @@ from app.models import (
     rental_stock,
     rental_movement,
     rental_category,
+    product_category,
     access_log,
     user_permission,
 )

@@ -1,5 +1,5 @@
-from fastapi import APIRouter, UploadFile, File, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, UploadFile, File, Request, Body
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from app.database import SessionLocal
 from app.models.outbound import Outbound
@@ -14,8 +14,19 @@ from datetime import datetime
 from sqlalchemy import func, case
 from fastapi.responses import StreamingResponse
 import io
+import re
 from app.utils.logger import save_log
 from app.utils.downloads import download_content_disposition
+from app.models.product_category import ProductCategory
+from app.models.inventory import Inventory
+from app.models.stock import Stock
+from app.models.rental_stock import RentalStock
+from app.models.bom import BOM
+from app.models.production_plan import ProductionPlan
+from app.models.material_master import MaterialMaster
+from app.models.item_master import ItemMaster
+from app.workflow.models.workflow_item import WorkflowItem
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 router = APIRouter()
@@ -40,6 +51,34 @@ SERVICE_NAMES = {
     "cart_ring" : "CART RING",
     "cart_o2" : "CART O2"
 }
+
+def product_categories(db):
+    rows = db.query(ProductCategory).order_by(ProductCategory.id).all()
+    if not rows:
+        for code in SERVICES:
+            db.add(ProductCategory(code=code, name=SERVICE_NAMES[code]))
+        db.commit()
+        rows = db.query(ProductCategory).order_by(ProductCategory.id).all()
+    return rows
+
+@router.post("/product/categories")
+def add_product_category(data: dict = Body(...)):
+    name = " ".join(str(data.get("name", "")).split())
+    code = str(data.get("code", "")).strip().lower().replace(" ", "_")
+    if not name or not re.fullmatch(r"[a-z0-9]+(?:_[a-z0-9]+)*", code):
+        return JSONResponse({"status": "error", "message": "분류명과 영문 코드를 확인해 주세요."}, status_code=400)
+    db = SessionLocal()
+    try:
+        exists = db.query(ProductCategory).filter(
+            (ProductCategory.code == code) | (ProductCategory.name == name)
+        ).first()
+        if exists:
+            return JSONResponse({"status": "error", "message": "이미 등록된 제품 분류입니다."}, status_code=409)
+        db.add(ProductCategory(code=code, name=name))
+        db.commit()
+        return {"status": "success", "code": code, "name": name}
+    finally:
+        db.close()
 
 def parse_date(value):
     from datetime import datetime, date
@@ -71,6 +110,29 @@ def global_search(
     ):
 
     db = SessionLocal()
+    category_rows = product_categories(db)
+    service_names = {row.code: row.name for row in category_rows}
+    global_results = []
+
+    def add_results(scope, model, fields, domain, title_field, meta, url):
+        if not q or status in ("inbound", "outbound", "product") or (status and status != scope):
+            return
+        pattern = f"%{q.strip().lower()}%"
+        rows = db.query(model).filter(or_(*[
+            func.lower(cast(getattr(model, field), String)).like(pattern) for field in fields
+        ])).limit(8).all()
+        for row in rows:
+            global_results.append({"domain": domain, "title": str(getattr(row, title_field, "") or "-"), "meta": meta(row), "url": url(row)})
+
+    encoded_q = quote(q.strip(), safe="")
+    add_results("inventory", Inventory, ["item_code", "item_name", "warehouse_type", "lot", "grade", "rev", "note"], "수불 재고", "item_name", lambda r: f"{r.item_code} · {r.warehouse_type} · {r.qty or 0} EA", lambda r: f"/inventory?keyword={encoded_q}&highlight={encoded_q}")
+    add_results("stock", Stock, ["item_code", "item_name", "grade", "rev", "category"], "가계상 재고", "item_name", lambda r: f"{r.item_code} · {r.category} · {r.qty or 0} EA", lambda r: f"/stock?category={quote(r.category or '', safe='')}&keyword={encoded_q}&highlight={encoded_q}")
+    add_results("rental", RentalStock, ["item_code", "item_name", "category"], "대여 재고", "item_name", lambda r: f"{r.item_code} · {r.category} · {r.qty or 0} EA", lambda r: f"/rental?category={quote(r.category or '', safe='')}&keyword={encoded_q}")
+    add_results("workflow", WorkflowItem, ["workflow_no", "item_code", "item_name", "lot", "rev", "service_type", "status"], "업무 흐름", "item_name", lambda r: f"{r.workflow_no} · {r.lot or '-'} · {r.status}", lambda r: f"/workflow/dashboard?highlight={quote(r.workflow_no or '', safe='')}")
+    add_results("bom", BOM, ["product_name", "component_code", "component_name"], "BOM", "component_name", lambda r: f"{r.product_name} · {r.component_code} · 소요 {r.qty}", lambda r: f"/mrp/bom?highlight={encoded_q}")
+    add_results("production_plan", ProductionPlan, ["product_name", "plan_qty"], "생산 계획", "product_name", lambda r: f"{r.plan_date or '-'} · {r.plan_qty or 0} EA", lambda r: f"/mrp/production-plan?highlight={encoded_q}")
+    add_results("material_master", MaterialMaster, ["item_code", "item_name", "supplier"], "자재 기준정보", "item_name", lambda r: f"{r.item_code} · {r.supplier or '업체 미지정'}", lambda r: f"/mrp/material-master?highlight={encoded_q}")
+    add_results("item_master", ItemMaster, ["item_code", "item_name", "rev"], "품목 기준정보", "item_name", lambda r: f"{r.item_code} · {r.rev or '-'}", lambda r: f"/stock/item-master/manage?highlight={encoded_q}")
 
     outbound = db.query(Outbound)
     inbound = db.query(Inbound)
@@ -81,9 +143,13 @@ def global_search(
     elif status == "inbound":
         outbound = outbound.filter(False)
 
+    elif status not in ("", "product"):
+        outbound = outbound.filter(False)
+        inbound = inbound.filter(False)
+
     search_product = q
 
-    for product_key, product_name in SERVICE_NAMES.items():
+    for product_key, product_name in service_names.items():
 
         if q.lower() in product_name.lower():
 
@@ -177,7 +243,8 @@ def global_search(
 
             "mode": "search_all",
 
-            "SERVICE_NAMES": SERVICE_NAMES
+            "SERVICE_NAMES": service_names,
+            "global_results": global_results
         }
     )
 
@@ -215,6 +282,10 @@ def main_page(
     page: int = 1
 ):
     db = SessionLocal()
+    categories = product_categories(db)
+    valid_codes = {row.code for row in categories}
+    if product not in valid_codes:
+        product = categories[0].code
 
     per_page = 50
 
@@ -293,11 +364,13 @@ def main_page(
         context={
             "data": data,
             "product": product,
+            "product_display_name": next(row.name for row in categories if row.code == product),
             "mode": mode,
             "page": page,
             "sort": sort,
             "order": order,
-            "total_pages": total_pages
+            "total_pages": total_pages,
+            "product_categories": categories
         }
     )
 

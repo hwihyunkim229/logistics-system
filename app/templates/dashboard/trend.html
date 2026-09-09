@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
 
+{% include "dashboard/_navigation.html" %}
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
 
@@ -277,81 +279,6 @@
     cursor:pointer;
 }
 </style>
-
-<h2 class="page-title">
-    Dashboard
-</h2>
-
-<div class="filter-wrap">
-
-    <div class="range-badge {% if is_cumulative %}cumulative{% endif %}">
-        <span class="badge-dot {% if not is_cumulative %}active{% endif %}"></span>
-        {% if is_cumulative %}
-            전체 누적 보기
-        {% else %}
-            {{ start }} ~ {{ end }}
-        {% endif %}
-    </div>
-
-    {% if not is_cumulative %}
-    <a href="/dashboard/trend" class="reset-btn" title="전체 기간으로 초기화">
-        전체보기
-    </a>
-    {% endif %}
-
-    <button
-        id="dateFilterBtn"
-        class="calendar-btn"
-    >
-        🗓️
-    </button>
-
-    <div
-        id="dateFilterPopup"
-        class="date-popup"
-    >
-
-        <form
-            method="get"
-            action="/dashboard/trend"
-        >
-
-            <div class="popup-title">
-                기간 선택
-            </div>
-
-            <div class="date-row">
-
-                <input
-                    type="date"
-                    name="start"
-                    value="{{ start }}"
-                    required
-                >
-
-                <span>~</span>
-
-                <input
-                    type="date"
-                    name="end"
-                    value="{{ end }}"
-                    required
-                >
-
-            </div>
-
-            <button
-                type="submit"
-                class="apply-btn"
-            >
-                적용
-            </button>
-
-        </form>
-
-    </div>
-
-</div>
 
 <div class="dashboard-kpi-grid">
 

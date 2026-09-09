@@ -12,5 +12,6 @@ __pycache__/
 private_backup/
 work/
 outputs/
+output/
 app/workflow/uploads/
 .claude/

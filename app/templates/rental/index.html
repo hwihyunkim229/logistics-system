@@ -430,16 +430,18 @@ th input[type="checkbox"] {
     </form>
 </div>
 
-<div class="page-tabs" role="tablist">
-    {% for name in categories %}
-    <button
-        class="page-tab {% if name == category %}active{% endif %}"
-        onclick="location.href='/rental?category={{ name|urlencode }}&page=1'"
-    >
-        {{ name }}
-    </button>
-    {% endfor %}
-
+<div class="rental-category-panel">
+    <div class="page-tabs" role="tablist">
+        <span class="page-tabs-label"><i class="fa-solid fa-tags"></i>&nbsp; 대여 분류</span>
+        {% for name in categories %}
+        <button
+            class="page-tab {% if name == category %}active{% endif %}"
+            onclick="location.href='/rental?category={{ name|urlencode }}&page=1'"
+        >
+            {{ name }}
+        </button>
+        {% endfor %}
+    </div>
     <button
         class="r-btn category-add-btn"
         onclick="categoryModal.classList.add('open')"

@@ -1,20 +1,26 @@
 {% extends "base.html" %}
 {% block content %}
 
-{% set product_names = {
-    "cart_bp_pro": "CART BP pro",
-    "cart_bp": "CART BP",
-    "cart_on": "CART ON",
-    "hanbang": "한방 병원",
-    "cart_platform" : "CART PLATFORM",
-    "cart_ring" : "CART RING",
-    "cart_o2" : "CART O2"
-} %}
-
 <h2 class="page-title">
-    {{ product_names.get(product, product) }}
+    {{ product_display_name }}
     {% if mode == "outbound" %}출고 관리{% else %}입고 관리{% endif %}
 </h2>
+
+<div class="product-context-bar">
+    <div class="product-context-copy">
+        <span>{{ "출고" if mode == "outbound" else "입고" }} 관리</span>
+        <strong>{{ product_display_name }}</strong>
+    </div>
+    <label class="product-selector-label" for="productSelector">제품 분류</label>
+    <select id="productSelector" class="product-selector" onchange="changeProduct(this.value)">
+        {% for item in product_categories %}
+        <option value="{{ item.code }}" {% if item.code == product %}selected{% endif %}>{{ item.name }}</option>
+        {% endfor %}
+    </select>
+    <button type="button" class="product-add-trigger" onclick="openProductCategoryModal()">
+        <i class="fa-solid fa-plus"></i> 분류 추가
+    </button>
+</div>
 
 <style>
 .page-title {
@@ -459,6 +465,42 @@ th:hover span {
 }
 </style>
 
+<div id="productCategoryModal" class="product-category-overlay" hidden
+     onclick="if(event.target === this) closeProductCategoryModal()">
+    <div class="modal-content product-category-modal">
+        <div class="product-category-header">
+            <div class="product-category-heading">
+                <span class="product-category-heading-icon"><i class="fa-solid fa-box"></i></span>
+                <div>
+                    <h3>제품 분류 추가</h3>
+                    <p>입고·출고 데이터를 구분할 새로운 제품을 등록합니다.</p>
+                </div>
+            </div>
+            <button type="button" class="product-category-close" onclick="closeProductCategoryModal()" aria-label="닫기">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="product-category-field">
+                <label for="newProductName">표시 이름 <span>필수</span></label>
+                <input id="newProductName" placeholder="예: CART NEW" autocomplete="off" oninput="suggestProductCode(this.value)">
+                <small>화면과 검색 결과에 표시되는 제품명입니다.</small>
+            </div>
+            <div class="product-category-field">
+                <label for="newProductCode">제품 코드 <span>필수</span></label>
+                <input id="newProductCode" placeholder="예: cart_new" autocomplete="off">
+                <small>영문 소문자, 숫자와 밑줄만 사용할 수 있습니다.</small>
+            </div>
+        </div>
+        <div class="product-category-footer">
+            <button type="button" class="btn-secondary" onclick="closeProductCategoryModal()">취소</button>
+            <button type="button" class="btn-primary" onclick="addProductCategory()">
+                <i class="fa-solid fa-plus"></i> 분류 추가
+            </button>
+        </div>
+    </div>
+</div>
+
     <div class="top">
         <div class="card scan">
             <h3>
@@ -662,6 +704,41 @@ th:hover span {
 </div>
 
 <script>
+function changeProduct(code){
+    location.href = `/product/${encodeURIComponent(code)}/{{ mode }}`;
+}
+function openProductCategoryModal(){
+    document.getElementById("productCategoryModal").hidden = false;
+    setTimeout(() => document.getElementById("newProductName").focus(), 0);
+}
+function closeProductCategoryModal(){
+    document.getElementById("productCategoryModal").hidden = true;
+}
+function suggestProductCode(value){
+    const codeInput = document.getElementById("newProductCode");
+    if(codeInput.dataset.edited === "true") return;
+    codeInput.value = value.toLowerCase().trim()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+}
+document.getElementById("newProductCode")?.addEventListener("input", function(){
+    this.dataset.edited = this.value ? "true" : "false";
+});
+async function addProductCategory(){
+    const name = document.getElementById("newProductName").value.trim();
+    const code = document.getElementById("newProductCode").value.trim();
+    const response = await fetch("/product/categories", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name, code})
+    });
+    const data = await response.json();
+    if(!response.ok){
+        alert(data.message || "분류를 추가하지 못했습니다.");
+        return;
+    }
+    location.href = `/product/${encodeURIComponent(data.code)}/{{ mode }}`;
+}
 let modalCallback = null;
 
 function openModal(message, callback=null){
@@ -1085,9 +1162,13 @@ function updateField(id, field, value, mode){
 document.querySelectorAll(".editable").forEach(td => {
 
     td.addEventListener("click", function(e) {
+        if(e.target.closest(".product-select-menu")) return;
+        if(e.target.closest(".product-select-trigger")) return;
         this.classList.add("editing");
         const select = this.querySelector("select");
-        select.focus();
+        if(!this.querySelector(".product-select-trigger")){
+            select.focus();
+        }
     });
 
     const select = td.querySelector("select");
