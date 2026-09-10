@@ -1,3 +1,4 @@
+from app.utils.filters import filter_values
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -374,11 +375,9 @@ def admin_activity(
             ActivityLog.user.contains(user)
         )
 
-    if action:
-
-        query = query.filter(
-            ActivityLog.action == action
-        )
+    action_values = filter_values(request, "action")
+    if action_values:
+        query = query.filter(ActivityLog.action.in_(action_values))
 
     if serial:
 
@@ -602,8 +601,9 @@ def admin_access_log(request: Request):
         query = query.filter(AccessLog.user.contains(user))
     if ip_address:
         query = query.filter(AccessLog.ip_address.contains(ip_address))
-    if result:
-        query = query.filter(AccessLog.result == result)
+    result_values = filter_values(request, "result")
+    if result_values:
+        query = query.filter(AccessLog.result.in_(result_values))
     if path:
         query = query.filter(AccessLog.path.contains(path))
 

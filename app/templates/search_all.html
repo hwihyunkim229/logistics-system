@@ -175,7 +175,7 @@ html, body {
                 <input name="q" value="{{ q }}" placeholder="S/N, 품목코드, 품명, LOT 검색" autocomplete="off">
             </label>
 
-            <select name="status" class="search-input search-scope" aria-label="검색 범위">
+            <select data-multi-filter name="status" class="search-input search-scope" aria-label="검색 범위">
                 <option value="">전체 영역</option>
                 <option value="product" {% if status=='product' %}selected{% endif %}>제품 물류 전체</option>
                 <option value="outbound" {% if status=='outbound' %}selected{% endif %}>출고</option>

@@ -1,3 +1,4 @@
+from app.utils.filters import as_values
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
@@ -28,13 +29,19 @@ def get_notifications(
     department: str = "",
     unread_only: bool = False,
     limit: int = 100,
+    read_states=None,
 ):
     query = db.query(WorkflowNotification)
 
     if department:
         query = query.filter(
-            WorkflowNotification.department == department
+            WorkflowNotification.department.in_(as_values(department))
         )
+
+    if read_states:
+        query = query.filter(WorkflowNotification.is_read.in_(
+            [value == "0" for value in read_states if value in {"0", "1"}]
+        ))
 
     if unread_only:
         query = query.filter(
@@ -58,7 +65,7 @@ def count_unread(
 
     if department:
         query = query.filter(
-            WorkflowNotification.department == department
+            WorkflowNotification.department.in_(as_values(department))
         )
 
     return query.count()
@@ -95,7 +102,7 @@ def mark_all_read(
 
     if department:
         query = query.filter(
-            WorkflowNotification.department == department
+            WorkflowNotification.department.in_(as_values(department))
         )
 
     now = datetime.now(ZoneInfo("Asia/Seoul"))

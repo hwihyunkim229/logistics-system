@@ -1,3 +1,4 @@
+from app.utils.filters import filter_values
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
@@ -262,17 +263,21 @@ def inventory_page(
         {row.note for row in scoped_rows if row.note}
     )
 
-    if grade:
-        query = query.filter(Inventory.grade == grade)
+    grade_values = filter_values(request, "grade")
+    if grade_values:
+        query = query.filter(Inventory.grade.in_(grade_values))
 
-    if lot:
-        query = query.filter(Inventory.lot == lot)
+    lot_values = filter_values(request, "lot")
+    if lot_values:
+        query = query.filter(Inventory.lot.in_(lot_values))
 
-    if rev:
-        query = query.filter(Inventory.rev == rev)
+    rev_values = filter_values(request, "rev")
+    if rev_values:
+        query = query.filter(Inventory.rev.in_(rev_values))
 
-    if note:
-        query = query.filter(Inventory.note == note)
+    note_values = filter_values(request, "note")
+    if note_values:
+        query = query.filter(Inventory.note.in_(note_values))
 
     total_count = query.count()
 
@@ -746,8 +751,9 @@ def inventory_history(
             )
         )
 
-    if category:
-        query = query.filter(InventoryMovement.category == category)
+    category_values = filter_values(request, "category")
+    if category_values:
+        query = query.filter(InventoryMovement.category.in_(category_values))
 
     query = query.order_by(InventoryMovement.created_at.desc())
 

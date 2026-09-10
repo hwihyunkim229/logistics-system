@@ -117,7 +117,7 @@
         <input name="user" value="{{ search_user }}" placeholder="사용자">
         <input name="ip" value="{{ search_ip }}" placeholder="IP 주소">
         <input name="path" value="{{ search_path }}" placeholder="경로/기능">
-        <select name="result">
+        <select data-multi-filter name="result">
             <option value="">전체 결과</option>
             {% for value in ["성공", "실패", "인증필요", "세션만료", "권한없음", "충돌/중복"] %}
             <option value="{{ value }}" {% if selected_result == value %}selected{% endif %}>{{ value }}</option>

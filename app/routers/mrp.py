@@ -1,3 +1,4 @@
+from app.utils.filters import filter_ints, matches_filter, as_values
 from collections import Counter
 from collections import defaultdict
 from datetime import datetime
@@ -160,17 +161,17 @@ def calculate_mrp(
         )
 
     def matches_period(plan):
-        if year and plan.plan_date.year != year:
+        if not matches_filter(plan.plan_date.year, year):
             return False
 
-        if month and plan.plan_date.month != month:
+        if not matches_filter(plan.plan_date.month, month):
             return False
 
         if week:
             if month:
-                if get_week_of_month(plan.plan_date) != week:
+                if not matches_filter(get_week_of_month(plan.plan_date), week):
                     return False
-            elif plan.plan_date.isocalendar().week != week:
+            elif not matches_filter(plan.plan_date.isocalendar().week, week):
                 return False
 
         return True
@@ -847,17 +848,17 @@ def build_week_dashboard_summary(
     )
 
     def matches_period(plan):
-        if year and plan.plan_date.year != year:
+        if not matches_filter(plan.plan_date.year, year):
             return False
 
-        if month and plan.plan_date.month != month:
+        if not matches_filter(plan.plan_date.month, month):
             return False
 
         if week:
             if month:
-                if get_week_of_month(plan.plan_date) != week:
+                if not matches_filter(get_week_of_month(plan.plan_date), week):
                     return False
-            elif plan.plan_date.isocalendar().week != week:
+            elif not matches_filter(plan.plan_date.isocalendar().week, week):
                 return False
 
         return True
@@ -873,6 +874,8 @@ def build_week_dashboard_summary(
     for plan in plans:
 
         label = get_week_label(plan.plan_date)
+        if len(as_values(year)) > 1:
+            label = f"{plan.plan_date.year}년 {label}"
 
         in_period = matches_period(plan)
 
@@ -1231,10 +1234,7 @@ def build_mrp_dashboard_context(
 
         for label in sorted(
             week_summary.keys(),
-            key=lambda x: (
-                int(x.split("월")[0]),
-                int(x.split(" ")[1].replace("주", ""))
-            )
+            key=lambda x: tuple(map(int, re.findall(r"[0-9]+", x)))
         ):
 
             data = week_summary[label]
@@ -1373,11 +1373,9 @@ def mrp_dashboard(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    year = request.query_params.get("year")
-    month = request.query_params.get("month")
+    year = filter_ints(request, "year")
+    month = filter_ints(request, "month")
 
-    year = int(year) if year else None
-    month = int(month) if month else None
 
     all_plans = (
         db.query(ProductionPlan)
@@ -1418,8 +1416,8 @@ def mrp_dashboard(
         rows,
         shortage_count,
         dashboard_week_summary,
-        selected_year=year,
-        selected_month=month,
+        selected_year=year[0] if len(year) == 1 else None,
+        selected_month=month[0] if len(month) == 1 else None,
         inventory_rows=inventory_rows,
         bom_rows=bom_rows,
         material_rows=material_rows,
@@ -1439,7 +1437,7 @@ def mrp_dashboard(
             {
                 p.plan_date.month
                 for p in plans_for_filter
-                if p.plan_date.year == year
+                if matches_filter(p.plan_date.year, year)
             }
         )
     else:
@@ -2661,17 +2659,14 @@ def mrp_result(
     db: Session = Depends(get_db),
 ):
 
-    year = request.query_params.get("year")
-    month = request.query_params.get("month")
-    week = request.query_params.get("week")
+    year = filter_ints(request, "year")
+    month = filter_ints(request, "month")
+    week = filter_ints(request, "week")
     projection_months = request.query_params.get(
         "projection_months",
         "6"
     )
 
-    year = int(year) if year else None
-    month = int(month) if month else None
-    week = int(week) if week else None
     try:
         projection_months = int(projection_months)
     except (TypeError, ValueError):
@@ -2729,25 +2724,23 @@ def mrp_result(
         {
             p.plan_date.month
             for p in plans_for_filter
-            if not year or p.plan_date.year == year
+            if matches_filter(p.plan_date.year, year)
         }
     )
 
-    if month and month not in months:
-        month = None
 
     weeks = sorted(
         {
             get_week_of_month(p.plan_date)
             for p in plans_for_filter
             if month
-            and p.plan_date.month == month
-            and (not year or p.plan_date.year == year)
+            and matches_filter(p.plan_date.month, month)
+            and matches_filter(p.plan_date.year, year)
         }
     )
 
-    if week and week not in weeks:
-        week = None
+    if not month:
+        week = []
 
     inventory_rows = db.query(Inventory).all()
     bom_rows = db.query(BOM).all()
@@ -2779,7 +2772,7 @@ def mrp_result(
         inventory_count,
     )
 
-    if year is None and month is None and week is None:
+    if not year and not month and not week:
         all_rows = rows
     else:
         _, all_rows, _, _ = calculate_mrp(
@@ -2793,7 +2786,7 @@ def mrp_result(
 
     projection_start = date.today().replace(day=1)
     if year and month:
-        projection_start = date(year, month, 1)
+        projection_start = date(min(year), min(month), 1)
 
     month_columns, monthly_rows = build_monthly_projection(
         all_rows,
@@ -2834,15 +2827,13 @@ def download_monthly_mrp_result(
     request: Request,
     db: Session = Depends(get_db),
 ):
-    year = request.query_params.get("year")
-    month = request.query_params.get("month")
+    year = filter_ints(request, "year")
+    month = filter_ints(request, "month")
     projection_months = request.query_params.get(
         "projection_months",
         "6",
     )
 
-    year = int(year) if year else None
-    month = int(month) if month else None
 
     try:
         projection_months = int(projection_months)
@@ -2874,7 +2865,7 @@ def download_monthly_mrp_result(
 
     projection_start = date.today().replace(day=1)
     if year and month:
-        projection_start = date(year, month, 1)
+        projection_start = date(min(year), min(month), 1)
 
     month_columns, monthly_rows = build_monthly_projection(
         all_rows,
@@ -3043,13 +3034,10 @@ def download_mrp_result(
     db: Session = Depends(get_db),
 ):
 
-    year = request.query_params.get("year")
-    month = request.query_params.get("month")
-    week = request.query_params.get("week")
+    year = filter_ints(request, "year")
+    month = filter_ints(request, "month")
+    week = filter_ints(request, "week")
 
-    year = int(year) if year else None
-    month = int(month) if month else None
-    week = int(week) if week else None
 
     q = request.query_params.get(
         "q",

@@ -633,7 +633,7 @@
 
         <div class="toolbar-right">
 
-            <select id="productFilter">
+            <select id="productFilter" data-multi-filter data-filter-local data-filter-label="제품">
 
                 <option value="">
                     전체 Product
@@ -649,7 +649,7 @@
 
             </select>
 
-            <select id="typeFilter">
+            <select id="typeFilter" data-multi-filter data-filter-local data-filter-label="유형">
 
                 <option value="">
                     전체 Type
@@ -1139,10 +1139,10 @@ function filterTable(){
         serialSearch.value.toLowerCase();
 
     const productValue =
-        productFilter.value;
+        MultiFilter.values(productFilter);
 
     const typeValue =
-        typeFilter.value;
+        MultiFilter.values(typeFilter);
 
     tableRows.forEach(row => {
 
@@ -1161,12 +1161,12 @@ function filterTable(){
             serial.includes(serialValue);
 
         const matchProduct =
-            !productValue ||
-            product === productValue;
+            !productValue.length ||
+            productValue.includes(product);
 
         const matchType =
-            !typeValue ||
-            type.includes(typeValue);
+            !typeValue.length ||
+            typeValue.includes(type);
 
         if(
             matchSerial &&
@@ -1200,8 +1200,8 @@ typeFilter.addEventListener(
 function resetFilters(){
 
     serialSearch.value = "";
-    productFilter.value = "";
-    typeFilter.value = "";
+    MultiFilter.reset(productFilter);
+    MultiFilter.reset(typeFilter);
 
     filterTable();
 }

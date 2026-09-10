@@ -492,7 +492,7 @@ th input[type="checkbox"]{
 
         <div class="right-group">
             <div class="filter-row">
-                <select id="gradeFilter" onchange="navigateWithFilter('grade', this.value)">
+                <select id="gradeFilter" data-multi-filter data-filter-param="grade" data-filter-label="등급" onchange="navigateWithFilter('grade', this.value)">
                     <option value="" {% if not current_grade %}selected{% endif %}>
                         전체 등급
                     </option>
@@ -510,7 +510,7 @@ th input[type="checkbox"]{
                     </option>
                 </select>
 
-                <select id="revFilter" onchange="navigateWithFilter('rev', this.value)">
+                <select id="revFilter" data-multi-filter data-filter-param="rev" data-filter-label="REV" onchange="navigateWithFilter('rev', this.value)">
 
                     <option value="" {% if not current_rev %}selected{% endif %}>
                         전체 Rev

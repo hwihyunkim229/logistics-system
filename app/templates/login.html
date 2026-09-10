@@ -6,28 +6,26 @@
 <meta name="google-site-verification" content="GTDr8tR-Ru1cCZeFuffnHAZ5qW4tJFno7uSYbYF9h90">
 <title>Logistics Operations 로그인</title>
 <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" onload="this.onload=null;this.rel='stylesheet'">
-<link rel="stylesheet" href="/static/css/auth-modern.css?v=20260909-1">
+<link rel="stylesheet" href="/static/css/auth-modern.css?v=20260910-1">
 </head>
 <body class="login-page login-page-v2">
 <main class="login-workspace">
     <header class="login-workspace-brand">
         <span class="login-logo"><i class="fa-solid fa-cubes-stacked"></i></span>
-        <span><strong>LOGISTICS</strong><small>OPERATIONS</small></span>
+        <span><strong>LOGISTICS</strong><small>물류 운영 시스템</small></span>
     </header>
-    <section class="login-panel">
+    <section class="login-panel" aria-labelledby="login-title">
         <div class="login-panel-heading">
-            <span class="login-security-mark"><i class="fa-solid fa-arrow-right-to-bracket"></i></span>
-            <div><span class="login-kicker">WORKSPACE ACCESS</span><h1>운영 시스템 로그인</h1><p>승인된 계정으로 물류 운영 워크스페이스에 접속하세요.</p></div>
+            <div><h1 id="login-title">로그인</h1><p>계정 정보를 입력해 물류 운영을 시작하세요.</p></div>
         </div>
         {% if error %}<div class="login-alert"><i class="fa-solid fa-circle-exclamation"></i> 아이디 또는 비밀번호를 확인해주세요.</div>{% endif %}
         <form id="loginForm" class="login-form" onsubmit="handleLogin(event)">
             <label class="login-field"><span>아이디</span><div class="login-control"><i class="fa-regular fa-user"></i><input name="username" autocomplete="username" placeholder="아이디 입력" required autofocus></div></label>
-            <label class="login-field"><span>비밀번호</span><div class="login-control"><i class="fa-solid fa-lock"></i><input id="password" name="password" type="password" autocomplete="current-password" placeholder="비밀번호 입력 후 Enter" required><button type="button" class="password-visibility" onclick="togglePassword()" aria-label="비밀번호 표시"><i class="fa-regular fa-eye"></i></button></div></label>
-            <button id="loginButton" class="login-submit" type="submit"><span>로그인</span><i class="fa-solid fa-arrow-right"></i></button>
+            <label class="login-field"><span>비밀번호</span><div class="login-control"><i class="fa-solid fa-lock"></i><input id="password" name="password" type="password" autocomplete="current-password" placeholder="비밀번호 입력" required><button type="button" class="password-visibility" onclick="togglePassword()" aria-label="비밀번호 표시" aria-pressed="false"><i class="fa-regular fa-eye"></i></button></div></label>
+            <button id="loginButton" class="login-submit" type="submit"><span>로그인</span></button>
         </form>
-        <div class="login-panel-footer"><span><i class="fa-solid fa-shield-halved"></i> 보안 연결</span><span>LOGISTICS OPS · v2</span></div>
     </section>
-    <p class="login-help">계정 접근에 문제가 있다면 시스템 관리자에게 문의하세요.</p>
+    <p class="login-help">계정 발급 및 비밀번호 재설정은<br>시스템 관리자에게 문의해 주세요.</p>
 </main>
 <div id="toast" class="login-toast" role="alert"></div>
 <script>
@@ -36,6 +34,9 @@ function togglePassword() {
     const icon = document.querySelector(".password-visibility i");
     input.type = input.type === "password" ? "text" : "password";
     icon.className = input.type === "password" ? "fa-regular fa-eye" : "fa-regular fa-eye-slash";
+    const toggle = document.querySelector(".password-visibility");
+    toggle.setAttribute("aria-label", input.type === "password" ? "비밀번호 표시" : "비밀번호 숨기기");
+    toggle.setAttribute("aria-pressed", String(input.type === "text"));
     input.focus();
 }
 async function handleLogin(event) {

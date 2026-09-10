@@ -237,7 +237,7 @@
             value="{{ keyword }}"
             placeholder="검색어를 입력하세요.">
 
-        <select id="categoryFilter" name="category" onchange="this.form.submit()">
+        <select data-multi-filter id="categoryFilter" name="category" onchange="this.form.submit()">
             <option value="" {% if category == "" %}selected{% endif %}>전체 구분</option>
             <option value="반제품" {% if category == "반제품" %}selected{% endif %}>반제품</option>
             <option value="제품" {% if category == "제품" %}selected{% endif %}>제품</option>

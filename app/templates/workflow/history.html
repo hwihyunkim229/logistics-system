@@ -28,7 +28,7 @@
                     placeholder="Workflow No 검색">
             </div>
 
-            <select name="department" class="filter-select">
+            <select data-multi-filter name="department" class="filter-select">
                 <option value="">전체 부서</option>
                 <option value="purchase" {{ "selected" if department == "purchase" }}>구매팀</option>
                 <option value="quality" {{ "selected" if department == "quality" }}>품질팀</option>

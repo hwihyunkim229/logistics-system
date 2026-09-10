@@ -1,3 +1,4 @@
+from app.utils.filters import filter_values
 from fastapi import APIRouter, Depends, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -28,7 +29,7 @@ def history_page(
     histories = get_histories(
         db,
         workflow_no=workflow_no.strip(),
-        department=department.strip(),
+        department=filter_values(request, "department"),
         limit=300,
     )
 

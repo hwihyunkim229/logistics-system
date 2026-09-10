@@ -1,3 +1,4 @@
+from app.utils.filters import as_values
 from sqlalchemy.orm import Session
 from app.workflow.models.workflow_history import WorkflowHistory
 
@@ -44,7 +45,7 @@ def get_histories(
 
     if department:
         query = query.filter(
-            WorkflowHistory.department == department
+            WorkflowHistory.department.in_(as_values(department))
         )
 
     return (

@@ -1,3 +1,4 @@
+from app.utils.filters import filter_values
 from fastapi import (
     APIRouter,
     Request,
@@ -94,11 +95,13 @@ def inventory_dashboard(
         {row.rev for row in scoped_rows if row.rev} | {"COMMON"}
     )
 
-    if grade:
-        query = query.filter(Stock.grade == grade)
+    grade_values = filter_values(request, "grade")
+    if grade_values:
+        query = query.filter(Stock.grade.in_(grade_values))
 
-    if rev:
-        query = query.filter(Stock.rev == rev)
+    rev_values = filter_values(request, "rev")
+    if rev_values:
+        query = query.filter(Stock.rev.in_(rev_values))
 
     total_count = query.count()
 
@@ -358,11 +361,9 @@ def stock_history(
 
         )
 
-    if category:
-
-        query = query.filter(
-            StockMovement.category == category
-        )
+    category_values = filter_values(request, "category")
+    if category_values:
+        query = query.filter(StockMovement.category.in_(category_values))
 
     query = query.order_by(
         StockMovement.created_at.desc()

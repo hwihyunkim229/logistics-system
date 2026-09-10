@@ -759,7 +759,7 @@ td{
                 <div>
                     <label>Year</label>
 
-                    <select name="year" id="mrpYear">
+                    <select data-multi-filter name="year" id="mrpYear">
 
                         <option value="">
                             All Years
@@ -784,7 +784,7 @@ td{
                 <div>
                     <label>Month</label>
 
-                    <select name="month" id="mrpMonth">
+                    <select data-multi-filter name="month" id="mrpMonth">
 
                         <option value="">
                             All Months
@@ -809,7 +809,7 @@ td{
                 <div>
                     <label>Week</label>
 
-                    <select name="week" id="mrpWeek" {% if not selected_month %}disabled{% endif %}>
+                    <select data-multi-filter name="week" id="mrpWeek" {% if not selected_month %}disabled{% endif %}>
 
                         <option value="">
                             {% if selected_month %}전체 주차{% else %}월을 먼저 선택하세요{% endif %}
@@ -823,7 +823,7 @@ td{
                             selected
                             {% endif %}
                         >
-                            {{ selected_month }}월 {{ week_item }}주
+                            {{ week_item }}주
                         </option>
 
                         {% endfor %}
@@ -1488,72 +1488,39 @@ function uniqueSortedNumbers(values){
     return [...new Set(values.map(Number))].sort((a, b) => a - b);
 }
 
-function availableMonths(year){
-    if(year && mrpMonthsByYear[year]){
-        return mrpMonthsByYear[year];
-    }
-    return uniqueSortedNumbers(Object.values(mrpMonthsByYear).flat());
+function availableMonths(years){
+    return uniqueSortedNumbers(Object.entries(mrpMonthsByYear)
+        .filter(([year]) => !years.length || years.includes(year)).flatMap(([, months]) => months));
 }
-
-function availableWeeks(year, month){
-    if(!month) return [];
-    if(year){
-        return mrpWeeksByPeriod[`${year}-${month}`] || [];
-    }
-    return uniqueSortedNumbers(
-        Object.entries(mrpWeeksByPeriod)
-            .filter(([key]) => key.endsWith(`-${month}`))
-            .flatMap(([, weeks]) => weeks)
-    );
+function availableWeeks(years, months){
+    if(!months.length) return [];
+    return uniqueSortedNumbers(Object.entries(mrpWeeksByPeriod)
+        .filter(([key]) => { const [year, month] = key.split('-');
+            return (!years.length || years.includes(year)) && months.includes(month); })
+        .flatMap(([, weeks]) => weeks));
 }
-
-function replaceOptions(select, values, currentValue, emptyLabel, labelBuilder){
-    select.replaceChildren();
-
-    const emptyOption = document.createElement("option");
-    emptyOption.value = "";
-    emptyOption.textContent = emptyLabel;
-    select.appendChild(emptyOption);
-
+function replaceOptions(select, values, currentValues, emptyLabel, labelBuilder){
+    select.replaceChildren(new Option(emptyLabel, ''));
     values.forEach(value => {
-        const option = document.createElement("option");
-        option.value = String(value);
-        option.textContent = labelBuilder(value);
-        option.selected = String(value) === String(currentValue);
+        const option = new Option(labelBuilder(value), String(value));
+        option.selected = currentValues.includes(String(value));
         select.appendChild(option);
     });
+    MultiFilter.refresh(select);
 }
-
 function syncMrpWeekOptions(){
-    const yearSelect = document.getElementById("mrpYear");
-    const monthSelect = document.getElementById("mrpMonth");
-    const weekSelect = document.getElementById("mrpWeek");
-    if(!yearSelect || !monthSelect || !weekSelect) return;
-
-    const currentWeek = weekSelect.value;
-    weekSelect.disabled = !monthSelect.value;
-    replaceOptions(
-        weekSelect,
-        availableWeeks(yearSelect.value, monthSelect.value),
-        currentWeek,
-        monthSelect.value ? "전체 주차" : "월을 먼저 선택하세요",
-        week => `${monthSelect.value}월 ${week}주`
-    );
+    const years = MultiFilter.values(document.getElementById('mrpYear'));
+    const months = MultiFilter.values(document.getElementById('mrpMonth'));
+    const weekSelect = document.getElementById('mrpWeek');
+    const selected = MultiFilter.values(weekSelect);
+    weekSelect.disabled = !months.length;
+    replaceOptions(weekSelect, availableWeeks(years, months), selected,
+        months.length ? '전체 주차' : '월을 먼저 선택하세요', week => week + '주');
 }
-
 function syncMrpMonthOptions(){
-    const yearSelect = document.getElementById("mrpYear");
-    const monthSelect = document.getElementById("mrpMonth");
-    if(!yearSelect || !monthSelect) return;
-
-    const currentMonth = monthSelect.value;
-    replaceOptions(
-        monthSelect,
-        availableMonths(yearSelect.value),
-        currentMonth,
-        "전체 월",
-        month => `${month}월`
-    );
+    const years = MultiFilter.values(document.getElementById('mrpYear'));
+    const monthSelect = document.getElementById('mrpMonth');
+    replaceOptions(monthSelect, availableMonths(years), MultiFilter.values(monthSelect), '전체 월', month => month + '월');
     syncMrpWeekOptions();
 }
 

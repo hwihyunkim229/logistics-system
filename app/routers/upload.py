@@ -1,3 +1,4 @@
+from app.utils.filters import filter_values
 from fastapi import APIRouter, UploadFile, File, Request, Body
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -113,9 +114,10 @@ def global_search(
     category_rows = product_categories(db)
     service_names = {row.code: row.name for row in category_rows}
     global_results = []
+    statuses = filter_values(request, "status")
 
     def add_results(scope, model, fields, domain, title_field, meta, url):
-        if not q or status in ("inbound", "outbound", "product") or (status and status != scope):
+        if not q or (statuses and scope not in statuses):
             return
         pattern = f"%{q.strip().lower()}%"
         rows = db.query(model).filter(or_(*[
@@ -137,15 +139,10 @@ def global_search(
     outbound = db.query(Outbound)
     inbound = db.query(Inbound)
 
-    if status == "outbound":
+    if statuses and not {"inbound", "product"}.intersection(statuses):
         inbound = inbound.filter(False)
-
-    elif status == "inbound":
+    if statuses and not {"outbound", "product"}.intersection(statuses):
         outbound = outbound.filter(False)
-
-    elif status not in ("", "product"):
-        outbound = outbound.filter(False)
-        inbound = inbound.filter(False)
 
     search_product = q
 

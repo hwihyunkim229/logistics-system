@@ -81,7 +81,7 @@
     }
 
     function enhance(select) {
-        if (select.dataset.productSelect === "true" || select.multiple || select.size > 1) return;
+        if (select.hasAttribute("data-multi-filter") || select.dataset.productSelect === "true" || select.multiple || select.size > 1) return;
         select.dataset.productSelect = "true";
         const wrapper = document.createElement("span");
         wrapper.className = "product-select";

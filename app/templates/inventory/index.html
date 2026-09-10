@@ -509,7 +509,7 @@ th input[type="checkbox"]{
             <div class="filter-row">
 
                 {% if current_warehouse_type == "창고재고" %}
-                <select id="gradeFilter" onchange="navigateWithFilter('grade', this.value)">
+                <select id="gradeFilter" data-multi-filter data-filter-param="grade" data-filter-label="등급" onchange="navigateWithFilter('grade', this.value)">
                     <option value="">전체 등급</option>
                     {% for g in grades %}
                     <option value="{{ g }}" {% if current_grade == g %}selected{% endif %}>{{ g }}</option>
@@ -517,21 +517,21 @@ th input[type="checkbox"]{
                 </select>
                 {% endif %}
 
-                <select id="lotFilter" onchange="navigateWithFilter('lot', this.value)">
+                <select id="lotFilter" data-multi-filter data-filter-param="lot" data-filter-label="LOT" onchange="navigateWithFilter('lot', this.value)">
                     <option value="">전체 LOT</option>
                     {% for lot in lots %}
                     <option value="{{ lot }}" {% if current_lot == lot %}selected{% endif %}>{{ lot }}</option>
                     {% endfor %}
                 </select>
 
-                <select id="revFilter" onchange="navigateWithFilter('rev', this.value)">
+                <select id="revFilter" data-multi-filter data-filter-param="rev" data-filter-label="REV" onchange="navigateWithFilter('rev', this.value)">
                     <option value="">전체 Rev</option>
                     {% for r in revs %}
                     <option value="{{ r }}" {% if current_rev == r %}selected{% endif %}>{{ r }}</option>
                     {% endfor %}
                 </select>
 
-                <select id="noteFilter" onchange="navigateWithFilter('note', this.value)">
+                <select id="noteFilter" data-multi-filter data-filter-param="note" data-filter-label="비고" onchange="navigateWithFilter('note', this.value)">
                     <option value="">전체 비고</option>
                     {% for n in notes %}
                     <option value="{{ n }}" {% if current_note == n %}selected{% endif %}>{{ n }}</option>

@@ -1,3 +1,4 @@
+from app.utils.filters import filter_values
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -38,8 +39,8 @@ def notification_page(
 ):
     notifications = get_notifications(
         db,
-        department=department.strip(),
-        unread_only=unread == "1",
+        department=filter_values(request, "department"),
+        read_states=filter_values(request, "unread"),
         limit=200,
     )
 
@@ -53,7 +54,7 @@ def notification_page(
             "notifications": notifications,
             "department": department,
             "unread": unread,
-            "unread_count": count_unread(db, department.strip()),
+            "unread_count": count_unread(db, filter_values(request, "department")),
             "total_count": len(notifications),
         },
     )
@@ -215,10 +216,10 @@ def read_notification(
 
 @router.post("/read-all")
 def read_all_notifications(
-    department: str = Form(""),
+    department: list[str] = Form([]),
     db: Session = Depends(get_db),
 ):
-    mark_all_read(db, department)
+    mark_all_read(db, [value for value in department if value])
 
     return RedirectResponse(
         "/workflow/notification",

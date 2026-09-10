@@ -19,14 +19,16 @@
         </div>
 
         <form method="post" action="/workflow/notification/read-all">
-            <input type="hidden" name="department" value="{{ department }}">
+            {% for selected_department in request.query_params.getlist("department") if selected_department %}
+            <input type="hidden" name="department" value="{{ selected_department }}">
+            {% endfor %}
             <button type="submit" class="btn btn-secondary">모두 읽음 처리</button>
         </form>
     </div>
 
     <form method="get" action="/workflow/notification" class="toolbar">
         <div class="toolbar-left" style="display:flex;gap:10px;">
-            <select name="department" class="filter-select">
+            <select data-multi-filter name="department" class="filter-select">
                 <option value="">전체 부서</option>
                 <option value="purchase" {{ "selected" if department == "purchase" }}>구매팀</option>
                 <option value="quality" {{ "selected" if department == "quality" }}>품질팀</option>
@@ -34,9 +36,10 @@
                 <option value="production" {{ "selected" if department == "production" }}>생산팀</option>
             </select>
 
-            <select name="unread" class="filter-select">
+            <select data-multi-filter name="unread" class="filter-select">
                 <option value="">전체</option>
-                <option value="1" {{ "selected" if unread == "1" }}>읽지 않음만</option>
+                <option value="1" {{ "selected" if unread == "1" }}>읽지 않음</option>
+                <option value="0" {{ "selected" if unread == "0" }}>읽음</option>
             </select>
 
             <button type="submit" class="btn btn-primary">조회</button>
