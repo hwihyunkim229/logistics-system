@@ -1,3 +1,4 @@
+from app.services.product_categories import dashboard_product_names
 from fastapi import APIRouter, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
@@ -12,26 +13,6 @@ from zoneinfo import ZoneInfo
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
-
-SERVICES = [
-    "cart_bp_pro",
-    "cart_bp",
-    "cart_on",
-    "hanbang",
-    "cart_platform",
-    "cart_ring",
-    "cart_o2"
-]
-
-SERVICE_NAMES = {
-    "cart_bp_pro": "CART BP pro",
-    "cart_bp": "CART BP",
-    "cart_on": "CART ON",
-    "hanbang": "한방 병원",
-    "cart_platform" : "CART PLATFORM",
-    "cart_ring" : "CART RING",
-    "cart_o2" : "CART O2"
-}
 
 def get_group_mode(
     start_date,
@@ -310,6 +291,8 @@ def dashboard_trend(
     end: str = None
 ):
     db = SessionLocal()
+    service_names = dashboard_product_names(db)
+    services = list(service_names)
 
     charts = []
 
@@ -389,7 +372,7 @@ def dashboard_trend(
             if product == service and range_start <= _naive(created_at) < range_end
         )
 
-    for service in SERVICES:
+    for service in services:
 
         labels = []
         out_counts = []
@@ -515,7 +498,7 @@ def dashboard_trend(
         charts.append({
             "service": service,
             "display_name":
-                SERVICE_NAMES[service],
+                service_names[service],
             "labels": labels,
             "out_counts": out_counts,
             "in_counts": in_counts,
@@ -542,6 +525,8 @@ def dashboard_trend(
 @router.get("/dashboard/size")
 def dashboard_size(request: Request):
     db = SessionLocal()
+    service_names = dashboard_product_names(db)
+    services = list(service_names)
 
     charts = []
 
@@ -559,7 +544,7 @@ def dashboard_size(request: Request):
         ).group_by(Outbound.product, Outbound.size).all()
     }
 
-    for service in SERVICES:
+    for service in services:
 
         labels = ["7", "8", "9", "10", "11", "12", "13"]
 
@@ -585,7 +570,7 @@ def dashboard_size(request: Request):
         charts.append({
             "service": service,
 
-            "display_name": SERVICE_NAMES[service],
+            "display_name": service_names[service],
 
             "labels": labels,
 
@@ -614,6 +599,8 @@ def dashboard_activity(
 ):
 
     db = SessionLocal()
+    service_names = dashboard_product_names(db)
+    services = list(service_names)
 
     today = datetime.now(
         ZoneInfo("Asia/Seoul")
@@ -680,10 +667,10 @@ def dashboard_activity(
 
     service_stats = [
         {
-            "name": SERVICE_NAMES[service],
+            "name": service_names[service],
             "count": sum(1 for t, p, c, d in period_rows if p == service)
         }
-        for service in SERVICES
+        for service in services
     ]
 
     def _naive(d):
@@ -691,13 +678,7 @@ def dashboard_activity(
 
     labels = []
 
-    activity_cart_bp_pro = []
-    activity_cart_bp = []
-    activity_cart_on = []
-    activity_hanbang = []
-    activity_cart_platform = []
-    activity_cart_ring = []
-    activity_cart_o2 = []
+    activity_counts = {service: [] for service in services}
 
     current = start_date
 
@@ -722,33 +703,10 @@ def dashboard_activity(
             if current_start <= _naive(d) < next_day_start
         ]
 
-        activity_cart_bp_pro.append(
-            sum(1 for t, p in day_rows if p == "cart_bp_pro")
-        )
-
-        activity_cart_bp.append(
-            sum(1 for t, p in day_rows if p == "cart_bp")
-        )
-
-        activity_cart_on.append(
-            sum(1 for t, p in day_rows if p == "cart_on")
-        )
-
-        activity_hanbang.append(
-            sum(1 for t, p in day_rows if p == "hanbang")
-        )
-
-        activity_cart_platform.append(
-            sum(1 for t, p in day_rows if p == "cart_platform")
-        )
-
-        activity_cart_ring.append(
-            sum(1 for t, p in day_rows if p == "cart_ring")
-        )
-
-        activity_cart_o2.append(
-            sum(1 for t, p in day_rows if p == "cart_o2")
-        )
+        for service in services:
+            activity_counts[service].append(
+                sum(1 for _, product in day_rows if product == service)
+            )
 
         current = next_day
 
@@ -766,16 +724,13 @@ def dashboard_activity(
             "recent_hour": recent_hour,
             "service_stats": service_stats,
             "activity_labels": labels,
-            "activity_cart_bp_pro": activity_cart_bp_pro,
-            "activity_cart_bp": activity_cart_bp,
-            "activity_cart_on": activity_cart_on,
-            "activity_hanbang": activity_hanbang,
-            "activity_cart_platform" : activity_cart_platform,
-            "activity_cart_ring" : activity_cart_ring,
-            "activity_cart_o2" : activity_cart_o2,
+            "activity_series": [
+                {"code": service, "name": service_names[service], "counts": activity_counts[service]}
+                for service in services
+            ],
             "start": start_date.strftime("%Y-%m-%d"),
             "end": end_date.strftime("%Y-%m-%d"),
-            "SERVICES": SERVICES,
-            "SERVICE_NAMES": SERVICE_NAMES
+            "SERVICES": services,
+            "SERVICE_NAMES": service_names
         }
     )

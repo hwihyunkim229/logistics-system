@@ -717,7 +717,7 @@
                 <tr data-product="{{ r.product }}">
 
                     <td>
-                        {{ SERVICE_NAMES[r.product] }}
+                        {{ SERVICE_NAMES.get(r.product, r.product or "미분류") }}
                     </td>
 
                     <td class="serial-text">
@@ -806,160 +806,22 @@ new Chart(
         data:{
             labels: JSON.parse('{{ activity_labels | tojson | safe }}'),
 
-            datasets:[
-
-                {
-                    label:"{{ SERVICE_NAMES['cart_bp_pro'] }}",
-
-                    data: JSON.parse('{{ activity_cart_bp_pro | tojson | safe }}'),
-
-                    borderColor:"#3b82f6",
-
-                    backgroundColor:"rgba(59,130,246,0.10)",
-
-                    tension:0.35,
-
-                    borderWidth:2,
-
-                    pointRadius:3,
-
-                    pointHoverRadius:5,
-
-                    pointBackgroundColor:"#3b82f6",
-
-                    fill:false
-                },
-
-                {
-                    label:"{{ SERVICE_NAMES['cart_bp'] }}",
-
-                    data: JSON.parse('{{ activity_cart_bp | tojson | safe }}'),
-
-                    borderColor:"#8b5cf6",
-
-                    backgroundColor:"rgba(139,92,246,0.10)",
-
-                    tension:0.35,
-
-                    borderWidth:2,
-
-                    pointRadius:3,
-
-                    pointHoverRadius:5,
-
-                    pointBackgroundColor:"#8b5cf6",
-
-                    fill:false
-                },
-
-                {
-                    label:"{{ SERVICE_NAMES['cart_on'] }}",
-
-                    data: JSON.parse('{{ activity_cart_on | tojson | safe }}'),
-
-                    borderColor:"#14b8a6",
-
-                    backgroundColor:"rgba(20,184,166,0.10)",
-
-                    tension:0.35,
-
-                    borderWidth:2,
-
-                    pointRadius:3,
-
-                    pointHoverRadius:5,
-
-                    pointBackgroundColor:"#14b8a6",
-
-                    fill:false
-                },
-
-                {
-                    label:"{{ SERVICE_NAMES['hanbang'] }}",
-
-                    data: JSON.parse('{{ activity_hanbang | tojson | safe }}'),
-
-                    borderColor:"#f472b6",
-
-                    backgroundColor:"rgba(244,114,182,0.10)",
-
-                    tension:0.35,
-
-                    borderWidth:3,
-
-                    pointRadius:4,
-
-                    pointHoverRadius:6,
-
-                    pointBackgroundColor:"#f472b6",
-
-                    fill:false
-                },
-
-                {
-                    label:"{{ SERVICE_NAMES['cart_platform'] }}",
-
-                    data: JSON.parse('{{ activity_cart_platform | tojson | safe }}'),
-
-                    borderColor:"#f59e0b",
-
-                    backgroundColor:"rgba(245,158,11,0.10)",
-
-                    tension:0.35,
-
-                    borderWidth:3,
-
-                    pointRadius:4,
-
-                    pointHoverRadius:6,
-
-                    pointBackgroundColor:"#f59e0b",
-
-                    fill:false
-                },
-                {
-                    label:"{{ SERVICE_NAMES['cart_ring'] }}",
-
-                    data: JSON.parse('{{ activity_cart_ring | tojson | safe }}'),
-
-                    borderColor:"#ef4444",
-
-                    backgroundColor:"rgba(239,68,68,0.10)",
-
-                    tension:0.35,
-
-                    borderWidth:3,
-
-                    pointRadius:4,
-
-                    pointHoverRadius:6,
-
-                    pointBackgroundColor:"#ef4444",
-
-                    fill:false
-                },
-                {
-                    label:"{{ SERVICE_NAMES['cart_o2'] }}",
-
-                    data: JSON.parse('{{ activity_cart_o2 | tojson | safe }}'),
-
-                    borderColor:"#06b6d4",
-
-                    backgroundColor:"rgba(6,182,212,0.10)",
-
-                    tension:0.35,
-
-                    borderWidth:3,
-
-                    pointRadius:4,
-
-                    pointHoverRadius:6,
-
-                    pointBackgroundColor:"#06b6d4",
-
-                    fill:false
-                }
-            ]
+            datasets: {{ activity_series | tojson }}.map((series, index) => {
+                const palette = ['#3b82f6', '#8b5cf6', '#14b8a6', '#f472b6', '#f59e0b', '#ef4444', '#06b6d4'];
+                const color = palette[index] || 'hsl(' + ((index * 137.508) % 360) + ', 65%, 45%)';
+                return {
+                    label: series.name,
+                    data: series.counts,
+                    borderColor: color,
+                    backgroundColor: color,
+                    pointBackgroundColor: color,
+                    tension: 0.35,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    fill: false
+                };
+            })
         },
 
         options:{

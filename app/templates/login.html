@@ -58,6 +58,13 @@ async function handleLogin(event) {
             document.getElementById("password").select();
             return;
         }
+        // Reset only expanded menu groups on login; preserve sidebar width.
+        try {
+            localStorage.removeItem("sidebar_open_menus");
+            localStorage.removeItem("sidebar_open_submenus");
+        } catch (storageError) {
+            // Storage restrictions must not prevent a successful login.
+        }
         window.location.replace(data.force_change ? "/change-password" : "/search");
     } catch (error) {
         showToast("서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.");

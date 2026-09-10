@@ -1,3 +1,4 @@
+from app.services.product_categories import SERVICES, SERVICE_NAMES, product_categories
 from app.utils.filters import filter_values
 from fastapi import APIRouter, UploadFile, File, Request, Body
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -32,35 +33,6 @@ from zoneinfo import ZoneInfo
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
-
-SERVICES = [
-    "cart_bp_pro",
-    "cart_bp",
-    "cart_on",
-    "hanbang",
-    "cart_platform",
-    "cart_ring",
-    "cart_o2"
-]
-
-SERVICE_NAMES = {
-    "cart_bp_pro": "CART BP pro",
-    "cart_bp": "CART BP",
-    "cart_on": "CART ON",
-    "hanbang": "한방 병원",
-    "cart_platform" : "CART PLATFORM",
-    "cart_ring" : "CART RING",
-    "cart_o2" : "CART O2"
-}
-
-def product_categories(db):
-    rows = db.query(ProductCategory).order_by(ProductCategory.id).all()
-    if not rows:
-        for code in SERVICES:
-            db.add(ProductCategory(code=code, name=SERVICE_NAMES[code]))
-        db.commit()
-        rows = db.query(ProductCategory).order_by(ProductCategory.id).all()
-    return rows
 
 @router.post("/product/categories")
 def add_product_category(data: dict = Body(...)):

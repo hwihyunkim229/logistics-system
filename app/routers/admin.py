@@ -1,3 +1,4 @@
+from app.utils.activity_actions import ACTION_LABELS, action_label, action_style
 from app.utils.filters import filter_values
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -399,58 +400,7 @@ def admin_activity(
         .all()
     )
 
-    base_actions = [
-        "LOGIN",
-        "LOGOUT",
-        "UPLOAD_EXCEL",
-        "DOWNLOAD_EXCEL",
-        "OUTBOUND",
-        "INBOUND",
-        "MOVE_IN",
-        "MOVE_OUT",
-        "DELETE_SELECTED",
-        "DELETE_ALL",
-        "BULK_UPDATE",
-        "UPDATE_FIELD",
-        "UPDATE_SIZE",
-        "CREATE_USER",
-        "RESET_PASSWORD",
-        "DELETE_USER",
-        "CHANGE_PASSWORD",
-        "STOCK_MOVE_IN",
-        "STOCK_MOVE_OUT",
-        "STOCK_DELETE_SELECTED",
-        "STOCK_DOWNLOAD_EXCEL",
-        "STOCK_UPLOAD_EXCEL",
-        "STOCK_UPDATE_QTY",
-        "STOCK_UPDATE_GRADE",
-        "STOCK_BULK_UPDATE_GRADE",
-        "STOCK_BULK_UPDATE_QTY",
-        "STOCK_HISTORY_DOWNLOAD_EXCEL",
-        "STOCK_ITEM_MASTER_UPDATE",
-        "STOCK_ITEM_MASTER_UPLOAD",
-        "MRP_BOM_UPLOAD",
-        "MRP_BOM_DOWNLOAD",
-        "MRP_PRODUCTION_PLAN_UPLOAD",
-        "MRP_PRODUCTION_PLAN_DOWNLOAD",
-        "MRP_RESULT_DOWNLOAD",
-        "MRP_MATERIAL_MASTER_ADD",
-        "MRP_MATERIAL_MASTER_UPDATE",
-        "MRP_MATERIAL_MASTER_UPLOAD",
-        "MRP_MATERIAL_MASTER_DOWNLOAD",
-        "MRP_MATERIAL_NOTE_SAVE",
-        "INVENTORY_ADD",
-        "INVENTORY_MOVE_IN",
-        "INVENTORY_MOVE_OUT",
-        "INVENTORY_DELETE_SELECTED",
-        "INVENTORY_UPDATE_FIELD",
-        "INVENTORY_BULK_UPDATE_QTY",
-        "INVENTORY_BULK_UPDATE_NOTE",
-        "INVENTORY_BULK_UPDATE_LOT",
-        "INVENTORY_HISTORY_DOWNLOAD_EXCEL",
-        "INVENTORY_DOWNLOAD_EXCEL",
-        "INVENTORY_UPLOAD_EXCEL",
-    ]
+    base_actions = list(ACTION_LABELS)
 
     existing_actions = [
         row[0]
@@ -462,7 +412,7 @@ def admin_activity(
     ]
 
     ACTIONS = sorted(
-        set(base_actions + existing_actions)
+        set(base_actions + existing_actions), key=lambda code: (action_label(code), code)
     )
 
     db.close()
@@ -473,6 +423,8 @@ def admin_activity(
         context={
             "logs": logs,
             "actions": ACTIONS,
+            "action_label": action_label,
+            "action_style": action_style,
             "selected_action": action,
             "search_user": user,
             "search_serial": serial,
@@ -554,7 +506,8 @@ def export_activity_excel(
                 "%Y-%m-%d %H:%M:%S"
             ),
             "사용자": log.user,
-            "작업": log.action,
+            "작업": action_label(log.action),
+            "작업 코드": log.action,
             "Serial": log.serial,
             "작업 내용": log.detail
         })

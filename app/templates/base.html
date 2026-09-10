@@ -1209,6 +1209,10 @@ window.addEventListener(
                 );
         }
 
+        const sidebarToggle = document.getElementById("sidebarToggle");
+        sidebarToggle?.setAttribute("aria-expanded", String(!collapsed));
+        sidebarToggle?.setAttribute("aria-label", collapsed ? "사이드바 펼치기" : "사이드바 접기");
+
         document.documentElement.classList.remove(
             "sidebar-collapsed-preload"
         );

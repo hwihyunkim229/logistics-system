@@ -306,7 +306,7 @@
                             selected
                         {% endif %}
                     >
-                        {{ action }}
+                        {{ action_label(action) }}
                     </option>
 
                     {% endfor %}
@@ -427,104 +427,9 @@
                             </td>
 
                             <td>
-                                {% if log.action == "LOGIN" %}
-                                    <span class="action-badge action-login">
-                                        로그인
-                                    </span>
-
-                                {% elif log.action == "LOGOUT" %}
-                                    <span class="action-badge action-logout">
-                                        로그아웃
-                                    </span>
-
-                                {% elif log.action == "CREATE_USER" %}
-                                    <span class="action-badge action-create">
-                                        계정 생성
-                                    </span>
-
-                                {% elif log.action == "RESET_PASSWORD" %}
-                                    <span class="action-badge action-reset">
-                                        비밀번호 초기화
-                                    </span>
-
-                                {% elif log.action == "CHANGE_PASSWORD" %}
-                                    <span class="action-badge action-reset">
-                                        비밀번호 변경
-                                    </span>
-
-                                {% elif log.action == "DELETE_USER" %}
-                                    <span class="action-badge action-delete">
-                                        계정 삭제
-                                    </span>
-
-                                {% elif log.action == "OUTBOUND" %}
-                                    <span class="action-badge action-out">
-                                        출고
-                                    </span>
-
-                                {% elif log.action == "INBOUND" %}
-                                    <span class="action-badge action-in">
-                                        입고
-                                    </span>
-
-                                {% elif log.action == "DOWNLOAD_EXCEL" %}
-                                    <span class="action-badge action-download">
-                                        엑셀 다운로드
-                                    </span>
-
-                                {% elif log.action == "UPLOAD_EXCEL" %}
-                                    <span class="action-badge action-upload">
-                                        엑셀 업로드
-                                    </span>
-
-                                {% elif log.action == "MOVE_IN" %}
-                                    <span class="action-badge action-move">
-                                        입고 이동
-                                    </span>
-
-                                {% elif log.action == "MOVE_OUT" %}
-                                    <span class="action-badge action-move">
-                                        출고 이동
-                                    </span>
-
-                                {% elif log.action == "DELETE_SELECTED" %}
-                                    <span class="action-badge action-delete">
-                                        선택 삭제
-                                    </span>
-
-                                {% elif log.action == "DELETE_ALL" %}
-                                    <span class="action-badge action-delete">
-                                        전체 삭제
-                                    </span>
-
-                                {% elif log.action == "BULK_UPDATE" %}
-                                    <span class="action-badge action-update">
-                                        일괄 수정
-                                    </span>
-
-                                {% elif log.action == "UPDATE_FIELD" %}
-                                    <span class="action-badge action-update">
-                                        수정
-                                    </span>
-
-                                {% elif log.action == "UPDATE_SIZE" %}
-                                    <span class="action-badge action-update">
-                                        사이즈 수정
-                                    </span>
-
-                                {% elif log.action.startswith("STOCK_") %}
-                                    <span class="action-badge action-update">
-                                        가계상 재고
-                                    </span>
-
-                                {% elif log.action.startswith("MRP_") %}
-                                    <span class="action-badge action-download">
-                                        MRP
-                                    </span>
-
-                                {% else %}
-                                    {{ log.action }}
-                                {% endif %}
+                                <span class="action-badge action-{{ action_style(log.action) }}" title="작업 코드: {{ log.action }}">
+                                    {{ action_label(log.action) }}
+                                </span>
 
                             </td>
 
