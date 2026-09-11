@@ -4,7 +4,7 @@
 {% include "dashboard/_navigation.html" %}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 
 <style>
 .page-title{
@@ -138,7 +138,7 @@
 .chart-card canvas{
     position:relative;
     z-index:2;
-    height:320px !important;
+    height:300px !important;
 }
 @media (max-width:1400px){
     .kpi-grid{
@@ -278,6 +278,11 @@
     font-weight:700;
     cursor:pointer;
 }
+.product-chart-legend{display:flex;justify-content:center;gap:22px;min-height:36px;align-items:center;margin-bottom:8px;}
+.product-chart-legend button{display:inline-flex;align-items:center;gap:7px;padding:4px 2px;border:0;background:transparent;color:#475569;line-height:1.4;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.product-chart-legend button::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--series-color);flex-shrink:0;}
+.product-chart-legend button[aria-pressed="false"]{opacity:.45;text-decoration:line-through;}
+.product-chart-legend button:focus-visible{outline:2px solid #4389df;outline-offset:3px;border-radius:3px;}
 </style>
 
 <div class="dashboard-kpi-grid">
@@ -337,6 +342,10 @@
 
     </div>
 
+    <div class="product-chart-legend" aria-label="차트 범례" data-chart="chart{{ loop.index }}">
+        <button type="button" data-series="0" aria-pressed="true" style="--series-color:#e45b64">출고</button>
+        <button type="button" data-series="1" aria-pressed="true" style="--series-color:#4389df">입고</button>
+    </div>
     <canvas id="chart{{ loop.index }}"></canvas>
 
 </div>
@@ -349,25 +358,21 @@
 
 <script>
 (function(){
+Chart.register(ChartDataLabels);
+const trendCtx = document.getElementById("chart{{ loop.index }}").getContext("2d");
 
-Chart.register(
-    ChartDataLabels
-);
-
-const ctx = document.getElementById("chart{{ loop.index }}").getContext("2d");
-
-function makeGradient(colorStart, colorEnd){
-    const gradient = ctx.createLinearGradient(0, 0, 0, 260);
+function makeGradient(ctx, colorStart, colorEnd){
+    const gradient = ctx.createLinearGradient(0, 0, 0, 340);
     gradient.addColorStop(0, colorStart);
     gradient.addColorStop(1, colorEnd);
     return gradient;
 }
 
-const pointCount = JSON.parse('{{ chart.labels | tojson | safe }}').length;
-const dense = pointCount > 20;
+const trendPointCount = JSON.parse('{{ chart.labels | tojson | safe }}').length;
+const trendDense = trendPointCount > 20;
 
 new Chart(
-    ctx,
+    trendCtx,
     {
         type:"line",
 
@@ -375,26 +380,27 @@ new Chart(
             labels: JSON.parse('{{ chart.labels | tojson | safe }}'),
 
             datasets:[
+
                 {
                     label:"출고",
 
                     data: JSON.parse('{{ chart.out_counts | tojson | safe }}'),
 
-                    borderColor:"#ec4899",
+                    borderColor:"#e45b64",
+                    backgroundColor: makeGradient(trendCtx, "rgba(228,91,100,0.12)", "rgba(228,91,100,0)"),
 
-                    backgroundColor: makeGradient("rgba(236,72,153,0.30)", "rgba(236,72,153,0.02)"),
-
-                    borderWidth: dense ? 2 : 2.5,
-
-                    pointRadius: dense ? 1.5 : 3,
-
-                    pointHoverRadius: dense ? 4 : 5,
-
-                    pointBackgroundColor:"#ec4899",
+                    pointBackgroundColor:"#e45b64",
                     pointBorderColor:"#ffffff",
-                    pointBorderWidth:1.5,
 
-                    tension:0.35,
+                    pointBorderWidth:trendDense ? 1.5 : 3,
+
+                    pointRadius:trendPointCount === 1 ? 4 : 0,
+                    pointHoverRadius:4,
+
+                    borderWidth:2.2,
+
+                    tension:0.25,
+                    cubicInterpolationMode:"monotone",
 
                     fill:true
                 },
@@ -404,83 +410,81 @@ new Chart(
 
                     data: JSON.parse('{{ chart.in_counts | tojson | safe }}'),
 
-                    borderColor:"#2563eb",
+                    borderColor:"#4389df",
+                    backgroundColor: makeGradient(trendCtx, "rgba(67,137,223,0.10)", "rgba(67,137,223,0)"),
 
-                    backgroundColor: makeGradient("rgba(37,99,235,0.30)", "rgba(37,99,235,0.02)"),
-
-                    borderWidth: dense ? 2 : 2.5,
-
-                    pointRadius: dense ? 1.5 : 3,
-
-                    pointHoverRadius: dense ? 4 : 5,
-
-                    pointBackgroundColor:"#2563eb",
+                    pointBackgroundColor:"#4389df",
                     pointBorderColor:"#ffffff",
-                    pointBorderWidth:1.5,
 
-                    tension:0.35,
+                    pointBorderWidth:trendDense ? 1.5 : 3,
+
+                    pointRadius:trendPointCount === 1 ? 4 : 0,
+                    pointHoverRadius:4,
+
+                    borderWidth:2.2,
+
+                    tension:0.25,
+                    cubicInterpolationMode:"monotone",
 
                     fill:true
                 }
+
             ]
         },
 
         options:{
 
             responsive:true,
-
             maintainAspectRatio:false,
+            layout: {padding: {top: 18, bottom: 22, left: 18, right: 18}},
+
+            interaction:{
+                intersect:false,
+                mode:'index'
+            },
 
             plugins:{
-                datalabels:{
 
-                    display:function(context){
+                legend:{
+                    display:false,
+                    position:'top',
 
-                        if(dense){ return false; }
+                    labels:{
+                        usePointStyle:true,
+                        pointStyle:'circle',
 
-                        const value =
-                            context.dataset.data[
-                                context.dataIndex
-                            ];
+                        padding:24,
 
-                        return value > 0;
-                    },
+                        color:'#475569',
 
-                    color:"#475569",
-
-                    anchor:"end",
-
-                    align:"top",
-
-                    offset:6,
-
-                    font:{
-                        size:11,
-                        weight:"700"
+                        font:{
+                            size:13,
+                            weight:'700'
+                        }
                     }
                 },
 
-                legend:{
-                    position:"top",
+                tooltip:{
+                    backgroundColor:"#0f172a",
 
-                    labels:{
+                    titleColor:"#ffffff",
+                    bodyColor:"#e2e8f0",
 
-                        color:"#334155",
+                    padding:14,
 
-                        usePointStyle:true,
+                    cornerRadius:14,
 
-                        pointStyle:"circle",
+                    displayColors:true
+                },
 
-                        boxWidth:10,
-                        boxHeight:10,
-
-                        padding:20,
-
-                        font:{
-                            size:12,
-                            weight:"700"
-                        }
-                    }
+                datalabels:{
+                    display: context => Number(context.dataset.data[context.dataIndex]) !== 0,
+                    formatter: value => Number(value).toLocaleString('ko-KR'),
+                    color: context => context.dataset.borderColor,
+                    anchor: 'center',
+                    align: context => context.datasetIndex === 0 ? 'top' : 'bottom',
+                    offset: 8,
+                    font: {weight: '600', size: 13}
                 }
             },
 
@@ -488,7 +492,8 @@ new Chart(
 
                 x:{
                     grid:{
-                        color:"rgba(148,163,184,0.08)"
+                        color:"rgba(148,163,184,0.08)",
+                        drawBorder:false
                     },
 
                     ticks:{
@@ -498,32 +503,40 @@ new Chart(
                         maxRotation:0,
 
                         font:{
-                            size:11,
-                            weight:"600"
+                            size:12,
+                            weight:'600'
                         }
                     }
                 },
 
                 y:{
                     beginAtZero:true,
+                    display: true,
+                    grace:"15%",
+                    border:{display:false},
 
                     grid:{
-                        color:"rgba(148,163,184,0.08)"
+                    color: "rgba(148,163,184,0.26)",
+                    drawTicks: false,
                     },
 
                     ticks:{
+                    display: false,
+                    maxTicksLimit: 5,
                         color:"#64748b",
 
                         font:{
-                            size:11,
-                            weight:"600"
+                            size:12,
+                            weight:'600'
                         }
                     }
                 }
+
             }
         }
     }
 );
+
 
 })();
 </script>
@@ -579,6 +592,20 @@ document.addEventListener(
         }
     }
 );
+
+</script>
+
+<script>
+document.querySelectorAll('.product-chart-legend button').forEach(button => {
+    button.addEventListener('click', () => {
+        const chart = Chart.getChart(button.closest('[data-chart]').dataset.chart);
+        const index = Number(button.dataset.series);
+        const visible = !chart.isDatasetVisible(index);
+        chart.setDatasetVisibility(index, visible);
+        button.setAttribute('aria-pressed', String(visible));
+        chart.update();
+    });
+});
 
 </script>
 

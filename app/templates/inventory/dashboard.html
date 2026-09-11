@@ -191,8 +191,13 @@
     font-weight:800;
     color:#2563eb;
 }
+.movement-chart-frame{
+    position:relative;
+    height:420px;
+    min-width:0;
+}
 #movementChart{
-    height:300px !important;
+    display:block;
 }
 .chart-card.equal-height{
     height:100%;
@@ -657,7 +662,7 @@
             </div>
         </div>
 
-        <canvas id="movementChart"></canvas>
+        <div class="movement-chart-frame"><canvas id="movementChart"></canvas></div>
     </div>
 </div>
 
@@ -782,8 +787,16 @@ new Chart(
                     datalabels:{
                         color:"#ef4444",
                         anchor:"end",
-                        align:"top",
-                        offset:4,
+                        align:'top',
+                        offset:context => {
+                            const incoming = context.chart.getDatasetMeta(0).data[context.dataIndex];
+                            const outgoing = context.chart.getDatasetMeta(1).data[context.dataIndex];
+                            if (!incoming || !outgoing || !context.chart.isDatasetVisible(0)) return 8;
+                            return Math.abs(incoming.y-outgoing.y)<48 ? Math.max(8, outgoing.y-incoming.y+36) : 8;
+                        },
+                        backgroundColor:'rgba(255,255,255,0.92)',
+                        borderRadius:4,
+                        padding:3,
                         font:{
                             weight:"bold",
                             size:15
@@ -799,6 +812,8 @@ new Chart(
         options:{
             responsive:true,
             maintainAspectRatio:false,
+            devicePixelRatio: Math.max(window.devicePixelRatio || 1, 2),
+            layout:{padding:{top:48,bottom:16,left:12,right:12}},
             interaction:{
                 mode:"index",
                 intersect:false

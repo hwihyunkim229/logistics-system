@@ -482,12 +482,6 @@ def calculate_mrp(
 
                 break
 
-        if need_date is None and weekly_required:
-
-            need_date = max(
-                weekly_required.keys()
-            )
-
         order_date = None
 
         if need_date:
@@ -1945,18 +1939,9 @@ def production_plan_page(
 
     else:
 
-        display_start = week_start
-
-        display_end = week_end
-
-        date_columns = [
-
-            week_start +
-            timedelta(days=i)
-
-            for i in range(7)
-
-        ]
+        display_start = date(selected_year, selected_month, 1)
+        display_end = date(selected_year, selected_month, calendar.monthrange(selected_year, selected_month)[1])
+        date_columns = [display_start + timedelta(days=i) for i in range(display_end.day)]
 
     if plans:
 

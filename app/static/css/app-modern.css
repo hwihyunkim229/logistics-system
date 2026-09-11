@@ -747,3 +747,16 @@ button.page-tab {
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { scroll-behavior:auto !important; transition-duration:.01ms !important; animation-duration:.01ms !important; }
 }
+
+/* Consistent top-level titles; leave card and dialog headings independent. */
+.app-page-heading {
+    margin:0 !important;
+    color:var(--app-text) !important;
+    font-size:20px !important;
+    font-weight:800 !important;
+    line-height:1.4 !important;
+    letter-spacing:-.035em !important;
+}
+.production-plan-page {gap:18px;}
+.production-plan-page > .page-header {min-height:0;margin:0 !important;}
+.production-plan-page > .page-header .page-title {margin:0 !important;line-height:1.4;}

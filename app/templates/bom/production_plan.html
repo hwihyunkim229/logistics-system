@@ -282,13 +282,9 @@
     font-size:11px;
 }
 
-.saturday{
-    background:#34495e !important;
-}
+#planTable thead th.saturday{background:#eaf2ff !important;color:#2456a6 !important;}
 
-.sunday{
-    background:#42566b !important;
-}
+#planTable thead th.sunday{background:#fff0f1 !important;color:#b63446 !important;}
 
 .group-header{
     display:flex;
@@ -444,13 +440,9 @@ button:hover{
     opacity:.85;
 }
 
-.saturday{
-    background:#34495e !important;
-}
+#planTable thead th.saturday{background:#eaf2ff !important;color:#2456a6 !important;}
 
-.sunday{
-    background:#42566b !important;
-}
+#planTable thead th.sunday{background:#fff0f1 !important;color:#b63446 !important;}
 
 .group-row{
     cursor:pointer;
@@ -629,9 +621,21 @@ button:hover{
 .excel-download i{ 
     font-size:18px; 
 }
+.plan-view-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 22px;}
+.plan-view-controls button{padding:7px 13px;border:1px solid #d6e3e2;border-radius:7px;background:white;color:#334155;cursor:pointer;}
+.plan-view-controls button[aria-pressed="true"]{background:#0f766e!important;color:white!important;}
+.plan-view-controls span{font-size:12px;color:#64748b;}
+#planTable{width:max-content;min-width:100%;}
+#planTable th[data-plan-date],#planTable td[data-plan-qty]{min-width:76px;}
+#planTable .plan-total{position:sticky;left:340px;min-width:90px;background:#f0f7f6!important;color:#215951!important;z-index:11;font-weight:700;}
+#planTable .plan-week-boundary{border-left:2px solid #cadbd9!important;}
+#planTable [hidden]{display:none!important;}
+#planTable .plan-week-cell{min-width:130px;}
+#planTable .plan-week-group{background:#eaf3f2!important;color:#365b59!important;height:30px;}
+#planTable .plan-today{box-shadow:inset 0 -3px #0f766e;}
 </style>
 
-<div class="page-container">
+<div class="page-container production-plan-page">
 
     <div class="page-header">
 
@@ -676,7 +680,7 @@ button:hover{
 
                 {{ selected_year }}년
 
-                W{{ selected_week }}
+                {{ selected_month }}월
 
                 |
 
@@ -747,30 +751,7 @@ button:hover{
 
             </div>
 
-            <div class="week-section">
 
-                <div class="week-label">
-
-                    Week
-
-                </div>
-
-                <div class="week-tabs">
-
-                    {% for iso_year, week in week_columns %}
-
-                    <a
-                        href="/mrp/production-plan?year={{ selected_year }}&month={{ selected_month }}&iso_year={{ iso_year }}&week={{ week }}"
-                        class="week-tab {% if week == selected_week and iso_year == selected_iso_year %}active{% endif %}"
-                    >
-                        W{{ week }}
-                    </a>
-
-                    {% endfor %}
-
-                </div>
-
-            </div>
 
         </div>
 
@@ -857,6 +838,12 @@ button:hover{
 
         </div>
 
+        <div class="plan-view-controls" role="group" aria-label="계획 표시 단위">
+            <button type="button" data-plan-view="day" aria-pressed="true">일별</button>
+            <button type="button" data-plan-view="week" aria-pressed="false">주별 합계</button>
+            <button type="button" id="planToday">오늘로 이동</button>
+            <span>월 전체 계획 · 주별 합계는 조회 기간에 포함된 날짜만 합산합니다.</span>
+        </div>
         <div class="table-inner-card">
 
             <div class="table-wrap">
@@ -876,7 +863,7 @@ button:hover{
 
                             {% for date in date_columns %}
 
-                            <th
+                            <th data-plan-date="{{ date.isoformat() }}" data-plan-week="{{ date.strftime('%G-%V') }}"
                                 class="
                                 {% if date.weekday() == 5 %}
                                 saturday
@@ -975,7 +962,7 @@ button:hover{
 
                         {% set qty = row[date] %}
 
-                        <td
+                        <td data-plan-qty="{{ qty }}"
                             class="
                             qty
 
@@ -1123,11 +1110,11 @@ function(){
 
         }else{
 
-            const groupRow =
-                row.previousElementSibling;
-
-            row.style.display =
-                "";
+            let groupRow = row.previousElementSibling;
+            while (groupRow && !groupRow.classList.contains('group-row')) {
+                groupRow = groupRow.previousElementSibling;
+            }
+            row.style.display = groupRow?.classList.contains('expanded') ? '' : 'none';
 
         }
 
@@ -1257,4 +1244,5 @@ function downloadExcel(){
 
 </script>
 
+<script src="/static/js/production-plan-view.js?v=20260911-1"></script>
 {% endblock %}

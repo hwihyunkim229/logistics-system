@@ -4,7 +4,8 @@
 {% include "dashboard/_navigation.html" %}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
 
 <style>
 .dashboard-page{
@@ -311,6 +312,11 @@
     font-weight:700;
     cursor:pointer;
 }
+.product-chart-legend{display:flex;justify-content:center;gap:22px;min-height:36px;align-items:center;margin-bottom:8px;}
+.product-chart-legend button{display:inline-flex;align-items:center;gap:7px;padding:4px 2px;border:0;background:transparent;color:#475569;line-height:1.4;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.product-chart-legend button::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--series-color);flex-shrink:0;}
+.product-chart-legend button[aria-pressed="false"]{opacity:.45;text-decoration:line-through;}
+.product-chart-legend button:focus-visible{outline:2px solid #4389df;outline-offset:3px;border-radius:3px;}
 </style>
 
 <div class="dashboard-kpi-grid" style="--kpi-columns:5;">
@@ -395,6 +401,10 @@
 
         </div>
 
+        <div class="product-chart-legend" aria-label="차트 범례" data-chart="trendChart">
+            <button type="button" data-series="0" aria-pressed="true" style="--series-color:#e45b64">출고</button>
+            <button type="button" data-series="1" aria-pressed="true" style="--series-color:#4389df">입고</button>
+        </div>
         <canvas id="trendChart"></canvas>
 
     </div>
@@ -411,6 +421,10 @@
 
         </div>
 
+        <div class="product-chart-legend" aria-label="차트 범례" data-chart="sizeChart">
+            <button type="button" data-series="0" aria-pressed="true" style="--series-color:#e45b64">출고</button>
+            <button type="button" data-series="1" aria-pressed="true" style="--series-color:#4389df">입고</button>
+        </div>
         <canvas id="sizeChart"></canvas>
 
     </div>
@@ -419,6 +433,8 @@
 
 
 <script>
+
+
 
 Chart.register(ChartDataLabels);
 
@@ -449,20 +465,21 @@ new Chart(
 
                     data: JSON.parse('{{ trend_out | tojson | safe }}'),
 
-                    borderColor:"#ec4899",
-                    backgroundColor: makeGradient(trendCtx, "rgba(236,72,153,0.35)", "rgba(236,72,153,0.02)"),
+                    borderColor:"#e45b64",
+                    backgroundColor: makeGradient(trendCtx, "rgba(228,91,100,0.12)", "rgba(228,91,100,0)"),
 
-                    pointBackgroundColor:"#ec4899",
+                    pointBackgroundColor:"#e45b64",
                     pointBorderColor:"#ffffff",
 
                     pointBorderWidth:trendDense ? 1.5 : 3,
 
-                    pointRadius:trendDense ? 2 : 5,
-                    pointHoverRadius:trendDense ? 5 : 7,
+                    pointRadius:trendPointCount === 1 ? 4 : 0,
+                    pointHoverRadius:4,
 
-                    borderWidth:trendDense ? 2.5 : 4,
+                    borderWidth:2.2,
 
-                    tension:0.4,
+                    tension:0.25,
+                    cubicInterpolationMode:"monotone",
 
                     fill:true
                 },
@@ -472,20 +489,21 @@ new Chart(
 
                     data: JSON.parse('{{ trend_in | tojson | safe }}'),
 
-                    borderColor:"#2563eb",
-                    backgroundColor: makeGradient(trendCtx, "rgba(37,99,235,0.35)", "rgba(37,99,235,0.02)"),
+                    borderColor:"#4389df",
+                    backgroundColor: makeGradient(trendCtx, "rgba(67,137,223,0.10)", "rgba(67,137,223,0)"),
 
-                    pointBackgroundColor:"#2563eb",
+                    pointBackgroundColor:"#4389df",
                     pointBorderColor:"#ffffff",
 
                     pointBorderWidth:trendDense ? 1.5 : 3,
 
-                    pointRadius:trendDense ? 2 : 5,
-                    pointHoverRadius:trendDense ? 5 : 7,
+                    pointRadius:trendPointCount === 1 ? 4 : 0,
+                    pointHoverRadius:4,
 
-                    borderWidth:trendDense ? 2.5 : 4,
+                    borderWidth:2.2,
 
-                    tension:0.4,
+                    tension:0.25,
+                    cubicInterpolationMode:"monotone",
 
                     fill:true
                 }
@@ -497,6 +515,7 @@ new Chart(
 
             responsive:true,
             maintainAspectRatio:false,
+            layout: {padding: {top: 18, bottom: 22, left: 18, right: 18}},
 
             interaction:{
                 intersect:false,
@@ -506,6 +525,7 @@ new Chart(
             plugins:{
 
                 legend:{
+                    display:false,
                     position:'top',
 
                     labels:{
@@ -537,19 +557,13 @@ new Chart(
                 },
 
                 datalabels:{
-                    display: !trendDense,
-
-                    color:"#64748b",
-
-                    anchor:'end',
-                    align:'top',
-
-                    offset:10,
-
-                    font:{
-                        weight:'700',
-                        size:11
-                    }
+                    display: context => Number(context.dataset.data[context.dataIndex]) !== 0,
+                    formatter: value => Number(value).toLocaleString('ko-KR'),
+                    color: context => context.dataset.borderColor,
+                    anchor: 'center',
+                    align: context => context.datasetIndex === 0 ? 'top' : 'bottom',
+                    offset: 8,
+                    font: {weight: '600', size: 13}
                 }
             },
 
@@ -576,13 +590,18 @@ new Chart(
 
                 y:{
                     beginAtZero:true,
+                    display: true,
+                    grace:"15%",
+                    border:{display:false},
 
                     grid:{
-                        color:"rgba(148,163,184,0.3)",
-                        drawBorder:false
+                    color: "rgba(148,163,184,0.26)",
+                    drawTicks: false,
                     },
 
                     ticks:{
+                    display: false,
+                    maxTicksLimit: 5,
                         color:"#64748b",
 
                         font:{
@@ -599,15 +618,14 @@ new Chart(
 
 const ctx = document.getElementById("sizeChart");
 
-const blueGradient = ctx.getContext("2d").createLinearGradient(0, 0, 0, 350);
-blueGradient.addColorStop(0, "rgba(37,99,235,0.95)");
-blueGradient.addColorStop(0.4, "rgba(59,130,246,0.75)");
-blueGradient.addColorStop(1, "rgba(147,197,253,0.25)");
-
-const pinkGradient = ctx.getContext("2d").createLinearGradient(0, 0, 0, 350);
-pinkGradient.addColorStop(0, "rgba(236,72,153,0.95)");
-pinkGradient.addColorStop(0.4, "rgba(244,114,182,0.75)");
-pinkGradient.addColorStop(1, "rgba(251,207,232,0.25)");
+function sizeBarFill(context, top, bottom) {
+    const area = context.chart.chartArea;
+    if (!area) return top;
+    const gradient = context.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    gradient.addColorStop(0, top);
+    gradient.addColorStop(1, bottom);
+    return gradient;
+}
 
 new Chart(ctx, {
 
@@ -624,18 +642,19 @@ new Chart(ctx, {
 
                 data: JSON.parse('{{ size_out | tojson | safe }}'),
 
-                backgroundColor: pinkGradient,
+                backgroundColor: context => sizeBarFill(context, "#e45b64", "#ee7d85"),
 
-                borderColor: "#ec4899",
-                borderWidth: 1,
+                borderColor: "#e45b64",
+                borderWidth: 0,
 
-                borderRadius: 14,
+                borderRadius: {topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0},
                 borderSkipped: false,
 
-                hoverBackgroundColor: "#ec4899",
-                hoverBorderWidth: 2,
+                hoverBackgroundColor: "#e45b64",
+                hoverBorderWidth: 0,
 
-                maxBarThickness: 42
+                barThickness: window.innerWidth < 600 ? 20 : 30,
+                maxBarThickness: window.innerWidth < 600 ? 14 : 22
             },
 
             {
@@ -643,18 +662,19 @@ new Chart(ctx, {
 
                 data: JSON.parse('{{ size_in | tojson | safe }}'),
 
-                backgroundColor: blueGradient,
+                backgroundColor: context => sizeBarFill(context, "#4389df", "#70a7eb"),
 
-                borderColor: "#2563eb",
-                borderWidth: 1,
+                borderColor: "#4389df",
+                borderWidth: 0,
 
-                borderRadius: 14,
+                borderRadius: {topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0},
                 borderSkipped: false,
 
-                hoverBackgroundColor: "#2563eb",
-                hoverBorderWidth: 2,
+                hoverBackgroundColor: "#4389df",
+                hoverBorderWidth: 0,
 
-                maxBarThickness: 42
+                barThickness: window.innerWidth < 600 ? 20 : 30,
+                maxBarThickness: window.innerWidth < 600 ? 14 : 22
             }
 
         ]
@@ -668,7 +688,7 @@ new Chart(ctx, {
 
         layout: {
             padding: {
-                top: 20,
+                top: 12,
                 left: 10,
                 right: 10,
                 bottom: 10
@@ -683,6 +703,7 @@ new Chart(ctx, {
         plugins: {
 
             legend: {
+                display: false,
                 position: "top",
 
                 labels: {
@@ -714,24 +735,16 @@ new Chart(ctx, {
             },
 
             datalabels: {
-
-                color: function (context) {
-                    return context.dataset.data[context.dataIndex] > 0
-                        ? "#ffffff"
-                        : "#94a3b8";
-                },
-
-                anchor: "end",
-                align: "start",
-
-                offset: 10,
-
-                clamp: true,
-
-                font: {
-                    size: 13,
-                    weight: "700"
-                }
+                display: context => Number(context.dataset.data[context.dataIndex]) !== 0,
+                formatter: value => Number(value).toLocaleString('ko-KR'),
+                color: context => context.dataset.borderColor,
+                anchor: 'end',
+                align: 'end',
+                offset: 7,
+                backgroundColor: "rgba(255,255,255,0.92)",
+                borderRadius: 4,
+                padding: {top: 2, bottom: 2, left: 3, right: 3},
+                font: {size: 13, weight: '600'}
             }
 
         },
@@ -739,6 +752,7 @@ new Chart(ctx, {
         scales: {
 
             x: {
+                border: {display: true, color: "#e8edf2"},
 
                 grid: {
                     display: false
@@ -747,6 +761,7 @@ new Chart(ctx, {
                 ticks: {
 
                     color: "#64748b",
+                    padding: 12,
 
                     font: {
                         size: 12,
@@ -760,16 +775,19 @@ new Chart(ctx, {
             y: {
 
                 beginAtZero: true,
+                display: true,
+                grace: "22%",
+                border: {display:false},
 
                 grid: {
-
-                    color: "rgba(148,163,184,0.15)",
-
-                    drawBorder: false
+                    color: "rgba(148,163,184,0.26)",
+                    drawTicks: false,
 
                 },
 
                 ticks: {
+                    display: false,
+                    maxTicksLimit: 5,
 
                     color: "#64748b",
 
@@ -786,6 +804,17 @@ new Chart(ctx, {
 
     }
 
+});
+
+document.querySelectorAll('.product-chart-legend button').forEach(button => {
+    button.addEventListener('click', () => {
+        const chart = Chart.getChart(button.closest('[data-chart]').dataset.chart);
+        const index = Number(button.dataset.series);
+        const visible = !chart.isDatasetVisible(index);
+        chart.setDatasetVisibility(index, visible);
+        button.setAttribute('aria-pressed', String(visible));
+        chart.update();
+    });
 });
 
 const filterBtn =

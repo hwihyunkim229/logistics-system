@@ -4,6 +4,7 @@
 {% include "dashboard/_navigation.html" %}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
 
 <style>
 
@@ -184,10 +185,15 @@
         grid-template-columns:1fr;
     }
     .chart-card canvas{
-        height:260px !important;
+        height:280px !important;
     }
 }
 
+.product-chart-legend{display:flex;justify-content:center;gap:22px;min-height:36px;align-items:center;margin-bottom:8px;}
+.product-chart-legend button{display:inline-flex;align-items:center;gap:7px;padding:4px 2px;border:0;background:transparent;color:#475569;line-height:1.4;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.product-chart-legend button::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--series-color);flex-shrink:0;}
+.product-chart-legend button[aria-pressed="false"]{opacity:.45;text-decoration:line-through;}
+.product-chart-legend button:focus-visible{outline:2px solid #4389df;outline-offset:3px;border-radius:3px;}
 </style>
 
 <div class="dashboard-kpi-grid">
@@ -230,6 +236,10 @@
 
     </div>
 
+    <div class="product-chart-legend" aria-label="차트 범례" data-chart="sizeChart{{ loop.index }}">
+        <button type="button" data-series="0" aria-pressed="true" style="--series-color:#e45b64">출고</button>
+        <button type="button" data-series="1" aria-pressed="true" style="--series-color:#4389df">입고</button>
+    </div>
     <canvas id="sizeChart{{ loop.index }}"></canvas>
 
 </div>
@@ -241,111 +251,216 @@
 {% for chart in charts %}
 
 <script>
+(function(){
+Chart.register(ChartDataLabels);
+const ctx = document.getElementById("sizeChart{{ loop.index }}");
 
-new Chart(
-    document.getElementById("sizeChart{{ loop.index }}"),
-    {
-        type:"bar",
+function sizeBarFill(context, top, bottom) {
+    const area = context.chart.chartArea;
+    if (!area) return top;
+    const gradient = context.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    gradient.addColorStop(0, top);
+    gradient.addColorStop(1, bottom);
+    return gradient;
+}
 
-        data:{
-            labels: JSON.parse('{{ chart.labels | tojson | safe }}'),
+new Chart(ctx, {
 
-            datasets:[
-                {
-                    label:"입고",
+    type: "bar",
 
-                    data: JSON.parse('{{ chart.in_counts | tojson | safe }}'),
+    data: {
 
-                    backgroundColor:"rgba(37,99,235,0.45)",
-                    borderColor:"#2563eb",
+        labels: JSON.parse('{{ chart.labels | tojson | safe }}'),
 
-                    borderWidth:1,
+        datasets: [
 
-                    borderRadius:10,
+            {
+                label: "출고",
 
-                    maxBarThickness:34
-                },
+                data: JSON.parse('{{ chart.out_counts | tojson | safe }}'),
 
-                {
-                    label:"출고",
+                backgroundColor: context => sizeBarFill(context, "#e45b64", "#ee7d85"),
 
-                    data: JSON.parse('{{ chart.out_counts | tojson | safe }}'),
+                borderColor: "#e45b64",
+                borderWidth: 0,
 
-                    backgroundColor:"rgba(236,72,153,0.45)",
-                    borderColor:"#ec4899",
+                borderRadius: {topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0},
+                borderSkipped: false,
 
-                    borderWidth:1,
+                hoverBackgroundColor: "#e45b64",
+                hoverBorderWidth: 0,
 
-                    borderRadius:10,
+                barThickness: window.innerWidth < 600 ? 20 : 30,
+                maxBarThickness: window.innerWidth < 600 ? 14 : 22
+            },
 
-                    maxBarThickness:34
-                }
-            ]
+            {
+                label: "입고",
+
+                data: JSON.parse('{{ chart.in_counts | tojson | safe }}'),
+
+                backgroundColor: context => sizeBarFill(context, "#4389df", "#70a7eb"),
+
+                borderColor: "#4389df",
+                borderWidth: 0,
+
+                borderRadius: {topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0},
+                borderSkipped: false,
+
+                hoverBackgroundColor: "#4389df",
+                hoverBorderWidth: 0,
+
+                barThickness: window.innerWidth < 600 ? 20 : 30,
+                maxBarThickness: window.innerWidth < 600 ? 14 : 22
+            }
+
+        ]
+
+    },
+
+    options: {
+
+        responsive: true,
+        maintainAspectRatio: false,
+
+        layout: {
+            padding: {
+                top: 12,
+                left: 10,
+                right: 10,
+                bottom: 10
+            }
         },
 
-        options:{
+        interaction: {
+            intersect: false,
+            mode: "index"
+        },
 
-            responsive:true,
+        plugins: {
 
-            maintainAspectRatio:false,
+            legend: {
+                display: false,
+                position: "top",
 
-            plugins:{
-                legend:{
-                    position:"top",
+                labels: {
+                    usePointStyle: true,
+                    pointStyle: "circle",
+                    padding: 22,
 
-                    labels:{
-                        usePointStyle:true,
+                    color: "#475569",
 
-                        pointStyle:"circle",
-
-                        padding:18,
-
-                        font:{
-                            size:12,
-                            weight:"600"
-                        }
+                    font: {
+                        size: 13,
+                        weight: "700"
                     }
                 }
             },
 
-            scales:{
+            tooltip: {
 
-                x:{
-                    grid:{
-                        color:"rgba(148,163,184,0.08)"
-                    },
+                backgroundColor: "#0f172a",
 
-                    ticks:{
-                        color:"#64748b",
+                titleColor: "#fff",
+                bodyColor: "#e2e8f0",
 
-                        font:{
-                            size:11
-                        }
-                    }
+                padding: 14,
+
+                cornerRadius: 12,
+
+                displayColors: true
+            },
+
+            datalabels: {
+                display: context => Number(context.dataset.data[context.dataIndex]) !== 0,
+                formatter: value => Number(value).toLocaleString('ko-KR'),
+                color: context => context.dataset.borderColor,
+                anchor: 'end',
+                align: 'end',
+                offset: 7,
+                backgroundColor: "rgba(255,255,255,0.92)",
+                borderRadius: 4,
+                padding: {top: 2, bottom: 2, left: 3, right: 3},
+                font: {size: 13, weight: '600'}
+            }
+
+        },
+
+        scales: {
+
+            x: {
+                border: {display: true, color: "#e8edf2"},
+
+                grid: {
+                    display: false
                 },
 
-                y:{
-                    beginAtZero:true,
+                ticks: {
 
-                    grid:{
-                        color:"rgba(148,163,184,0.08)"
-                    },
+                    color: "#64748b",
+                    padding: 12,
 
-                    ticks:{
-                        color:"#64748b",
-
-                        font:{
-                            size:11
-                        }
+                    font: {
+                        size: 12,
+                        weight: "600"
                     }
-                }
-            }
-        }
-    }
-);
 
+                }
+
+            },
+
+            y: {
+
+                beginAtZero: true,
+                display: true,
+                grace: "22%",
+                border: {display:false},
+
+                grid: {
+                    color: "rgba(148,163,184,0.26)",
+                    drawTicks: false,
+
+                },
+
+                ticks: {
+                    display: false,
+                    maxTicksLimit: 5,
+
+                    color: "#64748b",
+
+                    font: {
+                        size: 12,
+                        weight: "600"
+                    }
+
+                }
+
+            }
+
+        }
+
+    }
+
+});
+
+
+})();
 </script>
 
 {% endfor %}
+
+<script>
+document.querySelectorAll('.product-chart-legend button').forEach(button => {
+    button.addEventListener('click', () => {
+        const chart = Chart.getChart(button.closest('[data-chart]').dataset.chart);
+        const index = Number(button.dataset.series);
+        const visible = !chart.isDatasetVisible(index);
+        chart.setDatasetVisibility(index, visible);
+        button.setAttribute('aria-pressed', String(visible));
+        chart.update();
+    });
+});
+
+</script>
 
 {% endblock %}
