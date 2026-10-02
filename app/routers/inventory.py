@@ -19,6 +19,7 @@ from app.models.stock import Stock
 from app.utils.logger import save_log
 from app.utils.downloads import download_content_disposition
 from app.utils.item_codes import normalize_item_code
+from app.utils.timezone import format_kst
 
 router = APIRouter()
 
@@ -933,7 +934,8 @@ def inventory_history(
             "total_pages": total_pages,
             "movement_type": movement_type,
             "keyword": keyword,
-            "category": category
+            "category": category,
+            "format_kst": format_kst,
         }
     )
 
@@ -951,7 +953,7 @@ def download_inventory_history_excel(
 
     data = [
         {
-            "일시": row.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            "일시": format_kst(row.created_at),
             "품목코드": row.item_code,
             "품명": row.item_name,
             "구분": row.category,

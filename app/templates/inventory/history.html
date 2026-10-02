@@ -303,7 +303,7 @@
 
             {% for row in history %}
             <tr data-type="{{ row.movement_type }}">
-                <td>{{ row.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                <td>{{ format_kst(row.created_at) }}</td>
                 <td>{{ row.item_code }}</td>
                 <td>{{ row.item_name }}</td>
                 <td>{{ row.category or "-" }}</td>

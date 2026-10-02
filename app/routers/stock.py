@@ -30,6 +30,7 @@ from app.models.material_note import MaterialNote
 from app.utils.logger import save_log
 from app.utils.downloads import dated_filename, download_content_disposition
 from app.utils.item_codes import normalize_item_code
+from app.utils.timezone import format_kst
 
 router = APIRouter()
 
@@ -394,7 +395,8 @@ def stock_history(
             "total_pages": total_pages,
             "movement_type": movement_type,
             "keyword": keyword,
-            "category": category
+            "category": category,
+            "format_kst": format_kst,
         }
     )
 
@@ -849,10 +851,7 @@ def download_history_excel(
 
         data.append({
 
-            "일시":
-                row.created_at.strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                ),
+            "일시": format_kst(row.created_at),
 
             "품목코드":
                 row.item_code,

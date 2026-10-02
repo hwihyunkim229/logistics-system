@@ -421,7 +421,7 @@
                 data-type="{{ row.movement_type }}">
 
                     <td>
-                        {{ row.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                        {{ format_kst(row.created_at) }}
                     </td>
 
                     <td>
