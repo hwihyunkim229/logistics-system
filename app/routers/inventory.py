@@ -539,17 +539,24 @@ def inventory_mobile_items(
 @router.post("/inventory/move-in")
 async def inventory_move_in(
     request: Request,
-    data: InventoryMovementRequest,
+    data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
-
-    ids = list(dict.fromkeys(data.ids))
-    qty = data.qty
-    remark = data.remark.strip()
-    lot = data.lot.strip()
-    inspector = data.inspector.strip()
     try:
-        first_received_date = parse_first_received_date(data.first_received_date)
+        raw_ids = data.get("ids", [])
+        if not isinstance(raw_ids, list):
+            raw_ids = [raw_ids]
+        ids = list(dict.fromkeys(int(item_id) for item_id in raw_ids))
+        qty = int(data.get("qty", 0))
+    except (TypeError, ValueError):
+        return JSONResponse({"status": "error", "message": "재고 항목과 수량을 확인하세요."}, status_code=400)
+    if not ids or qty <= 0:
+        return JSONResponse({"status": "error", "message": "수량은 1 이상이어야 합니다."}, status_code=400)
+    remark = str(data.get("remark") or "").strip()[:500]
+    lot = str(data.get("lot") or "").strip()[:100]
+    inspector = str(data.get("inspector") or "").strip()[:100]
+    try:
+        first_received_date = parse_first_received_date(str(data.get("first_received_date") or ""))
     except ValueError as exc:
         return JSONResponse({"status": "error", "message": str(exc)}, status_code=400)
     username = current_user(request)
@@ -603,17 +610,24 @@ async def inventory_move_in(
 @router.post("/inventory/move-out")
 async def inventory_move_out(
     request: Request,
-    data: InventoryMovementRequest,
+    data: dict = Body(...),
     db: Session = Depends(get_db)
 ):
-
-    ids = list(dict.fromkeys(data.ids))
-    qty = data.qty
-    remark = data.remark.strip()
-    lot = data.lot.strip()
-    inspector = data.inspector.strip()
     try:
-        first_received_date = parse_first_received_date(data.first_received_date)
+        raw_ids = data.get("ids", [])
+        if not isinstance(raw_ids, list):
+            raw_ids = [raw_ids]
+        ids = list(dict.fromkeys(int(item_id) for item_id in raw_ids))
+        qty = int(data.get("qty", 0))
+    except (TypeError, ValueError):
+        return JSONResponse({"status": "error", "message": "재고 항목과 수량을 확인하세요."}, status_code=400)
+    if not ids or qty <= 0:
+        return JSONResponse({"status": "error", "message": "수량은 1 이상이어야 합니다."}, status_code=400)
+    remark = str(data.get("remark") or "").strip()[:500]
+    lot = str(data.get("lot") or "").strip()[:100]
+    inspector = str(data.get("inspector") or "").strip()[:100]
+    try:
+        first_received_date = parse_first_received_date(str(data.get("first_received_date") or ""))
     except ValueError as exc:
         return JSONResponse({"status": "error", "message": str(exc)}, status_code=400)
     username = current_user(request)

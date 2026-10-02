@@ -86,14 +86,14 @@ class InventoryMobileApiTests(unittest.TestCase):
         asyncio.run(
             inventory_move_in(
                 request_with_session(),
-                InventoryMovementRequest(
-                    ids=[self.item.id],
-                    qty=3,
-                    remark="APK",
-                    lot="LOT-QR-01",
-                    inspector="홍길동",
-                    first_received_date="2026/10/02",
-                ),
+                {
+                    "ids": [self.item.id],
+                    "qty": 3,
+                    "remark": "APK",
+                    "lot": "LOT-QR-01",
+                    "inspector": "홍길동",
+                    "first_received_date": "2026/10/02",
+                },
                 self.db,
             )
         )
@@ -109,7 +109,7 @@ class InventoryMobileApiTests(unittest.TestCase):
         asyncio.run(
             inventory_move_out(
                 request_with_session(),
-                InventoryMovementRequest(ids=[self.item.id], qty=2, remark="APK"),
+                {"ids": [self.item.id], "qty": 2, "remark": "APK"},
                 self.db,
             )
         )
