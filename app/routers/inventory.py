@@ -1,13 +1,14 @@
 from app.utils.filters import filter_values
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from math import ceil
 from typing import Optional
 import pandas as pd
-from fastapi import APIRouter, Body, Depends, File, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field
 from sqlalchemy import distinct, func, or_
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
@@ -28,6 +29,36 @@ INVENTORY_LOG_PRODUCT = "수불 재고"
 WAREHOUSE_TYPES = ["창고재고", "제공재고", "외주재고"]
 CATEGORIES = ["반제품", "제품", "원자재"]
 GRADES = ["A", "B", "F"]
+
+
+class InventoryMovementRequest(BaseModel):
+    ids: list[int] = Field(min_length=1)
+    qty: int = Field(gt=0)
+    remark: str = Field(default="", max_length=500)
+    lot: str = Field(default="", max_length=100)
+    inspector: str = Field(default="", max_length=100)
+    first_received_date: str = Field(default="", max_length=30)
+
+
+def parse_first_received_date(value: str):
+    text = (value or "").strip()
+    if not text:
+        return None
+    normalized = (
+        text.replace(" ", "")
+        .replace("년", "-")
+        .replace("월", "-")
+        .replace("일", "")
+        .replace(".", "-")
+        .replace("/", "-")
+        .rstrip("-")
+    )
+    if len(normalized) == 8 and normalized.isdigit():
+        normalized = f"{normalized[:4]}-{normalized[4:6]}-{normalized[6:]}"
+    try:
+        return date.fromisoformat(normalized)
+    except ValueError:
+        raise ValueError("입고일자는 YYYY-MM-DD 형식이어야 합니다.")
 
 def parse_excel_quantity(value):
     """엑셀 수량을 정수로 변환하고 비어 있음을 뜻하는 값은 0으로 처리한다."""
@@ -438,19 +469,104 @@ async def add_inventory(
 
     return JSONResponse({"status": "success"})
 
+@router.get("/inventory/mobile/session")
+def inventory_mobile_session(request: Request):
+    """APK가 저장된 로그인 세션의 유효성을 확인하는 API."""
+    return {
+        "status": "success",
+        "user": current_user(request),
+    }
+
+
+@router.get("/inventory/mobile/items")
+def inventory_mobile_items(
+    request: Request,
+    keyword: str = Query(default="", max_length=100),
+    item_code: str = Query(default="", max_length=100),
+    lot: str = Query(default="", max_length=100),
+    warehouse_type: str = Query(default=""),
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """APK에서 OCR 결과에 맞는 수불재고 행을 찾기 위한 JSON API."""
+    query = db.query(Inventory)
+
+    normalized_code = normalize_item_code(item_code) if item_code.strip() else ""
+    if normalized_code:
+        query = query.filter(Inventory.item_code == normalized_code)
+    if lot.strip():
+        query = query.filter(Inventory.lot == lot.strip())
+    if warehouse_type.strip():
+        if warehouse_type.strip() not in WAREHOUSE_TYPES:
+            return JSONResponse(
+                {"status": "error", "message": "올바르지 않은 창고 유형입니다."},
+                status_code=400,
+            )
+        query = query.filter(Inventory.warehouse_type == warehouse_type.strip())
+    if keyword.strip():
+        term = keyword.strip()
+        query = query.filter(
+            or_(
+                Inventory.item_code.contains(term),
+                Inventory.item_name.contains(term),
+                Inventory.lot.contains(term),
+            )
+        )
+
+    items = query.order_by(Inventory.item_code, Inventory.lot, Inventory.id).limit(limit).all()
+
+    return {
+        "status": "success",
+        "user": current_user(request),
+        "items": [
+            {
+                "id": item.id,
+                "item_code": item.item_code,
+                "item_name": item.item_name,
+                "category": item.category,
+                "warehouse_type": item.warehouse_type,
+                "lot": item.lot,
+                "grade": item.grade,
+                "rev": item.rev,
+                "note": item.note,
+                "qty": item.qty or 0,
+            }
+            for item in items
+        ],
+    }
+
+
 @router.post("/inventory/move-in")
 async def inventory_move_in(
     request: Request,
-    data: dict = Body(...),
+    data: InventoryMovementRequest,
     db: Session = Depends(get_db)
 ):
 
-    ids = data.get("ids", [])
-    qty = int(data.get("qty", 0))
-    remark = data.get("remark", "")
+    ids = list(dict.fromkeys(data.ids))
+    qty = data.qty
+    remark = data.remark.strip()
+    lot = data.lot.strip()
+    inspector = data.inspector.strip()
+    try:
+        first_received_date = parse_first_received_date(data.first_received_date)
+    except ValueError as exc:
+        return JSONResponse({"status": "error", "message": str(exc)}, status_code=400)
     username = current_user(request)
 
     items = db.query(Inventory).filter(Inventory.id.in_(ids)).all()
+
+    found_ids = {item.id for item in items}
+    missing_ids = [item_id for item_id in ids if item_id not in found_ids]
+    if missing_ids:
+        return JSONResponse(
+            {
+                "status": "error",
+                "message": "존재하지 않는 재고 항목이 있습니다.",
+                "missing_ids": missing_ids,
+            },
+            status_code=404,
+        )
 
     for item in items:
 
@@ -465,7 +581,10 @@ async def inventory_move_in(
                 movement_type="IN",
                 qty=qty,
                 user=username,
-                source=remark
+                source=remark,
+                lot=lot,
+                inspector=inspector,
+                first_received_date=first_received_date,
             )
         )
 
@@ -484,16 +603,34 @@ async def inventory_move_in(
 @router.post("/inventory/move-out")
 async def inventory_move_out(
     request: Request,
-    data: dict = Body(...),
+    data: InventoryMovementRequest,
     db: Session = Depends(get_db)
 ):
 
-    ids = data.get("ids", [])
-    qty = int(data.get("qty", 0))
-    remark = data.get("remark", "")
+    ids = list(dict.fromkeys(data.ids))
+    qty = data.qty
+    remark = data.remark.strip()
+    lot = data.lot.strip()
+    inspector = data.inspector.strip()
+    try:
+        first_received_date = parse_first_received_date(data.first_received_date)
+    except ValueError as exc:
+        return JSONResponse({"status": "error", "message": str(exc)}, status_code=400)
     username = current_user(request)
 
     items = db.query(Inventory).filter(Inventory.id.in_(ids)).all()
+
+    found_ids = {item.id for item in items}
+    missing_ids = [item_id for item_id in ids if item_id not in found_ids]
+    if missing_ids:
+        return JSONResponse(
+            {
+                "status": "error",
+                "message": "존재하지 않는 재고 항목이 있습니다.",
+                "missing_ids": missing_ids,
+            },
+            status_code=404,
+        )
 
     for item in items:
         if (item.qty or 0) < qty:
@@ -518,7 +655,10 @@ async def inventory_move_out(
                 movement_type="OUT",
                 qty=qty,
                 user=username,
-                source=remark
+                source=remark,
+                lot=lot,
+                inspector=inspector,
+                first_received_date=first_received_date,
             )
         )
 
@@ -747,7 +887,9 @@ def inventory_history(
             or_(
                 InventoryMovement.item_code.contains(keyword),
                 InventoryMovement.item_name.contains(keyword),
-                InventoryMovement.user.contains(keyword)
+                InventoryMovement.user.contains(keyword),
+                InventoryMovement.lot.contains(keyword),
+                InventoryMovement.inspector.contains(keyword),
             )
         )
 
@@ -802,6 +944,9 @@ def download_inventory_history_excel(
             "창고구분": row.warehouse_type,
             "유형": "입고" if row.movement_type == "IN" else "출고",
             "수량": row.qty,
+            "LOT": row.lot or "",
+            "검사원": row.inspector or "",
+            "최초 입고일자": row.first_received_date.strftime("%Y-%m-%d") if row.first_received_date else "",
             "작업자": row.user,
             "비고": row.source
         }

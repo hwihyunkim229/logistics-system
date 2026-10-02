@@ -1,5 +1,6 @@
 from sqlalchemy import (
     Column,
+    Date,
     Integer,
     String,
     DateTime
@@ -20,6 +21,9 @@ class InventoryMovement(Base):
     qty = Column(Integer)
     user = Column(String)
     source = Column(String)
+    lot = Column(String)
+    inspector = Column(String)
+    first_received_date = Column(Date)
     created_at = Column(
         DateTime,
         default=datetime.now

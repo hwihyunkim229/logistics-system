@@ -72,6 +72,7 @@ from app.workflow.routers import (
 import app.workflow.models
 from app.workflow.schema import ensure_workflow_schema
 from app.rental_schema import ensure_rental_schema
+from app.inventory_schema import ensure_inventory_schema
 import time
 from fastapi.responses import JSONResponse, Response
 from app.utils.access_logger import save_access_log, should_record
@@ -111,6 +112,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
         call_next
     ):
         path = request.url.path
+        expects_json = (
+            path.startswith("/inventory/mobile/")
+            or request.headers.get("content-type", "").startswith("application/json")
+            or "application/json" in request.headers.get("accept", "")
+        )
 
         if (
             path.startswith("/login")
@@ -126,7 +132,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
         user = request.session.get("user")
 
         if not user:
-            response = RedirectResponse("/login")
+            response = (
+                JSONResponse(
+                    {"status": "error", "message": "로그인이 필요합니다."},
+                    status_code=401,
+                )
+                if expects_json
+                else RedirectResponse("/login")
+            )
             if should_record(path):
                 save_access_log(
                     request=request,
@@ -146,9 +159,16 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
             request.session.clear()
 
-            response = RedirectResponse(
-                "/login?expired=1",
-                status_code=302
+            response = (
+                JSONResponse(
+                    {"status": "error", "message": "로그인 세션이 만료되었습니다."},
+                    status_code=401,
+                )
+                if expects_json
+                else RedirectResponse(
+                    "/login?expired=1",
+                    status_code=302,
+                )
             )
             save_access_log(
                 request=request,
@@ -174,7 +194,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         if account is None:
             request.session.clear()
-            response = RedirectResponse("/login")
+            response = (
+                JSONResponse(
+                    {"status": "error", "message": "사용자 계정을 확인할 수 없습니다."},
+                    status_code=401,
+                )
+                if expects_json
+                else RedirectResponse("/login")
+            )
             save_access_log(
                 request=request,
                 status_code=response.status_code,
@@ -227,6 +254,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     "edit": "수정",
                     "download": "다운로드",
                 }[action]
+                if expects_json:
+                    return JSONResponse(
+                        {
+                            "status": "error",
+                            "message": f"{action_name} 권한이 없습니다.",
+                        },
+                        status_code=403,
+                    )
                 allowed_home = first_allowed_home(
                     permissions,
                     preferred_feature=feature,
@@ -313,3 +348,4 @@ Base.metadata.create_all(
 
 ensure_workflow_schema(engine)
 ensure_rental_schema(engine)
+ensure_inventory_schema(engine)

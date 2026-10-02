@@ -625,12 +625,47 @@ button:hover{
 .plan-view-controls button{padding:7px 13px;border:1px solid #d6e3e2;border-radius:7px;background:white;color:#334155;cursor:pointer;}
 .plan-view-controls button[aria-pressed="true"]{background:#0f766e!important;color:white!important;}
 .plan-view-controls span{font-size:12px;color:#64748b;}
-#planTable{width:max-content;min-width:100%;}
-#planTable th[data-plan-date],#planTable td[data-plan-qty]{min-width:76px;}
-#planTable .plan-total{position:sticky;left:340px;min-width:90px;background:#f0f7f6!important;color:#215951!important;z-index:11;font-weight:700;}
+#planTable{
+    width:max-content;
+    min-width:100%;
+    table-layout:auto;
+    border-collapse:separate;
+    border-spacing:0;
+}
+#planTable .product-col{
+    width:340px;
+    min-width:340px;
+    max-width:340px;
+    box-sizing:border-box;
+}
+#planTable th[data-plan-date],
+#planTable td[data-plan-qty]{
+    width:76px;
+    min-width:76px;
+    max-width:76px;
+    box-sizing:border-box;
+}
+#planTable .plan-total{
+    position:sticky;
+    left:340px;
+    width:90px;
+    min-width:90px;
+    max-width:90px;
+    box-sizing:border-box;
+    background:#f0f7f6!important;
+    color:#215951!important;
+    z-index:11;
+    font-weight:700;
+}
+#planTable thead .plan-total{z-index:29;}
 #planTable .plan-week-boundary{border-left:2px solid #cadbd9!important;}
 #planTable [hidden]{display:none!important;}
-#planTable .plan-week-cell{min-width:130px;}
+#planTable .plan-week-cell{
+    width:130px;
+    min-width:130px;
+    max-width:130px;
+    box-sizing:border-box;
+}
 #planTable .plan-week-group{background:#eaf3f2!important;color:#365b59!important;height:30px;}
 #planTable .plan-today{box-shadow:inset 0 -3px #0f766e;}
 </style>
