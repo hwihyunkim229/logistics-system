@@ -416,6 +416,53 @@ th input[type="checkbox"]{
 .bulk-menu div:hover{
     background:#f5f6fa;
 }
+
+.lot-toggle{
+    width:30px;
+    height:30px;
+    padding:0;
+    border-radius:8px;
+    color:#087864;
+    background:#e8f5f1;
+}
+
+.lot-detail-row{
+    display:none;
+    background:#f7fbfa;
+}
+
+.lot-detail-row.open{
+    display:table-row;
+}
+
+.lot-detail-cell{
+    text-align:left !important;
+    padding:8px 24px 14px 80px !important;
+}
+
+.lot-detail-table{
+    width:100%;
+    border-collapse:collapse;
+    background:white;
+    border:1px solid #dfe9e6;
+    border-radius:10px;
+    overflow:hidden;
+}
+
+.lot-detail-table th,
+.lot-detail-table td{
+    position:static !important;
+    background:white !important;
+    color:#334 !important;
+    padding:9px 12px !important;
+    border-bottom:1px solid #e7eeec !important;
+    text-align:center !important;
+}
+
+.lot-unclassified{
+    color:#a65b00;
+    font-weight:600;
+}
 </style>
 
 <div class="page-header">
@@ -473,6 +520,7 @@ th input[type="checkbox"]{
 </div>
 {% endif %}
 
+{% set raw_material_view = current_warehouse_type == "창고재고" and current_category == "원자재" %}
 <div class="card bottom">
     <div class="card-header-row">
         <h3 id="stockTitle">
@@ -498,6 +546,12 @@ th input[type="checkbox"]{
                 📂 엑셀 업로드
             </button>
 
+            {% if raw_material_view %}
+            <button onclick="openLotRegisterModal()">
+                ➕ LOT 입고 등록
+            </button>
+            {% endif %}
+
             <input
                 type="file"
                 id="excelFile"
@@ -517,12 +571,14 @@ th input[type="checkbox"]{
                 </select>
                 {% endif %}
 
+                {% if not raw_material_view %}
                 <select id="lotFilter" data-multi-filter data-filter-param="lot" data-filter-label="LOT" onchange="navigateWithFilter('lot', this.value)">
                     <option value="">전체 LOT</option>
                     {% for lot in lots %}
                     <option value="{{ lot }}" {% if current_lot == lot %}selected{% endif %}>{{ lot }}</option>
                     {% endfor %}
                 </select>
+                {% endif %}
 
                 <select id="revFilter" data-multi-filter data-filter-param="rev" data-filter-label="REV" onchange="navigateWithFilter('rev', this.value)">
                     <option value="">전체 Rev</option>
@@ -547,7 +603,7 @@ th input[type="checkbox"]{
                 <button onclick="toggleBulkMenu()" class="action-btn" id="bulkApplyBtn" disabled>일괄 적용 ▾</button>
                 <div id="bulkApplyMenu" class="bulk-menu">
                     <div onclick="selectBulkMenu('qty')">수량</div>
-                    <div onclick="selectBulkMenu('lot')">LOT</div>
+                    {% if not raw_material_view %}<div onclick="selectBulkMenu('lot')">LOT</div>{% endif %}
                     <div onclick="selectBulkMenu('note')">비고</div>
                 </div>
             </div>
@@ -562,10 +618,11 @@ th input[type="checkbox"]{
         <table class="inventory-table" id="inventoryTable">
             <thead>
             <tr>
+                {% if raw_material_view %}<th style="width:52px;">LOT</th>{% endif %}
                 <th style="width:60px;"><input type="checkbox" id="checkAll"></th>
                 <th>품목코드</th>
                 <th>품명</th>
-                <th>LOT</th>
+                {% if not raw_material_view %}<th>LOT</th>{% endif %}
                 {% if current_warehouse_type == "창고재고" %}
                 <th>등급</th>
                 {% endif %}
@@ -579,19 +636,25 @@ th input[type="checkbox"]{
             {% for item in items %}
             <tr>
 
-                <td><input type="checkbox" class="rowCheck" value="{{ item.id }}"></td>
+                {% if raw_material_view %}
+                <td>
+                    <button class="lot-toggle" type="button" onclick="toggleLotRows({{ item.id }}, this)" aria-label="LOT 상세 펼치기">›</button>
+                </td>
+                {% endif %}
+
+                <td><input type="checkbox" class="rowCheck" value="{{ item.id }}" data-category="{{ item.category }}"></td>
                 <td>{{ item.item_code }}</td>
 
                 <td>{{ item.item_name or "" }}</td>
 
-                {% if item.category == "원자재" %}
-                <td>{{ item.lot or "-" }}</td>
-                {% else %}
+                {% if not raw_material_view %}
+                {% if item.category == "원자재" %}<td>{{ item.lot or "-" }}</td>{% else %}
                 <td
                     class="editable-cell"
                     contenteditable="true"
                     data-id="{{ item.id }}"
                     data-field="lot">{{ item.lot or "" }}</td>
+                {% endif %}
                 {% endif %}
 
                 {% if current_warehouse_type == "창고재고" %}
@@ -612,9 +675,29 @@ th input[type="checkbox"]{
                     data-id="{{ item.id }}"
                     data-field="note">{{ item.note or "" }}</td>
             </tr>
+            {% if raw_material_view %}
+            <tr id="lot-detail-{{ item.id }}" class="lot-detail-row">
+                <td colspan="8" class="lot-detail-cell">
+                    <table class="lot-detail-table">
+                        <thead><tr><th>LOT</th><th>최초 입고일자</th><th>현재 잔량</th></tr></thead>
+                        <tbody>
+                        {% for lot_row in lot_details_by_inventory.get(item.id, []) %}
+                        <tr><td>{{ lot_row.lot }}</td><td>{{ lot_row.first_received_date.strftime('%Y-%m-%d') if lot_row.first_received_date else '-' }}</td><td>{{ lot_row.qty }} EA</td></tr>
+                        {% endfor %}
+                        {% if unclassified_by_inventory.get(item.id, 0) > 0 %}
+                        <tr><td class="lot-unclassified">미분류(기초재고)</td><td>-</td><td class="lot-unclassified">{{ unclassified_by_inventory.get(item.id, 0) }} EA</td></tr>
+                        {% endif %}
+                        {% if not lot_details_by_inventory.get(item.id) and unclassified_by_inventory.get(item.id, 0) == 0 %}
+                        <tr><td colspan="3">등록된 LOT 재고가 없습니다.</td></tr>
+                        {% endif %}
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+            {% endif %}
             {% else %}
             <tr>
-                <td colspan="8" class="empty-row" style="height:120px;text-align:center;color:#999;">
+                <td colspan="{{ 8 if raw_material_view else 8 }}" class="empty-row" style="height:120px;text-align:center;color:#999;">
                     데이터가 없습니다.
                 </td>
             </tr>
@@ -662,6 +745,29 @@ th input[type="checkbox"]{
         </div>
     </div>
 </div>
+
+{% if raw_material_view %}
+<div id="lotRegisterModal" class="modal">
+    <div class="modal-content">
+        <h3>원자재 LOT 입고 등록</h3>
+        <p id="lotRegisterItem" style="margin:0 0 12px;color:#52605d;"></p>
+        <label style="font-size:13px;color:#666;">LOT</label>
+        <input type="text" id="lotRegisterLot" placeholder="QR에 기재된 LOT">
+        <label style="font-size:13px;color:#666;">수량</label>
+        <input type="number" id="lotRegisterQty" min="1" value="1">
+        <label style="font-size:13px;color:#666;">최초 입고일자</label>
+        <input type="date" id="lotRegisterDate">
+        <label style="font-size:13px;color:#666;">검사원 (입고 이력에만 기록)</label>
+        <input type="text" id="lotRegisterInspector">
+        <label style="font-size:13px;color:#666;">비고</label>
+        <input type="text" id="lotRegisterRemark" placeholder="예: 웹 LOT 등록">
+        <div class="modal-buttons">
+            <button onclick="submitLotRegister()">LOT 입고 등록</button>
+            <button onclick="closeLotRegisterModal()">취소</button>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div id="deleteModal" class="modal">
     <div class="modal-content">
@@ -800,6 +906,64 @@ function getSelectedIds(){
         .map(cb => cb.value);
 }
 
+function toggleLotRows(id, button){
+    const row = document.getElementById(`lot-detail-${id}`);
+    if(!row){ return; }
+    const opened = row.classList.toggle("open");
+    button.innerText = opened ? "⌄" : "›";
+    button.setAttribute("aria-expanded", opened ? "true" : "false");
+}
+
+function openLotRegisterModal(){
+    const selected = Array.from(document.querySelectorAll(".rowCheck:checked"));
+    if(selected.length !== 1){
+        wfAlert("LOT를 등록할 원자재 행 하나만 선택하세요.");
+        return;
+    }
+    const checkbox = selected[0];
+    if(checkbox.dataset.category !== "원자재"){
+        wfAlert("LOT 입고 등록은 원자재만 가능합니다.");
+        return;
+    }
+    const cells = checkbox.closest("tr").querySelectorAll("td");
+    document.getElementById("lotRegisterItem").innerText = `${cells[2].innerText} · ${cells[3].innerText}`;
+    document.getElementById("lotRegisterModal").dataset.inventoryId = checkbox.value;
+    document.getElementById("lotRegisterModal").style.display = "flex";
+}
+
+function closeLotRegisterModal(){
+    const modal = document.getElementById("lotRegisterModal");
+    if(!modal){ return; }
+    modal.style.display = "none";
+}
+
+async function submitLotRegister(){
+    const modal = document.getElementById("lotRegisterModal");
+    const payload = {
+        inventory_id: Number(modal.dataset.inventoryId),
+        lot: document.getElementById("lotRegisterLot").value.trim(),
+        qty: Number(document.getElementById("lotRegisterQty").value),
+        first_received_date: document.getElementById("lotRegisterDate").value,
+        inspector: document.getElementById("lotRegisterInspector").value.trim(),
+        remark: document.getElementById("lotRegisterRemark").value.trim()
+    };
+    if(!payload.lot || !Number.isInteger(payload.qty) || payload.qty < 1){
+        wfAlert("LOT와 1 이상의 수량을 입력하세요.");
+        return;
+    }
+    const response = await fetch("/inventory/lot-register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+    const result = await response.json().catch(() => ({ message: "서버 응답을 확인할 수 없습니다." }));
+    if(!response.ok || result.status !== "success"){
+        wfAlert(result.message || `LOT 등록에 실패했습니다. (${response.status})`);
+        return;
+    }
+    openResultModal(result.message);
+}
+
 function openResultModal(message){
     document.getElementById("resultMessage").innerText = message;
     document.getElementById("resultModal").style.display = "flex";
@@ -823,21 +987,25 @@ function moveOut(){
     document.getElementById("qtyModal").style.display = "flex";
 }
 
-function confirmQty(){
+async function confirmQty(){
     const qty = document.getElementById("qtyInput").value;
     const remark = document.getElementById("remarkInput").value.trim();
     const ids = getSelectedIds();
     const url = currentAction === "in" ? "/inventory/move-in" : "/inventory/move-out";
 
-    fetch(url, {
+    const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: ids, qty: qty, remark: remark })
-    }).then(() => {
-        document.getElementById("qtyInput").value = 1;
-        document.getElementById("remarkInput").value = "";
-        location.reload();
     });
+    const result = await response.json().catch(() => ({ message: "서버 응답을 확인할 수 없습니다." }));
+    if(!response.ok || result.status !== "success"){
+        wfAlert(result.message || `처리에 실패했습니다. (${response.status})`);
+        return;
+    }
+    document.getElementById("qtyInput").value = 1;
+    document.getElementById("remarkInput").value = "";
+    location.reload();
 }
 
 function closeModal(){

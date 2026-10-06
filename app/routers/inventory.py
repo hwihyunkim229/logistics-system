@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.inventory import Inventory
 from app.models.inventory_movement import InventoryMovement
+from app.models.inventory_lot import InventoryLot
 from app.models.item_master import ItemMaster
 from app.models.stock import Stock
 from app.utils.logger import save_log
@@ -60,6 +61,44 @@ def parse_first_received_date(value: str):
         return date.fromisoformat(normalized)
     except ValueError:
         raise ValueError("입고일자는 YYYY-MM-DD 형식이어야 합니다.")
+
+
+def inventory_lot_row(db, item, lot):
+    return (
+        db.query(InventoryLot)
+        .filter(InventoryLot.inventory_id == item.id, InventoryLot.lot == lot)
+        .first()
+    )
+
+
+def tracked_lot_qty(db, item_id):
+    return int(
+        db.query(func.coalesce(func.sum(InventoryLot.qty), 0))
+        .filter(InventoryLot.inventory_id == item_id)
+        .scalar()
+        or 0
+    )
+
+
+def add_to_inventory_lot(db, item, lot, qty, first_received_date):
+    row = inventory_lot_row(db, item, lot)
+    if row is None:
+        row = InventoryLot(
+            inventory_id=item.id,
+            item_code=item.item_code,
+            warehouse_type=item.warehouse_type,
+            grade=item.grade,
+            lot=lot,
+            first_received_date=first_received_date,
+            qty=0,
+        )
+        db.add(row)
+    elif first_received_date and (
+        row.first_received_date is None or first_received_date < row.first_received_date
+    ):
+        row.first_received_date = first_received_date
+    row.qty = (row.qty or 0) + qty
+    return row
 
 def parse_excel_quantity(value):
     """엑셀 수량을 정수로 변환하고 비어 있음을 뜻하는 값은 0으로 처리한다."""
@@ -321,6 +360,25 @@ def inventory_page(
         .all()
     )
 
+    lot_details_by_inventory = {}
+    unclassified_by_inventory = {}
+    if items:
+        item_ids = [item.id for item in items if item.category == "원자재"]
+        lot_rows = (
+            db.query(InventoryLot)
+            .filter(InventoryLot.inventory_id.in_(item_ids))
+            .order_by(InventoryLot.first_received_date, InventoryLot.lot)
+            .all()
+            if item_ids
+            else []
+        )
+        for row in lot_rows:
+            lot_details_by_inventory.setdefault(row.inventory_id, []).append(row)
+        for item in items:
+            if item.category == "원자재":
+                tracked = sum(row.qty or 0 for row in lot_details_by_inventory.get(item.id, []))
+                unclassified_by_inventory[item.id] = max((item.qty or 0) - tracked, 0)
+
     total_pages = max(1, ceil(total_count / per_page))
 
     warehouse_totals = {}
@@ -353,6 +411,8 @@ def inventory_page(
             "categories": CATEGORIES,
             "grades": GRADES,
             "warehouse_totals": warehouse_totals,
+            "lot_details_by_inventory": lot_details_by_inventory,
+            "unclassified_by_inventory": unclassified_by_inventory,
         }
     )
 
@@ -537,6 +597,63 @@ def inventory_mobile_items(
     }
 
 
+@router.post("/inventory/lot-register")
+async def inventory_lot_register(
+    request: Request,
+    data: dict = Body(...),
+    db: Session = Depends(get_db),
+):
+    try:
+        inventory_id = int(data.get("inventory_id"))
+        qty = int(data.get("qty", 0))
+    except (TypeError, ValueError):
+        return JSONResponse({"status": "error", "message": "품목과 수량을 확인하세요."}, status_code=400)
+
+    lot = str(data.get("lot") or "").strip()[:100]
+    inspector = str(data.get("inspector") or "").strip()[:100]
+    remark = str(data.get("remark") or "").strip()[:500]
+    if qty <= 0 or not lot:
+        return JSONResponse({"status": "error", "message": "LOT와 1 이상의 수량을 입력하세요."}, status_code=400)
+    try:
+        received_date = parse_first_received_date(str(data.get("first_received_date") or ""))
+    except ValueError as exc:
+        return JSONResponse({"status": "error", "message": str(exc)}, status_code=400)
+
+    item = db.query(Inventory).filter(Inventory.id == inventory_id).first()
+    if item is None:
+        return JSONResponse({"status": "error", "message": "재고 항목을 찾을 수 없습니다."}, status_code=404)
+    if item.category != "원자재":
+        return JSONResponse({"status": "error", "message": "LOT 입고 등록은 원자재만 가능합니다."}, status_code=400)
+
+    add_to_inventory_lot(db, item, lot, qty, received_date)
+    item.qty = (item.qty or 0) + qty
+    username = current_user(request)
+    db.add(
+        InventoryMovement(
+            item_code=item.item_code,
+            item_name=item.item_name,
+            category=item.category,
+            warehouse_type=item.warehouse_type,
+            movement_type="IN",
+            qty=qty,
+            user=username,
+            source=remark or "LOT 입고 등록",
+            lot=lot,
+            inspector=inspector,
+            first_received_date=received_date,
+        )
+    )
+    db.commit()
+    save_log(
+        user=username,
+        product=INVENTORY_LOG_PRODUCT,
+        action="INVENTORY_MOVE_IN",
+        serial=item.item_code,
+        detail=f"원자재 LOT 입고 등록: {lot} / {qty} EA",
+    )
+    return JSONResponse({"status": "success", "message": "LOT 입고와 총재고 반영이 완료되었습니다."})
+
+
 @router.post("/inventory/move-in")
 async def inventory_move_in(
     request: Request,
@@ -577,7 +694,8 @@ async def inventory_move_in(
         )
 
     for item in items:
-
+        if item.category == "원자재" and lot:
+            add_to_inventory_lot(db, item, lot, qty, first_received_date)
         item.qty = (item.qty or 0) + qty
 
         db.add(
@@ -656,9 +774,27 @@ async def inventory_move_out(
                 },
                 status_code=400
             )
+        if item.category == "원자재":
+            if lot:
+                lot_row = inventory_lot_row(db, item, lot)
+                if lot_row is None or (lot_row.qty or 0) < qty:
+                    available = lot_row.qty if lot_row else 0
+                    return JSONResponse(
+                        {"status": "error", "message": f"LOT {lot} 재고 부족 (현재 {available or 0} EA)"},
+                        status_code=400,
+                    )
+            else:
+                unclassified = max((item.qty or 0) - tracked_lot_qty(db, item.id), 0)
+                if unclassified < qty:
+                    return JSONResponse(
+                        {"status": "error", "message": f"미분류 기초재고 부족 (현재 {unclassified} EA)"},
+                        status_code=400,
+                    )
 
     for item in items:
-
+        if item.category == "원자재" and lot:
+            lot_row = inventory_lot_row(db, item, lot)
+            lot_row.qty -= qty
         item.qty -= qty
 
         db.add(
@@ -701,6 +837,7 @@ async def delete_selected_inventory(
     items = db.query(Inventory).filter(Inventory.id.in_(ids)).all()
 
     for item in items:
+        db.query(InventoryLot).filter(InventoryLot.inventory_id == item.id).delete()
         db.delete(item)
 
     db.commit()

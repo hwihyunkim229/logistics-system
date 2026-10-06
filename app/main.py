@@ -34,6 +34,7 @@ from app.models import (
     production_plan,
     inventory,
     inventory_movement,
+    inventory_lot,
     material_note,
     material_master,
     item_master,

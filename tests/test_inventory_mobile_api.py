@@ -11,9 +11,11 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base
 from app.models.inventory import Inventory
 from app.models.inventory_movement import InventoryMovement
+from app.models.inventory_lot import InventoryLot
 from app.routers.inventory import (
     InventoryMovementRequest,
     inventory_mobile_items,
+    inventory_lot_register,
     inventory_move_in,
     inventory_move_out,
 )
@@ -40,7 +42,7 @@ class InventoryMobileApiTests(unittest.TestCase):
         )
         Base.metadata.create_all(
             engine,
-            tables=[Inventory.__table__, InventoryMovement.__table__],
+            tables=[Inventory.__table__, InventoryMovement.__table__, InventoryLot.__table__],
         )
         self.db = sessionmaker(bind=engine)()
         self.item = Inventory(
@@ -105,6 +107,8 @@ class InventoryMobileApiTests(unittest.TestCase):
         self.assertEqual(inbound_history.inspector, "홍길동")
         self.assertEqual(inbound_history.first_received_date.isoformat(), "2026-10-02")
         self.assertEqual(self.item.lot, "LOT-01")
+        lot_stock = self.db.query(InventoryLot).filter_by(inventory_id=self.item.id, lot="LOT-QR-01").one()
+        self.assertEqual(lot_stock.qty, 3)
 
         asyncio.run(
             inventory_move_out(
@@ -116,6 +120,38 @@ class InventoryMobileApiTests(unittest.TestCase):
         self.db.refresh(self.item)
         self.assertEqual(self.item.qty, 11)
         self.assertEqual(self.db.query(InventoryMovement).count(), 2)
+
+    @patch("app.routers.inventory.save_log")
+    def test_lot_register_and_lot_out_update_lot_and_total_stock(self, _save_log):
+        response = asyncio.run(
+            inventory_lot_register(
+                request_with_session(),
+                {
+                    "inventory_id": self.item.id,
+                    "qty": 5,
+                    "lot": "LOT-NEW",
+                    "inspector": "검사원",
+                    "first_received_date": "2026-10-06",
+                },
+                self.db,
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.db.refresh(self.item)
+        self.assertEqual(self.item.qty, 15)
+        self.assertEqual(self.db.query(InventoryLot).filter_by(lot="LOT-NEW").one().qty, 5)
+
+        response = asyncio.run(
+            inventory_move_out(
+                request_with_session(),
+                {"ids": [self.item.id], "qty": 2, "lot": "LOT-NEW"},
+                self.db,
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.db.refresh(self.item)
+        self.assertEqual(self.item.qty, 13)
+        self.assertEqual(self.db.query(InventoryLot).filter_by(lot="LOT-NEW").one().qty, 3)
 
 
 if __name__ == "__main__":
