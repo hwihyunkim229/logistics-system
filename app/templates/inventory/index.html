@@ -418,12 +418,45 @@ th input[type="checkbox"]{
 }
 
 .lot-toggle{
-    width:30px;
-    height:30px;
-    padding:0;
-    border-radius:8px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    min-width:82px;
+    height:32px;
+    padding:0 12px;
+    border:1px solid #c6ded8;
+    border-radius:999px;
     color:#087864;
-    background:#e8f5f1;
+    background:linear-gradient(180deg,#ffffff 0%,#edf8f5 100%);
+    font-size:12px;
+    font-weight:700;
+    line-height:1;
+    box-shadow:0 1px 2px rgba(0,80,65,.08);
+    transition:all .18s ease;
+}
+
+.lot-toggle:hover{
+    color:#fff;
+    border-color:#087864;
+    background:#087864;
+    box-shadow:0 4px 10px rgba(0,108,91,.18);
+    transform:translateY(-1px);
+}
+
+.lot-toggle[aria-expanded="true"]{
+    color:#fff;
+    border-color:#087864;
+    background:#087864;
+}
+
+.lot-toggle-icon{
+    font-size:15px;
+    transition:transform .18s ease;
+}
+
+.lot-toggle[aria-expanded="true"] .lot-toggle-icon{
+    transform:rotate(90deg);
 }
 
 .lot-detail-row{
@@ -618,7 +651,7 @@ th input[type="checkbox"]{
         <table class="inventory-table" id="inventoryTable">
             <thead>
             <tr>
-                {% if raw_material_view %}<th style="width:52px;">LOT</th>{% endif %}
+                {% if raw_material_view %}<th style="width:118px;">상세</th>{% endif %}
                 <th style="width:60px;"><input type="checkbox" id="checkAll"></th>
                 <th>품목코드</th>
                 <th>품명</th>
@@ -638,7 +671,10 @@ th input[type="checkbox"]{
 
                 {% if raw_material_view %}
                 <td>
-                    <button class="lot-toggle" type="button" onclick="toggleLotRows({{ item.id }}, this)" aria-label="LOT 상세 펼치기">›</button>
+                    <button class="lot-toggle" type="button" onclick="toggleLotRows({{ item.id }}, this)" aria-label="LOT 상세 펼치기" aria-expanded="false">
+                        <span class="lot-toggle-icon">›</span>
+                        <span class="lot-toggle-label">LOT 상세</span>
+                    </button>
                 </td>
                 {% endif %}
 
@@ -911,8 +947,9 @@ function toggleLotRows(id, button){
     const row = document.getElementById(`lot-detail-${id}`);
     if(!row){ return; }
     const opened = row.classList.toggle("open");
-    button.innerText = opened ? "⌄" : "›";
     button.setAttribute("aria-expanded", opened ? "true" : "false");
+    const label = button.querySelector(".lot-toggle-label");
+    if(label){ label.innerText = opened ? "상세 닫기" : "LOT 상세"; }
 }
 
 function openLotRegisterModal(){
