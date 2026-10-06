@@ -450,7 +450,7 @@ async def add_inventory(
         )
 
     try:
-        qty = int(data.get("qty", 0))
+        qty = int(data.get("qty") or 0)
     except (TypeError, ValueError):
         return JSONResponse(
             {"status": "error", "message": "수량은 숫자여야 합니다."},
@@ -612,8 +612,8 @@ async def inventory_lot_register(
     lot = str(data.get("lot") or "").strip()[:100]
     inspector = str(data.get("inspector") or "").strip()[:100]
     remark = str(data.get("remark") or "").strip()[:500]
-    if qty <= 0 or not lot:
-        return JSONResponse({"status": "error", "message": "LOT와 1 이상의 수량을 입력하세요."}, status_code=400)
+    if qty < 0 or not lot:
+        return JSONResponse({"status": "error", "message": "LOT를 입력하고 수량은 0 이상으로 입력하세요."}, status_code=400)
     try:
         received_date = parse_first_received_date(str(data.get("first_received_date") or ""))
     except ValueError as exc:
@@ -625,33 +625,32 @@ async def inventory_lot_register(
     if item.category != "원자재":
         return JSONResponse({"status": "error", "message": "LOT 입고 등록은 원자재만 가능합니다."}, status_code=400)
 
-    add_to_inventory_lot(db, item, lot, qty, received_date)
-    item.qty = (item.qty or 0) + qty
-    username = current_user(request)
-    db.add(
-        InventoryMovement(
-            item_code=item.item_code,
-            item_name=item.item_name,
-            category=item.category,
-            warehouse_type=item.warehouse_type,
-            movement_type="IN",
-            qty=qty,
-            user=username,
-            source=remark or "LOT 입고 등록",
-            lot=lot,
-            inspector=inspector,
-            first_received_date=received_date,
+    existing_lot = inventory_lot_row(db, item, lot)
+    current_lot_qty = existing_lot.qty if existing_lot else 0
+    unclassified = max((item.qty or 0) - tracked_lot_qty(db, item.id), 0)
+    if qty > unclassified:
+        return JSONResponse(
+            {
+                "status": "error",
+                "message": f"미분류 재고는 {unclassified} EA입니다. 그 이하로 입력하세요.",
+            },
+            status_code=400,
         )
-    )
+
+    add_to_inventory_lot(db, item, lot, qty, received_date)
+    username = current_user(request)
     db.commit()
     save_log(
         user=username,
         product=INVENTORY_LOG_PRODUCT,
-        action="INVENTORY_MOVE_IN",
+        action="INVENTORY_LOT_REGISTER",
         serial=item.item_code,
-        detail=f"원자재 LOT 입고 등록: {lot} / {qty} EA",
+        detail=f"원자재 LOT 분류: {lot} / {qty} EA / 기존 LOT 수량: {current_lot_qty or 0} EA / 비고: {remark}",
     )
-    return JSONResponse({"status": "success", "message": "LOT 입고와 총재고 반영이 완료되었습니다."})
+    message = "LOT 정보가 등록되었습니다."
+    if qty > 0:
+        message = f"미분류 재고 {qty} EA를 LOT {lot}로 분류했습니다. 총재고는 변경되지 않았습니다."
+    return JSONResponse({"status": "success", "message": message})
 
 
 @router.post("/inventory/move-in")

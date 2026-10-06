@@ -548,7 +548,7 @@ th input[type="checkbox"]{
 
             {% if raw_material_view %}
             <button onclick="openLotRegisterModal()">
-                ➕ LOT 입고 등록
+                ➕ LOT 등록
             </button>
             {% endif %}
 
@@ -749,12 +749,13 @@ th input[type="checkbox"]{
 {% if raw_material_view %}
 <div id="lotRegisterModal" class="modal">
     <div class="modal-content">
-        <h3>원자재 LOT 입고 등록</h3>
+        <h3>원자재 LOT 등록</h3>
         <p id="lotRegisterItem" style="margin:0 0 12px;color:#52605d;"></p>
         <label style="font-size:13px;color:#666;">LOT</label>
         <input type="text" id="lotRegisterLot" placeholder="QR에 기재된 LOT">
-        <label style="font-size:13px;color:#666;">수량</label>
-        <input type="number" id="lotRegisterQty" min="1" value="1">
+        <label style="font-size:13px;color:#666;">분류할 수량 (선택)</label>
+        <input type="number" id="lotRegisterQty" min="0" placeholder="비워두면 LOT 정보만 등록">
+        <p style="font-size:12px;color:#777;margin:-6px 0 10px;">입력한 수량은 미분류 재고에서 이 LOT로 옮겨지며 총재고는 증가하지 않습니다.</p>
         <label style="font-size:13px;color:#666;">최초 입고일자</label>
         <input type="date" id="lotRegisterDate">
         <label style="font-size:13px;color:#666;">검사원 (입고 이력에만 기록)</label>
@@ -762,7 +763,7 @@ th input[type="checkbox"]{
         <label style="font-size:13px;color:#666;">비고</label>
         <input type="text" id="lotRegisterRemark" placeholder="예: 웹 LOT 등록">
         <div class="modal-buttons">
-            <button onclick="submitLotRegister()">LOT 입고 등록</button>
+            <button onclick="submitLotRegister()">LOT 등록</button>
             <button onclick="closeLotRegisterModal()">취소</button>
         </div>
     </div>
@@ -942,13 +943,13 @@ async function submitLotRegister(){
     const payload = {
         inventory_id: Number(modal.dataset.inventoryId),
         lot: document.getElementById("lotRegisterLot").value.trim(),
-        qty: Number(document.getElementById("lotRegisterQty").value),
+        qty: Number(document.getElementById("lotRegisterQty").value || 0),
         first_received_date: document.getElementById("lotRegisterDate").value,
         inspector: document.getElementById("lotRegisterInspector").value.trim(),
         remark: document.getElementById("lotRegisterRemark").value.trim()
     };
-    if(!payload.lot || !Number.isInteger(payload.qty) || payload.qty < 1){
-        wfAlert("LOT와 1 이상의 수량을 입력하세요.");
+    if(!payload.lot || !Number.isInteger(payload.qty) || payload.qty < 0){
+        wfAlert("LOT를 입력하고 수량은 0 이상으로 입력하세요.");
         return;
     }
     const response = await fetch("/inventory/lot-register", {

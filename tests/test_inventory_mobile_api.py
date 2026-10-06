@@ -122,7 +122,7 @@ class InventoryMobileApiTests(unittest.TestCase):
         self.assertEqual(self.db.query(InventoryMovement).count(), 2)
 
     @patch("app.routers.inventory.save_log")
-    def test_lot_register_and_lot_out_update_lot_and_total_stock(self, _save_log):
+    def test_lot_register_classifies_existing_stock_without_increasing_total(self, _save_log):
         response = asyncio.run(
             inventory_lot_register(
                 request_with_session(),
@@ -138,7 +138,7 @@ class InventoryMobileApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.db.refresh(self.item)
-        self.assertEqual(self.item.qty, 15)
+        self.assertEqual(self.item.qty, 10)
         self.assertEqual(self.db.query(InventoryLot).filter_by(lot="LOT-NEW").one().qty, 5)
 
         response = asyncio.run(
@@ -150,8 +150,22 @@ class InventoryMobileApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 200)
         self.db.refresh(self.item)
-        self.assertEqual(self.item.qty, 13)
+        self.assertEqual(self.item.qty, 8)
         self.assertEqual(self.db.query(InventoryLot).filter_by(lot="LOT-NEW").one().qty, 3)
+
+    @patch("app.routers.inventory.save_log")
+    def test_lot_register_allows_empty_quantity(self, _save_log):
+        response = asyncio.run(
+            inventory_lot_register(
+                request_with_session(),
+                {"inventory_id": self.item.id, "qty": "", "lot": "LOT-EMPTY"},
+                self.db,
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.db.refresh(self.item)
+        self.assertEqual(self.item.qty, 10)
+        self.assertEqual(self.db.query(InventoryLot).filter_by(lot="LOT-EMPTY").one().qty, 0)
 
 
 if __name__ == "__main__":
