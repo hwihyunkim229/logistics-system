@@ -806,10 +806,17 @@ async def inventory_move_out(
         if item.category == "원자재":
             if lot:
                 lot_row = inventory_lot_row(db, item, lot)
-                if lot_row is None or (lot_row.qty or 0) < qty:
-                    available = lot_row.qty if lot_row else 0
+                if lot_row is None:
                     return JSONResponse(
-                        {"status": "error", "message": f"LOT {lot} 재고 부족 (현재 {available or 0} EA)"},
+                        {
+                            "status": "error",
+                            "message": f"등록되지 않은 LOT입니다: {lot}. 먼저 LOT 등록 또는 입고 처리를 해주세요.",
+                        },
+                        status_code=400,
+                    )
+                if (lot_row.qty or 0) < qty:
+                    return JSONResponse(
+                        {"status": "error", "message": f"LOT {lot} 재고 부족 (현재 {lot_row.qty or 0} EA)"},
                         status_code=400,
                     )
             else:
