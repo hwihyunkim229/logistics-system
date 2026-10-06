@@ -768,6 +768,13 @@ th input[type="checkbox"]{
 <div id="qtyModal" class="modal">
     <div class="modal-content">
         <h3 id="modalTitle">수량 입력</h3>
+        <div id="moveLotField" style="display:none;margin-bottom:12px;">
+            <label style="display:block;font-size:13px;color:#666;margin-bottom:6px;">출고 LOT</label>
+            <select id="moveLotSelect" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;">
+                <option value="">미분류 재고</option>
+            </select>
+            <p id="moveLotHint" style="font-size:12px;color:#777;margin:6px 0 0;"></p>
+        </div>
         <input type="number" id="qtyInput" min="1" value="1">
         <textarea
             id="remarkInput"
@@ -791,7 +798,7 @@ th input[type="checkbox"]{
         <input type="text" id="lotRegisterLot" placeholder="QR에 기재된 LOT">
         <label style="font-size:13px;color:#666;">분류할 수량 (선택)</label>
         <input type="number" id="lotRegisterQty" min="0" placeholder="비워두면 LOT 정보만 등록">
-        <p style="font-size:12px;color:#777;margin:-6px 0 10px;">입력한 수량은 미분류 재고에서 이 LOT로 옮겨지며 총재고는 증가하지 않습니다.</p>
+        <p style="font-size:12px;color:#777;margin:-6px 0 10px;">수량을 입력하면 해당 LOT와 상위 총재고에 입고 반영됩니다. 비워두면 LOT 정보만 등록됩니다.</p>
         <label style="font-size:13px;color:#666;">최초 입고일자</label>
         <input type="date" id="lotRegisterDate">
         <label style="font-size:13px;color:#666;">검사원 (입고 이력에만 기록)</label>
@@ -1015,26 +1022,53 @@ function moveIn(){
     if(getSelectedIds().length === 0){ wfAlert("품목을 선택하세요."); return; }
     currentAction = "in";
     document.getElementById("modalTitle").innerText = "입고 수량";
+    document.getElementById("moveLotField").style.display = "none";
     document.getElementById("qtyModal").style.display = "flex";
 }
 
-function moveOut(){
-    if(getSelectedIds().length === 0){ wfAlert("품목을 선택하세요."); return; }
+async function moveOut(){
+    const ids = getSelectedIds();
+    if(ids.length === 0){ wfAlert("품목을 선택하세요."); return; }
     currentAction = "out";
     document.getElementById("modalTitle").innerText = "출고 수량";
+    const lotField = document.getElementById("moveLotField");
+    const lotSelect = document.getElementById("moveLotSelect");
+    const selectedRows = Array.from(document.querySelectorAll(".rowCheck:checked"));
+    const singleRawMaterial = selectedRows.length === 1 && selectedRows[0].dataset.category === "원자재";
+    lotField.style.display = singleRawMaterial ? "block" : "none";
+    lotSelect.innerHTML = '<option value="">미분류 재고</option>';
+    document.getElementById("moveLotHint").innerText = "";
+    if(singleRawMaterial){
+        const response = await fetch(`/inventory/${ids[0]}/lots`);
+        const result = await response.json();
+        if(!response.ok){ wfAlert(result.message || "LOT 목록을 불러오지 못했습니다."); return; }
+        result.lots.forEach(row => {
+            const option = document.createElement("option");
+            option.value = row.lot;
+            option.textContent = `${row.lot} · ${row.qty} EA`;
+            lotSelect.appendChild(option);
+        });
+        document.getElementById("moveLotHint").innerText = `미분류 ${result.unclassified_qty} EA · 출고할 LOT를 선택하세요.`;
+        if(result.lots.length === 1 && result.unclassified_qty === 0){
+            lotSelect.value = result.lots[0].lot;
+        }
+    }
     document.getElementById("qtyModal").style.display = "flex";
 }
 
 async function confirmQty(){
     const qty = document.getElementById("qtyInput").value;
     const remark = document.getElementById("remarkInput").value.trim();
+    const lot = currentAction === "out" && document.getElementById("moveLotField").style.display !== "none"
+        ? document.getElementById("moveLotSelect").value
+        : "";
     const ids = getSelectedIds();
     const url = currentAction === "in" ? "/inventory/move-in" : "/inventory/move-out";
 
     const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: ids, qty: qty, remark: remark })
+        body: JSON.stringify({ ids: ids, qty: qty, remark: remark, lot: lot })
     });
     const result = await response.json().catch(() => ({ message: "서버 응답을 확인할 수 없습니다." }));
     if(!response.ok || result.status !== "success"){
@@ -1043,6 +1077,7 @@ async function confirmQty(){
     }
     document.getElementById("qtyInput").value = 1;
     document.getElementById("remarkInput").value = "";
+    document.getElementById("moveLotField").style.display = "none";
     location.reload();
 }
 
@@ -1050,6 +1085,7 @@ function closeModal(){
     document.getElementById("qtyModal").style.display = "none";
     document.getElementById("qtyInput").value = 1;
     document.getElementById("remarkInput").value = "";
+    document.getElementById("moveLotField").style.display = "none";
 }
 
 function deleteSelected(){

@@ -625,32 +625,62 @@ async def inventory_lot_register(
     if item.category != "원자재":
         return JSONResponse({"status": "error", "message": "LOT 입고 등록은 원자재만 가능합니다."}, status_code=400)
 
-    existing_lot = inventory_lot_row(db, item, lot)
-    current_lot_qty = existing_lot.qty if existing_lot else 0
-    unclassified = max((item.qty or 0) - tracked_lot_qty(db, item.id), 0)
-    if qty > unclassified:
-        return JSONResponse(
-            {
-                "status": "error",
-                "message": f"미분류 재고는 {unclassified} EA입니다. 그 이하로 입력하세요.",
-            },
-            status_code=400,
-        )
-
     add_to_inventory_lot(db, item, lot, qty, received_date)
     username = current_user(request)
+    if qty > 0:
+        item.qty = (item.qty or 0) + qty
+        db.add(
+            InventoryMovement(
+                item_code=item.item_code,
+                item_name=item.item_name,
+                category=item.category,
+                warehouse_type=item.warehouse_type,
+                movement_type="IN",
+                qty=qty,
+                user=username,
+                source=remark or "LOT 등록 입고",
+                lot=lot,
+                inspector=inspector,
+                first_received_date=received_date,
+            )
+        )
     db.commit()
     save_log(
         user=username,
         product=INVENTORY_LOG_PRODUCT,
-        action="INVENTORY_LOT_REGISTER",
+        action="INVENTORY_MOVE_IN" if qty > 0 else "INVENTORY_LOT_REGISTER",
         serial=item.item_code,
-        detail=f"원자재 LOT 분류: {lot} / {qty} EA / 기존 LOT 수량: {current_lot_qty or 0} EA / 비고: {remark}",
+        detail=f"원자재 LOT 등록: {lot} / {qty} EA / 비고: {remark}",
     )
     message = "LOT 정보가 등록되었습니다."
     if qty > 0:
-        message = f"미분류 재고 {qty} EA를 LOT {lot}로 분류했습니다. 총재고는 변경되지 않았습니다."
+        message = f"LOT {lot}에 {qty} EA를 입고하고 총재고에 반영했습니다."
     return JSONResponse({"status": "success", "message": message})
+
+
+@router.get("/inventory/{inventory_id}/lots")
+def inventory_lots(inventory_id: int, db: Session = Depends(get_db)):
+    item = db.query(Inventory).filter(Inventory.id == inventory_id).first()
+    if item is None:
+        return JSONResponse({"status": "error", "message": "재고 항목을 찾을 수 없습니다."}, status_code=404)
+    rows = (
+        db.query(InventoryLot)
+        .filter(InventoryLot.inventory_id == inventory_id, InventoryLot.qty > 0)
+        .order_by(InventoryLot.first_received_date, InventoryLot.lot)
+        .all()
+    )
+    return {
+        "status": "success",
+        "lots": [
+            {
+                "lot": row.lot,
+                "qty": row.qty or 0,
+                "first_received_date": row.first_received_date.isoformat() if row.first_received_date else "",
+            }
+            for row in rows
+        ],
+        "unclassified_qty": max((item.qty or 0) - tracked_lot_qty(db, item.id), 0),
+    }
 
 
 @router.post("/inventory/move-in")
