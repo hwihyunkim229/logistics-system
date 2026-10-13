@@ -15,6 +15,7 @@ from app.models.inventory_lot import InventoryLot
 from app.routers.inventory import (
     InventoryMovementRequest,
     inventory_mobile_history,
+    inventory_mobile_duplicate_check,
     inventory_mobile_items,
     inventory_lot_register,
     inventory_move_in,
@@ -104,6 +105,22 @@ class InventoryMobileApiTests(unittest.TestCase):
         self.assertEqual(result["items"][0]["item_code"], "ITEM-001")
         self.assertEqual(result["items"][0]["lot"], "LOT-A")
         self.assertTrue(result["items"][0]["created_at"])
+
+    def test_duplicate_check_warns_for_same_recent_operation(self):
+        self.db.add(InventoryMovement(
+            item_code="ITEM-001", item_name="테스트 품목", warehouse_type="창고재고",
+            movement_type="OUT", qty=2, user="mobile-user", lot="LOT-01",
+        ))
+        self.db.commit()
+
+        result = asyncio.run(inventory_mobile_duplicate_check(
+            request_with_session(),
+            {"inventory_id": self.item.id, "qty": 2, "movement_type": "OUT", "lot": "LOT-01"},
+            self.db,
+        ))
+
+        self.assertTrue(result["duplicate"])
+        self.assertTrue(result["previous_at"])
 
     @patch("app.routers.inventory.save_log")
     def test_move_in_and_out_update_stock_and_history(self, _save_log):

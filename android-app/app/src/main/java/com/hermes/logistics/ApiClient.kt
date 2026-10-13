@@ -22,6 +22,21 @@ data class InventoryItem(
     val grade: String,
     val rev: String,
     val qty: Int,
+    val requestedLot: String,
+    val lotQty: Int,
+)
+
+data class MovementResult(
+    val beforeQty: Int,
+    val afterQty: Int,
+    val lot: String,
+    val lotBeforeQty: Int,
+    val lotAfterQty: Int,
+)
+
+data class DuplicateCheck(
+    val duplicate: Boolean,
+    val previousAt: String,
 )
 
 data class InventoryHistoryItem(
@@ -126,13 +141,17 @@ object ApiClient {
         (CookieHandler.getDefault() as? CookieManager)?.cookieStore?.removeAll()
     }
 
-    fun searchItems(keyword: String, warehouseType: String, itemCode: String = ""): ApiResult<List<InventoryItem>> {
+    fun searchItems(keyword: String, warehouseType: String, itemCode: String = "", lot: String = ""): ApiResult<List<InventoryItem>> {
         val path = buildString {
             append("/inventory/mobile/items?keyword=")
             append(encode(if (itemCode.isBlank()) keyword else ""))
             if (itemCode.isNotBlank()) {
                 append("&item_code=")
                 append(encode(itemCode))
+            }
+            if (lot.isNotBlank()) {
+                append("&lot=")
+                append(encode(lot))
             }
             if (warehouseType.isNotBlank()) {
                 append("&warehouse_type=")
@@ -160,6 +179,8 @@ object ApiClient {
                         grade = item.optString("grade"),
                         rev = item.optString("rev"),
                         qty = item.optInt("qty"),
+                        requestedLot = item.optString("requested_lot"),
+                        lotQty = item.optInt("lot_qty"),
                     )
                 )
             }
@@ -198,6 +219,33 @@ object ApiClient {
         }.getOrElse { ApiResult(error = "처리 이력을 읽을 수 없습니다.") }
     }
 
+    fun checkDuplicate(
+        itemId: Int,
+        qty: Int,
+        inbound: Boolean,
+        lot: String,
+    ): ApiResult<DuplicateCheck> {
+        val json = JSONObject()
+            .put("inventory_id", itemId)
+            .put("qty", qty)
+            .put("movement_type", if (inbound) "IN" else "OUT")
+            .put("lot", lot)
+        val response = request(
+            path = "/inventory/mobile/duplicate-check",
+            method = "POST",
+            body = json.toString(),
+            contentType = "application/json",
+        )
+        if (response.code == 401 || response.code in 300..399) {
+            return ApiResult(error = "로그인이 만료되었습니다. 다시 로그인하세요.")
+        }
+        if (response.code !in 200..299) return ApiResult(error = response.message())
+        return runCatching {
+            val value = JSONObject(response.body)
+            ApiResult(value = DuplicateCheck(value.optBoolean("duplicate"), value.optString("previous_at")))
+        }.getOrElse { ApiResult(error = "중복 처리 여부를 확인할 수 없습니다.") }
+    }
+
     fun move(
         itemId: Int,
         qty: Int,
@@ -206,7 +254,7 @@ object ApiClient {
         lot: String = "",
         inspector: String = "",
         firstReceivedDate: String = "",
-    ): ApiResult<Unit> {
+    ): ApiResult<MovementResult> {
         val json = JSONObject()
             .put("ids", JSONArray().put(itemId))
             .put("qty", qty)
@@ -224,7 +272,7 @@ object ApiClient {
             return ApiResult(error = "로그인이 만료되었습니다. 다시 로그인하세요.")
         }
         if (response.code !in 200..299) return ApiResult(error = response.message())
-        return ApiResult(value = Unit)
+        return parseMovementResult(response)
     }
 
     fun registerLot(
@@ -234,7 +282,7 @@ object ApiClient {
         lot: String,
         inspector: String = "",
         firstReceivedDate: String = "",
-    ): ApiResult<Unit> {
+    ): ApiResult<MovementResult> {
         val json = JSONObject()
             .put("inventory_id", itemId)
             .put("qty", qty)
@@ -252,8 +300,21 @@ object ApiClient {
             return ApiResult(error = "로그인이 만료되었습니다. 다시 로그인하세요.")
         }
         if (response.code !in 200..299) return ApiResult(error = response.message())
-        return ApiResult(value = Unit)
+        return parseMovementResult(response)
     }
+
+    private fun parseMovementResult(response: HttpResult): ApiResult<MovementResult> = runCatching {
+        val row = JSONObject(response.body).getJSONArray("results").getJSONObject(0)
+        ApiResult(
+            value = MovementResult(
+                beforeQty = row.optInt("before_qty"),
+                afterQty = row.optInt("after_qty"),
+                lot = row.optString("lot"),
+                lotBeforeQty = row.optInt("lot_before_qty"),
+                lotAfterQty = row.optInt("lot_after_qty"),
+            )
+        )
+    }.getOrElse { ApiResult(error = "처리 결과를 확인할 수 없습니다.") }
 
     private fun request(
         path: String,

@@ -1,5 +1,5 @@
 from app.utils.filters import filter_values
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from math import ceil
@@ -555,8 +555,7 @@ def inventory_mobile_items(
     normalized_code = normalize_item_code(item_code) if item_code.strip() else ""
     if normalized_code:
         query = query.filter(Inventory.item_code == normalized_code)
-    if lot.strip():
-        query = query.filter(Inventory.lot == lot.strip())
+    # 원자재 LOT는 InventoryLot에 저장되므로, QR의 LOT는 상세 수량 조회에만 사용한다.
     if warehouse_type.strip():
         if warehouse_type.strip() not in WAREHOUSE_TYPES:
             return JSONResponse(
@@ -591,9 +590,56 @@ def inventory_mobile_items(
                 "rev": item.rev,
                 "note": item.note,
                 "qty": item.qty or 0,
+                "requested_lot": lot.strip(),
+                "lot_qty": (
+                    (inventory_lot_row(db, item, lot.strip()).qty or 0)
+                    if lot.strip() and inventory_lot_row(db, item, lot.strip()) is not None
+                    else 0
+                ),
             }
             for item in items
         ],
+    }
+
+
+@router.post("/inventory/mobile/duplicate-check")
+async def inventory_mobile_duplicate_check(
+    request: Request,
+    data: dict = Body(...),
+    db: Session = Depends(get_db),
+):
+    """같은 사용자의 동일 작업이 최근 3분 내 있었는지 최종 처리 전에 경고한다."""
+    try:
+        inventory_id = int(data.get("inventory_id"))
+        qty = int(data.get("qty"))
+    except (TypeError, ValueError):
+        return JSONResponse({"status": "error", "message": "품목과 수량을 확인하세요."}, status_code=400)
+    movement_type = str(data.get("movement_type") or "").strip().upper()
+    lot = str(data.get("lot") or "").strip()
+    item = db.query(Inventory).filter(Inventory.id == inventory_id).first()
+    if item is None:
+        return JSONResponse({"status": "error", "message": "재고 항목을 찾을 수 없습니다."}, status_code=404)
+    if movement_type not in {"IN", "OUT"} or qty <= 0:
+        return {"status": "success", "duplicate": False}
+
+    duplicate = (
+        db.query(InventoryMovement)
+        .filter(
+            InventoryMovement.user == current_user(request),
+            InventoryMovement.item_code == item.item_code,
+            InventoryMovement.warehouse_type == item.warehouse_type,
+            InventoryMovement.movement_type == movement_type,
+            InventoryMovement.qty == qty,
+            InventoryMovement.lot == lot,
+            InventoryMovement.created_at >= datetime.now() - timedelta(minutes=3),
+        )
+        .order_by(InventoryMovement.created_at.desc())
+        .first()
+    )
+    return {
+        "status": "success",
+        "duplicate": duplicate is not None,
+        "previous_at": format_kst(duplicate.created_at) if duplicate else "",
     }
 
 
@@ -667,6 +713,9 @@ async def inventory_lot_register(
     if item.category != "원자재":
         return JSONResponse({"status": "error", "message": "LOT 입고 등록은 원자재만 가능합니다."}, status_code=400)
 
+    before_qty = item.qty or 0
+    existing_lot = inventory_lot_row(db, item, lot)
+    lot_before_qty = existing_lot.qty or 0 if existing_lot else 0
     add_to_inventory_lot(db, item, lot, qty, received_date)
     username = current_user(request)
     if qty > 0:
@@ -697,7 +746,18 @@ async def inventory_lot_register(
     message = "LOT 정보가 등록되었습니다."
     if qty > 0:
         message = f"LOT {lot}에 {qty} EA를 입고하고 총재고에 반영했습니다."
-    return JSONResponse({"status": "success", "message": message})
+    return JSONResponse({
+        "status": "success",
+        "message": message,
+        "results": [{
+            "inventory_id": item.id,
+            "before_qty": before_qty,
+            "after_qty": item.qty or 0,
+            "lot": lot,
+            "lot_before_qty": lot_before_qty,
+            "lot_after_qty": lot_before_qty + qty,
+        }],
+    })
 
 
 @router.get("/inventory/{inventory_id}/lots")
@@ -749,6 +809,7 @@ async def inventory_move_in(
     except ValueError as exc:
         return JSONResponse({"status": "error", "message": str(exc)}, status_code=400)
     username = current_user(request)
+    before_rows = []
 
     items = db.query(Inventory).filter(Inventory.id.in_(ids)).all()
 
@@ -765,9 +826,15 @@ async def inventory_move_in(
         )
 
     for item in items:
+        before_qty = item.qty or 0
+        lot_before = 0
+        if item.category == "원자재" and lot:
+            existing_lot = inventory_lot_row(db, item, lot)
+            lot_before = existing_lot.qty or 0 if existing_lot else 0
         if item.category == "원자재" and lot:
             add_to_inventory_lot(db, item, lot, qty, first_received_date)
         item.qty = (item.qty or 0) + qty
+        before_rows.append((item, before_qty, lot_before))
 
         db.add(
             InventoryMovement(
@@ -795,7 +862,20 @@ async def inventory_move_in(
         detail=f"수불 재고 입고: {qty} EA / 비고: {remark}"
     )
 
-    return JSONResponse({"status": "success"})
+    return JSONResponse({
+        "status": "success",
+        "results": [
+            {
+                "inventory_id": item.id,
+                "before_qty": before_qty,
+                "after_qty": item.qty or 0,
+                "lot": lot,
+                "lot_before_qty": lot_before,
+                "lot_after_qty": lot_before + qty if lot else 0,
+            }
+            for item, before_qty, lot_before in before_rows
+        ],
+    })
 
 @router.post("/inventory/move-out")
 async def inventory_move_out(
@@ -821,6 +901,7 @@ async def inventory_move_out(
     except ValueError as exc:
         return JSONResponse({"status": "error", "message": str(exc)}, status_code=400)
     username = current_user(request)
+    before_rows = []
 
     items = db.query(Inventory).filter(Inventory.id.in_(ids)).all()
 
@@ -870,10 +951,14 @@ async def inventory_move_out(
                     )
 
     for item in items:
+        before_qty = item.qty or 0
+        lot_before = 0
         if item.category == "원자재" and lot:
             lot_row = inventory_lot_row(db, item, lot)
+            lot_before = lot_row.qty or 0
             lot_row.qty -= qty
         item.qty -= qty
+        before_rows.append((item, before_qty, lot_before))
 
         db.add(
             InventoryMovement(
@@ -901,7 +986,20 @@ async def inventory_move_out(
         detail=f"수불 재고 출고: {qty} EA / 비고: {remark}"
     )
 
-    return JSONResponse({"status": "success"})
+    return JSONResponse({
+        "status": "success",
+        "results": [
+            {
+                "inventory_id": item.id,
+                "before_qty": before_qty,
+                "after_qty": item.qty or 0,
+                "lot": lot,
+                "lot_before_qty": lot_before,
+                "lot_after_qty": lot_before - qty if lot else 0,
+            }
+            for item, before_qty, lot_before in before_rows
+        ],
+    })
 
 @router.post("/inventory/delete-selected")
 async def delete_selected_inventory(

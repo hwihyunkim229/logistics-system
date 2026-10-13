@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -101,6 +102,14 @@ private data class QrMaterialData(
     val receivedDate: String = "",
     val lot: String = "",
     val inspector: String = "",
+)
+
+private data class CompletionData(
+    val action: InventoryAction,
+    val item: InventoryItem,
+    val quantity: Int,
+    val result: MovementResult,
+    val qrData: QrMaterialData?,
 )
 
 class MainActivity : ComponentActivity() {
@@ -266,6 +275,8 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
     var message by remember { mutableStateOf("") }
     var showScanner by remember { mutableStateOf(false) }
     var qrData by remember { mutableStateOf<QrMaterialData?>(null) }
+    var showLotDetail by remember { mutableStateOf(false) }
+    var completion by remember { mutableStateOf<CompletionData?>(null) }
     var history by remember { mutableStateOf(emptyList<InventoryHistoryItem>()) }
     var historyLoading by remember { mutableStateOf(false) }
     var historyMessage by remember { mutableStateOf("") }
@@ -293,6 +304,8 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
         results = emptyList()
         selected = null
         qrData = null
+        showLotDetail = false
+        completion = null
         loading = false
         message = completionMessage
     }
@@ -326,6 +339,7 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
                     keyword = keyword.trim(),
                     warehouseType = warehouse.trim(),
                     itemCode = itemCodeOverride ?: qrData?.itemCode.orEmpty(),
+                    lot = if (itemCodeOverride != null) qrData?.lot.orEmpty() else "",
                 )
             }
             loading = false
@@ -337,6 +351,7 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
                 message = if (results.isEmpty()) "검색 결과가 없습니다." else "${results.size}건을 찾았습니다."
                 if (itemCodeOverride != null && results.size == 1) {
                     selected = results.first()
+                    showLotDetail = true
                 }
             }
         }
@@ -360,16 +375,61 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
         return
     }
 
+    if (completion != null) {
+        val done = completion!!
+        CompletionScreen(
+            data = done,
+            onNextScan = {
+                resetWork()
+                openScanner()
+            },
+            onSameLot = {
+                selected = done.item.copy(
+                    qty = done.result.afterQty,
+                    lotQty = done.result.lotAfterQty,
+                )
+                qrData = done.qrData
+                scanQty = if (done.action == InventoryAction.LOT_REGISTER) "" else "1"
+                completion = null
+                showLotDetail = false
+            },
+            onHistory = {
+                resetWork()
+                mainTab = MainTab.HISTORY
+                loadHistory()
+            },
+            onHome = {
+                resetWork()
+                mainTab = MainTab.HOME
+            },
+        )
+        return
+    }
+
     if (selected != null) {
+        if (showLotDetail) {
+            LotDetailScreen(
+                item = selected!!,
+                qrData = qrData,
+                onBack = {
+                    showLotDetail = false
+                    selected = null
+                },
+                onAction = {
+                    action = it
+                    showLotDetail = false
+                },
+            )
+            return
+        }
         MovementScreen(
             item = selected!!,
             initialQty = scanQty,
             action = action,
             qrData = qrData,
             onBack = { selected = null },
-            onCompleted = {
-                resetWork(completionMessage = "처리가 완료되었습니다. 다음 작업을 시작하세요.")
-                mainTab = MainTab.WORK
+            onCompleted = { result, quantity ->
+                completion = CompletionData(action, selected!!, quantity, result, qrData)
             },
             onSessionExpired = onSessionExpired,
         )
@@ -658,6 +718,108 @@ private fun HistoryScreen(
             }
         }
         Spacer(Modifier.height(20.dp))
+    }
+}
+
+@Composable
+private fun LotDetailScreen(
+    item: InventoryItem,
+    qrData: QrMaterialData?,
+    onBack: () -> Unit,
+    onAction: (InventoryAction) -> Unit,
+) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)
+    ) {
+        OutlinedButton(onClick = onBack) { Text("← 다시 스캔") }
+        Spacer(Modifier.height(18.dp))
+        Text("LOT 상세 정보", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("QR 정보와 웹 재고를 확인한 뒤 작업을 선택하세요.", color = Color(0xFF61716F))
+        Spacer(Modifier.height(16.dp))
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+        ) {
+            Column(Modifier.fillMaxWidth().padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = HermesGreen)
+                    Text("QR 정보 확인됨", color = HermesGreen, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 8.dp))
+                }
+                Spacer(Modifier.height(14.dp))
+                Text(item.itemCode, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(item.itemName, style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(14.dp))
+                ProfileInfoRow("LOT", qrData?.lot.orEmpty().ifBlank { "-" })
+                ProfileInfoRow("최초 입고일자", qrData?.receivedDate.orEmpty().ifBlank { "-" })
+                ProfileInfoRow("검사원", qrData?.inspector.orEmpty().ifBlank { "-" })
+                ProfileInfoRow("창고 / 등급", "${item.warehouseType} / ${item.grade.ifBlank { "-" }}")
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFE7F6F1)),
+        ) {
+            Column(Modifier.fillMaxWidth().padding(20.dp)) {
+                Text("현재 재고", color = HermesGreen, fontWeight = FontWeight.Bold)
+                Text("전체 ${item.qty} EA", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                if (!qrData?.lot.isNullOrBlank()) {
+                    Text("해당 LOT ${item.lotQty} EA", style = MaterialTheme.typography.titleMedium)
+                }
+            }
+        }
+        Spacer(Modifier.height(20.dp))
+        Text("작업 선택", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(10.dp))
+        Button(onClick = { onAction(InventoryAction.IN) }, modifier = Modifier.fillMaxWidth()) { Text("입고 처리") }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = { onAction(InventoryAction.OUT) }, modifier = Modifier.fillMaxWidth()) { Text("출고 처리") }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = { onAction(InventoryAction.LOT_REGISTER) }, modifier = Modifier.fillMaxWidth()) { Text("LOT 등록") }
+    }
+}
+
+@Composable
+private fun CompletionScreen(
+    data: CompletionData,
+    onNextScan: () -> Unit,
+    onSameLot: () -> Unit,
+    onHistory: () -> Unit,
+    onHome: () -> Unit,
+) {
+    val label = when (data.action) {
+        InventoryAction.IN -> "입고"
+        InventoryAction.OUT -> "출고"
+        InventoryAction.LOT_REGISTER -> "LOT 등록"
+    }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(Modifier.height(24.dp))
+        Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = HermesGreen, modifier = Modifier.size(76.dp))
+        Spacer(Modifier.height(14.dp))
+        Text("${label}이 완료되었습니다", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(data.item.itemCode, color = Color(0xFF61716F))
+        Spacer(Modifier.height(22.dp))
+        Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(22.dp)) {
+            Column(Modifier.fillMaxWidth().padding(20.dp)) {
+                Text("처리 결과", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                ProfileInfoRow("처리 수량", "${data.quantity} EA")
+                ProfileInfoRow("전체 재고", "${data.result.beforeQty} → ${data.result.afterQty} EA")
+                if (data.result.lot.isNotBlank()) {
+                    ProfileInfoRow("LOT", data.result.lot)
+                    ProfileInfoRow("LOT 재고", "${data.result.lotBeforeQty} → ${data.result.lotAfterQty} EA")
+                }
+            }
+        }
+        Spacer(Modifier.height(20.dp))
+        Button(onClick = onNextScan, modifier = Modifier.fillMaxWidth()) { Text("다음 QR 스캔") }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onSameLot, modifier = Modifier.fillMaxWidth()) { Text("같은 LOT 계속 처리") }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onHistory, modifier = Modifier.fillMaxWidth()) { Text("처리 이력 보기") }
+        OutlinedButton(onClick = onHome, modifier = Modifier.fillMaxWidth()) { Text("홈으로") }
     }
 }
 
@@ -1015,7 +1177,7 @@ private fun MovementScreen(
     action: InventoryAction,
     qrData: QrMaterialData?,
     onBack: () -> Unit,
-    onCompleted: () -> Unit,
+    onCompleted: (MovementResult, Int) -> Unit,
     onSessionExpired: () -> Unit,
 ) {
     var qtyText by rememberSaveable(item.id, action) {
@@ -1027,9 +1189,10 @@ private fun MovementScreen(
     var remark by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
+    var duplicateAt by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    fun submit() {
+    fun submit(skipDuplicateCheck: Boolean = false) {
         val qty = qtyText.toIntOrNull() ?: 0
         if (action != InventoryAction.LOT_REGISTER && qty <= 0) {
             message = "수량은 1 이상의 숫자로 입력하세요."
@@ -1049,6 +1212,27 @@ private fun MovementScreen(
         }
         loading = true
         scope.launch {
+            if (!skipDuplicateCheck && qty > 0) {
+                val duplicate = withContext(Dispatchers.IO) {
+                    ApiClient.checkDuplicate(
+                        itemId = item.id,
+                        qty = qty,
+                        inbound = action != InventoryAction.OUT,
+                        lot = qrData?.lot.orEmpty(),
+                    )
+                }
+                if (duplicate.error != null) {
+                    loading = false
+                    message = duplicate.error
+                    if (duplicate.error.contains("로그인이 만료")) onSessionExpired()
+                    return@launch
+                }
+                if (duplicate.value?.duplicate == true) {
+                    loading = false
+                    duplicateAt = duplicate.value.previousAt
+                    return@launch
+                }
+            }
             val result = withContext(Dispatchers.IO) {
                 if (action == InventoryAction.LOT_REGISTER) {
                     ApiClient.registerLot(
@@ -1076,14 +1260,28 @@ private fun MovementScreen(
                 message = result.error
                 if (result.error.contains("로그인이 만료")) onSessionExpired()
             } else {
-                message = when(action) {
-                    InventoryAction.IN -> "입고가 완료되었습니다."
-                    InventoryAction.OUT -> "출고가 완료되었습니다."
-                    InventoryAction.LOT_REGISTER -> "LOT 등록이 완료되었습니다."
-                }
-                onCompleted()
+                onCompleted(result.value!!, qty)
             }
         }
+    }
+
+    if (duplicateAt != null) {
+        AlertDialog(
+            onDismissRequest = { duplicateAt = null },
+            title = { Text("중복 처리 가능성이 있습니다") },
+            text = {
+                Text("같은 품목·LOT·작업·수량이 최근 3분 안에 처리되었습니다.\n최근 처리: ${duplicateAt.orEmpty()}\n\n실제로 연속 작업하는 경우에만 계속 진행하세요.")
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { duplicateAt = null }) { Text("취소") }
+            },
+            confirmButton = {
+                Button(onClick = {
+                    duplicateAt = null
+                    submit(skipDuplicateCheck = true)
+                }) { Text("그래도 처리") }
+            },
+        )
     }
 
     Column(
@@ -1107,7 +1305,7 @@ private fun MovementScreen(
         Spacer(Modifier.height(8.dp))
         Text(item.itemCode, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text(item.itemName)
-        Text("현재 재고 ${item.qty} EA · LOT ${item.lot.ifBlank { "-" }}")
+        Text("현재 전체 재고 ${item.qty} EA")
         if (qrData != null) {
             Spacer(Modifier.height(12.dp))
             Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
@@ -1133,6 +1331,31 @@ private fun MovementScreen(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
+        val enteredQty = qtyText.toIntOrNull() ?: 0
+        val afterTotal = when(action) {
+            InventoryAction.OUT -> item.qty - enteredQty
+            InventoryAction.IN, InventoryAction.LOT_REGISTER -> item.qty + enteredQty
+        }
+        val afterLot = when(action) {
+            InventoryAction.OUT -> item.lotQty - enteredQty
+            InventoryAction.IN, InventoryAction.LOT_REGISTER -> item.lotQty + enteredQty
+        }
+        Spacer(Modifier.height(12.dp))
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFE7F6F1)),
+            shape = RoundedCornerShape(18.dp),
+        ) {
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                Text("처리 전후 예상 재고", color = HermesGreen, fontWeight = FontWeight.Bold)
+                ProfileInfoRow("전체 재고", "${item.qty} → $afterTotal EA")
+                if (!qrData?.lot.isNullOrBlank()) {
+                    ProfileInfoRow("LOT 재고", "${item.lotQty} → $afterLot EA")
+                }
+                if (afterTotal < 0 || (!qrData?.lot.isNullOrBlank() && action == InventoryAction.OUT && afterLot < 0)) {
+                    Text("재고가 부족하여 처리할 수 없습니다.", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(
             value = remark,
@@ -1141,7 +1364,11 @@ private fun MovementScreen(
             modifier = Modifier.fillMaxWidth(),
         )
         if (message.isNotBlank()) Text(message, modifier = Modifier.padding(vertical = 12.dp))
-        Button(onClick = { submit() }, enabled = !loading, modifier = Modifier.fillMaxWidth()) {
+        Button(
+            onClick = { submit() },
+            enabled = !loading && afterTotal >= 0 && (action != InventoryAction.OUT || qrData?.lot.isNullOrBlank() || afterLot >= 0),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
             Text(
                 when(action) {
                     InventoryAction.IN -> "입고 처리"
