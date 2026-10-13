@@ -239,6 +239,7 @@ object ApiClient {
         if (response.code == 401 || response.code in 300..399) {
             return ApiResult(error = "로그인이 만료되었습니다. 다시 로그인하세요.")
         }
+        if (response.code == 404) return ApiResult(value = DuplicateCheck(false, ""))
         if (response.code !in 200..299) return ApiResult(error = response.message())
         return runCatching {
             val value = JSONObject(response.body)
@@ -254,6 +255,8 @@ object ApiClient {
         lot: String = "",
         inspector: String = "",
         firstReceivedDate: String = "",
+        beforeQty: Int = 0,
+        lotBeforeQty: Int = 0,
     ): ApiResult<MovementResult> {
         val json = JSONObject()
             .put("ids", JSONArray().put(itemId))
@@ -272,7 +275,16 @@ object ApiClient {
             return ApiResult(error = "로그인이 만료되었습니다. 다시 로그인하세요.")
         }
         if (response.code !in 200..299) return ApiResult(error = response.message())
-        return parseMovementResult(response)
+        return parseMovementResult(
+            response,
+            MovementResult(
+                beforeQty = beforeQty,
+                afterQty = if (inbound) beforeQty + qty else beforeQty - qty,
+                lot = lot,
+                lotBeforeQty = lotBeforeQty,
+                lotAfterQty = if (lot.isBlank()) 0 else if (inbound) lotBeforeQty + qty else lotBeforeQty - qty,
+            ),
+        )
     }
 
     fun registerLot(
@@ -282,6 +294,8 @@ object ApiClient {
         lot: String,
         inspector: String = "",
         firstReceivedDate: String = "",
+        beforeQty: Int = 0,
+        lotBeforeQty: Int = 0,
     ): ApiResult<MovementResult> {
         val json = JSONObject()
             .put("inventory_id", itemId)
@@ -300,10 +314,13 @@ object ApiClient {
             return ApiResult(error = "로그인이 만료되었습니다. 다시 로그인하세요.")
         }
         if (response.code !in 200..299) return ApiResult(error = response.message())
-        return parseMovementResult(response)
+        return parseMovementResult(
+            response,
+            MovementResult(beforeQty, beforeQty + qty, lot, lotBeforeQty, lotBeforeQty + qty),
+        )
     }
 
-    private fun parseMovementResult(response: HttpResult): ApiResult<MovementResult> = runCatching {
+    private fun parseMovementResult(response: HttpResult, fallback: MovementResult): ApiResult<MovementResult> = runCatching {
         val row = JSONObject(response.body).getJSONArray("results").getJSONObject(0)
         ApiResult(
             value = MovementResult(
@@ -314,7 +331,7 @@ object ApiClient {
                 lotAfterQty = row.optInt("lot_after_qty"),
             )
         )
-    }.getOrElse { ApiResult(error = "처리 결과를 확인할 수 없습니다.") }
+    }.getOrElse { ApiResult(value = fallback) }
 
     private fun request(
         path: String,

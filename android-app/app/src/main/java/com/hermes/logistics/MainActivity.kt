@@ -1242,6 +1242,8 @@ private fun MovementScreen(
                         lot = qrData?.lot.orEmpty(),
                         inspector = qrData?.inspector.orEmpty(),
                         firstReceivedDate = qrData?.receivedDate.orEmpty(),
+                        beforeQty = item.qty,
+                        lotBeforeQty = item.lotQty,
                     )
                 } else {
                     ApiClient.move(
@@ -1252,6 +1254,8 @@ private fun MovementScreen(
                         lot = qrData?.lot.orEmpty(),
                         inspector = qrData?.inspector.orEmpty(),
                         firstReceivedDate = qrData?.receivedDate.orEmpty(),
+                        beforeQty = item.qty,
+                        lotBeforeQty = item.lotQty,
                     )
                 }
             }
