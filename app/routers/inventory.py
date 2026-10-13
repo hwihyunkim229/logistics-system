@@ -597,6 +597,47 @@ def inventory_mobile_items(
     }
 
 
+@router.get("/inventory/mobile/history")
+def inventory_mobile_history(
+    request: Request,
+    movement_type: str = Query(default=""),
+    limit: int = Query(default=50, ge=1, le=100),
+    db: Session = Depends(get_db),
+):
+    """현재 로그인 사용자가 처리한 최근 입출고 이력을 APK에 제공한다."""
+    username = current_user(request)
+    query = db.query(InventoryMovement).filter(InventoryMovement.user == username)
+    normalized_type = movement_type.strip().upper()
+    if normalized_type:
+        if normalized_type not in {"IN", "OUT"}:
+            return JSONResponse(
+                {"status": "error", "message": "입고(IN) 또는 출고(OUT)만 조회할 수 있습니다."},
+                status_code=400,
+            )
+        query = query.filter(InventoryMovement.movement_type == normalized_type)
+
+    rows = query.order_by(InventoryMovement.created_at.desc(), InventoryMovement.id.desc()).limit(limit).all()
+    return {
+        "status": "success",
+        "user": username,
+        "items": [
+            {
+                "id": row.id,
+                "item_code": row.item_code or "",
+                "item_name": row.item_name or "",
+                "warehouse_type": row.warehouse_type or "",
+                "movement_type": row.movement_type or "",
+                "qty": row.qty or 0,
+                "lot": row.lot or "",
+                "inspector": row.inspector or "",
+                "source": row.source or "",
+                "created_at": format_kst(row.created_at),
+            }
+            for row in rows
+        ],
+    }
+
+
 @router.post("/inventory/lot-register")
 async def inventory_lot_register(
     request: Request,
@@ -605,7 +646,8 @@ async def inventory_lot_register(
 ):
     try:
         inventory_id = int(data.get("inventory_id"))
-        qty = int(data.get("qty", 0))
+        raw_qty = data.get("qty", 0)
+        qty = 0 if raw_qty in (None, "") else int(raw_qty)
     except (TypeError, ValueError):
         return JSONResponse({"status": "error", "message": "품목과 수량을 확인하세요."}, status_code=400)
 

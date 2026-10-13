@@ -14,6 +14,7 @@ from app.models.inventory_movement import InventoryMovement
 from app.models.inventory_lot import InventoryLot
 from app.routers.inventory import (
     InventoryMovementRequest,
+    inventory_mobile_history,
     inventory_mobile_items,
     inventory_lot_register,
     inventory_move_in,
@@ -82,6 +83,27 @@ class InventoryMobileApiTests(unittest.TestCase):
         self.assertEqual(result["user"], "mobile-user")
         self.assertEqual(result["items"][0]["id"], self.item.id)
         self.assertEqual(result["items"][0]["qty"], 10)
+
+    def test_mobile_history_only_returns_current_users_recent_movements(self):
+        self.db.add_all([
+            InventoryMovement(
+                item_code="ITEM-001", item_name="테스트 품목", warehouse_type="창고재고",
+                movement_type="IN", qty=3, user="mobile-user", lot="LOT-A", source="앱 입고",
+            ),
+            InventoryMovement(
+                item_code="ITEM-002", item_name="다른 사용자 품목", warehouse_type="창고재고",
+                movement_type="OUT", qty=1, user="other-user", lot="LOT-B",
+            ),
+        ])
+        self.db.commit()
+
+        result = inventory_mobile_history(request_with_session(), movement_type="", limit=50, db=self.db)
+
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(len(result["items"]), 1)
+        self.assertEqual(result["items"][0]["item_code"], "ITEM-001")
+        self.assertEqual(result["items"][0]["lot"], "LOT-A")
+        self.assertTrue(result["items"][0]["created_at"])
 
     @patch("app.routers.inventory.save_log")
     def test_move_in_and_out_update_stock_and_history(self, _save_log):

@@ -15,3 +15,10 @@ outputs/
 output/
 app/workflow/uploads/
 .claude/
+
+# Android / Gradle
+.gradle/
+**/build/
+local.properties
+*.apk
+*.aab
