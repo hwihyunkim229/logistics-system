@@ -287,14 +287,7 @@ tbody tr:hover {
                     <td>{{ row.item_name }}</td>
                     <td>{{ row.qty }}</td>
 
-                    <td>
-                        <input
-                            class="editable"
-                            data-id="{{ row.id }}"
-                            data-field="requester"
-                            value="{{ row.requester }}"
-                        >
-                    </td>
+                    <td>{{ row.requester or "-" }}</td>
 
                     <td>{{ row.size }}</td>
                     <td>{{ row.serial_number }}</td>
@@ -308,14 +301,7 @@ tbody tr:hover {
                         >
                     </td>
 
-                    <td>
-                        <input
-                            class="editable"
-                            data-id="{{ row.id }}"
-                            data-field="remark"
-                            value="{{ row.remark or '' }}"
-                        >
-                    </td>
+                    <td>{{ row.remark or "-" }}</td>
                 </tr>
 
                 {% else %}

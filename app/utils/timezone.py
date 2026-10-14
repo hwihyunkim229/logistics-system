@@ -1,4 +1,3 @@
-from datetime import timezone
 from zoneinfo import ZoneInfo
 
 
@@ -6,11 +5,17 @@ KST = ZoneInfo("Asia/Seoul")
 
 
 def to_kst(value):
-    """Convert DB timestamps (stored as UTC, often timezone-naive) to Korea time."""
+    """Return a timestamp in Korea time.
+
+    Legacy movement tables store Korea-local wall-clock values in timezone-naive
+    columns.  Attaching UTC to those values shifts the displayed time by nine
+    hours, so naive values must be interpreted as KST.  Timezone-aware values
+    are converted normally.
+    """
     if value is None:
         return None
     if value.tzinfo is None:
-        value = value.replace(tzinfo=timezone.utc)
+        return value.replace(tzinfo=KST)
     return value.astimezone(KST)
 
 
