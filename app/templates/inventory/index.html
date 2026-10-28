@@ -265,6 +265,8 @@ th input[type="checkbox"]{
 
 .modal-content{
     width:350px;
+    max-width:calc(100vw - 40px);
+    box-sizing:border-box;
     background:#fff;
     border-radius:16px;
     padding:25px;
@@ -300,6 +302,85 @@ th input[type="checkbox"]{
 
 .modal-buttons button:last-child{
     background:#ddd;
+}
+
+.lot-register-options{
+    display:grid;
+    gap:10px;
+    margin-top:16px;
+}
+
+.lot-register-options button + button{
+    margin-left:0;
+}
+
+.lot-register-option{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    justify-content:center;
+    width:100% !important;
+    min-height:64px !important;
+    height:auto !important;
+    padding:12px 16px !important;
+    margin:0 !important;
+    border:1px solid #d9e5e2;
+    border-radius:10px;
+    background:#fff;
+    color:#263633;
+    text-align:left;
+    white-space:normal;
+    box-sizing:border-box;
+}
+
+.lot-register-option:hover{
+    border-color:#087864;
+    background:#f3faf8;
+    color:#087864;
+    transform:none;
+}
+
+.lot-register-option:active{
+    transform:none;
+}
+
+.lot-register-option strong,
+.lot-register-option span{
+    display:block;
+    width:100%;
+}
+
+.lot-register-option strong{
+    font-size:13px;
+    line-height:1.35;
+}
+
+.lot-register-option:hover span{
+    color:#526f69;
+}
+
+#lotRegisterChoiceModal .modal-buttons button,
+#lotExcelUploadModal .modal-buttons button{
+    margin-left:0;
+}
+
+.lot-register-option span{
+    margin-top:5px;
+    color:#71817e;
+    font-size:12px;
+    font-weight:400;
+    line-height:1.45;
+}
+
+.lot-upload-guide{
+    margin:12px 0;
+    padding:12px;
+    border-radius:9px;
+    background:#f5f8f7;
+    color:#52605d;
+    font-size:13px;
+    line-height:1.55;
+    text-align:left;
 }
 
 #selectedCount{
@@ -421,42 +502,39 @@ th input[type="checkbox"]{
     display:inline-flex;
     align-items:center;
     justify-content:center;
-    gap:6px;
-    min-width:82px;
-    height:32px;
-    padding:0 12px;
-    border:1px solid #c6ded8;
-    border-radius:999px;
-    color:#087864;
-    background:linear-gradient(180deg,#ffffff 0%,#edf8f5 100%);
+    min-width:34px;
+    height:28px;
+    padding:0 6px;
+    border:1px solid #d9e5e2;
+    border-radius:7px;
+    color:#40504d;
+    background:#fff;
     font-size:12px;
-    font-weight:700;
+    font-weight:600;
     line-height:1;
-    box-shadow:0 1px 2px rgba(0,80,65,.08);
     transition:all .18s ease;
 }
 
 .lot-toggle:hover{
-    color:#fff;
+    color:#087864;
     border-color:#087864;
-    background:#087864;
-    box-shadow:0 4px 10px rgba(0,108,91,.18);
-    transform:translateY(-1px);
+    background:#f3faf8;
 }
 
 .lot-toggle[aria-expanded="true"]{
-    color:#fff;
+    color:#087864;
     border-color:#087864;
-    background:#087864;
+    background:#edf8f5;
 }
 
-.lot-toggle-icon{
-    font-size:15px;
-    transition:transform .18s ease;
-}
-
-.lot-toggle[aria-expanded="true"] .lot-toggle-icon{
-    transform:rotate(90deg);
+.lot-toggle-count{
+    min-width:20px;
+    padding:2px 4px;
+    border-radius:4px;
+    color:#087864;
+    background:#e7f4f1;
+    font-weight:700;
+    text-align:center;
 }
 
 .lot-detail-row{
@@ -580,7 +658,7 @@ th input[type="checkbox"]{
             </button>
 
             {% if raw_material_view %}
-            <button onclick="openLotRegisterModal()">
+            <button onclick="openLotRegisterChoiceModal()">
                 ➕ LOT 등록
             </button>
             {% endif %}
@@ -651,7 +729,7 @@ th input[type="checkbox"]{
         <table class="inventory-table" id="inventoryTable">
             <thead>
             <tr>
-                {% if raw_material_view %}<th style="width:118px;">상세</th>{% endif %}
+                {% if raw_material_view %}<th style="width:118px;">LOT 내역</th>{% endif %}
                 <th style="width:60px;"><input type="checkbox" id="checkAll"></th>
                 <th>품목코드</th>
                 <th>품명</th>
@@ -672,8 +750,7 @@ th input[type="checkbox"]{
                 {% if raw_material_view %}
                 <td>
                     <button class="lot-toggle" type="button" onclick="toggleLotRows({{ item.id }}, this)" aria-label="LOT 상세 펼치기" aria-expanded="false">
-                        <span class="lot-toggle-icon">›</span>
-                        <span class="lot-toggle-label">LOT 상세</span>
+                        <span class="lot-toggle-count">{{ lot_details_by_inventory.get(item.id, [])|length }}</span>
                     </button>
                 </td>
                 {% endif %}
@@ -790,6 +867,39 @@ th input[type="checkbox"]{
 </div>
 
 {% if raw_material_view %}
+<div id="lotRegisterChoiceModal" class="modal">
+    <div class="modal-content" style="width:400px;">
+        <h3>LOT 등록 방식 선택</h3>
+        <div class="lot-register-options">
+            <button class="lot-register-option" onclick="chooseDirectLotRegister()">
+                <strong>직접 등록</strong>
+                <span>선택한 원자재 한 건의 LOT를 입력합니다.</span>
+            </button>
+            <button class="lot-register-option" onclick="openLotExcelUploadModal()">
+                <strong>LOT 엑셀 업로드</strong>
+                <span>여러 원자재 LOT를 양식에 맞춰 한 번에 등록합니다.</span>
+            </button>
+        </div>
+        <div class="modal-buttons"><button onclick="closeLotRegisterChoiceModal()">취소</button></div>
+    </div>
+</div>
+
+<div id="lotExcelUploadModal" class="modal">
+    <div class="modal-content" style="width:430px;">
+        <h3>원자재 LOT 엑셀 업로드</h3>
+        <div class="lot-upload-guide">
+            먼저 예시 파일을 내려받아 <b>품목코드, Grade, LOT, 수량</b>을 입력하세요.<br>
+            수량은 해당 LOT와 원자재 총재고에 입고로 반영됩니다.
+        </div>
+        <button type="button" onclick="location.href='/inventory/lot-upload-template'">⬇ 예시 파일 다운로드</button>
+        <input type="file" id="lotExcelFile" accept=".xlsx,.xls" style="margin-top:14px;">
+        <div class="modal-buttons">
+            <button onclick="uploadLotExcel()">업로드</button>
+            <button onclick="closeLotExcelUploadModal()">취소</button>
+        </div>
+    </div>
+</div>
+
 <div id="lotRegisterModal" class="modal">
     <div class="modal-content">
         <h3>원자재 LOT 등록</h3>
@@ -955,8 +1065,7 @@ function toggleLotRows(id, button){
     if(!row){ return; }
     const opened = row.classList.toggle("open");
     button.setAttribute("aria-expanded", opened ? "true" : "false");
-    const label = button.querySelector(".lot-toggle-label");
-    if(label){ label.innerText = opened ? "상세 닫기" : "LOT 상세"; }
+    button.setAttribute("aria-label", opened ? "LOT 내역 닫기" : "LOT 내역 펼치기");
 }
 
 function openLotRegisterModal(){
@@ -974,6 +1083,29 @@ function openLotRegisterModal(){
     document.getElementById("lotRegisterItem").innerText = `${cells[2].innerText} · ${cells[3].innerText}`;
     document.getElementById("lotRegisterModal").dataset.inventoryId = checkbox.value;
     document.getElementById("lotRegisterModal").style.display = "flex";
+}
+
+function openLotRegisterChoiceModal(){
+    document.getElementById("lotRegisterChoiceModal").style.display = "flex";
+}
+
+function closeLotRegisterChoiceModal(){
+    document.getElementById("lotRegisterChoiceModal").style.display = "none";
+}
+
+function chooseDirectLotRegister(){
+    closeLotRegisterChoiceModal();
+    openLotRegisterModal();
+}
+
+function openLotExcelUploadModal(){
+    closeLotRegisterChoiceModal();
+    document.getElementById("lotExcelUploadModal").style.display = "flex";
+}
+
+function closeLotExcelUploadModal(){
+    document.getElementById("lotExcelUploadModal").style.display = "none";
+    document.getElementById("lotExcelFile").value = "";
 }
 
 function closeLotRegisterModal(){
@@ -1127,6 +1259,23 @@ document.getElementById("excelFile").addEventListener("change", function(){
             openResultModal("업로드 실패");
         });
 });
+
+async function uploadLotExcel(){
+    const input = document.getElementById("lotExcelFile");
+    const file = input.files[0];
+    if(!file){ wfAlert("업로드할 엑셀 파일을 선택하세요."); return; }
+    const formData = new FormData();
+    formData.append("file", file);
+    try{
+        const response = await fetch("/inventory/lot-upload", { method: "POST", body: formData });
+        const data = await response.json();
+        if(!response.ok){ throw new Error(data.message || "LOT 업로드에 실패했습니다."); }
+        closeLotExcelUploadModal();
+        openResultModal(data.message);
+    }catch(err){
+        wfAlert(err.message);
+    }
+}
 
 document.querySelectorAll(".editable-cell").forEach(cell => {
     cell.addEventListener("blur", async function(){

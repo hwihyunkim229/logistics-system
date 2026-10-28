@@ -48,6 +48,7 @@ ACTION_LABELS = {
     "INVENTORY_DOWNLOAD_EXCEL": "수불 재고 · 엑셀 다운로드",
     "INVENTORY_INIT_EXCEL": "수불 재고 · 엑셀 초기 등록",
     "INVENTORY_UPLOAD_EXCEL": "수불 재고 · 엑셀 업로드",
+    "INVENTORY_LOT_UPLOAD_EXCEL": "수불 재고 · 원자재 LOT 엑셀 업로드",
     "MRP_BOM_UPLOAD": "MRP · BOM 엑셀 업로드",
     "MRP_BOM_DOWNLOAD": "MRP · BOM 엑셀 다운로드",
     "MRP_PRODUCTION_PLAN_UPLOAD": "MRP · 생산계획 엑셀 업로드",

@@ -1457,22 +1457,58 @@ def download_inventory_excel(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
-    data = [
-        {
+    raw_item_ids = [row.id for row in rows if row.category == "원자재"]
+    lot_rows = (
+        db.query(InventoryLot)
+        .filter(InventoryLot.inventory_id.in_(raw_item_ids))
+        .order_by(InventoryLot.inventory_id, InventoryLot.first_received_date, InventoryLot.lot)
+        .all()
+        if raw_item_ids
+        else []
+    )
+    lots_by_inventory = {}
+    for lot_row in lot_rows:
+        lots_by_inventory.setdefault(lot_row.inventory_id, []).append(lot_row)
+
+    data = []
+    for row in rows:
+        base = {
             "품목코드": row.item_code,
             "품명": row.item_name,
             "구분": row.category,
             "창고구분": row.warehouse_type,
-            "LOT": row.lot,
             "Grade": row.grade,
             "Rev": row.rev,
-            "수량": row.qty,
-            "비고": row.note
+            "비고": row.note,
         }
-        for row in rows
-    ]
+        item_lots = lots_by_inventory.get(row.id, []) if row.category == "원자재" else []
+        if not item_lots:
+            data.append({**base, "LOT": row.lot, "최초 입고일자": "", "수량": row.qty})
+            continue
 
-    df = pd.DataFrame(data)
+        tracked_qty = 0
+        for lot_row in item_lots:
+            tracked_qty += lot_row.qty or 0
+            data.append({
+                **base,
+                "LOT": lot_row.lot,
+                "최초 입고일자": (
+                    lot_row.first_received_date.strftime("%Y-%m-%d")
+                    if lot_row.first_received_date else ""
+                ),
+                "수량": lot_row.qty or 0,
+            })
+        unclassified_qty = max((row.qty or 0) - tracked_qty, 0)
+        if unclassified_qty:
+            data.append({**base, "LOT": "", "최초 입고일자": "", "수량": unclassified_qty})
+
+    df = pd.DataFrame(
+        data,
+        columns=[
+            "품목코드", "품명", "구분", "창고구분", "LOT",
+            "최초 입고일자", "Grade", "Rev", "수량", "비고",
+        ],
+    )
 
     output = BytesIO()
 
@@ -1494,6 +1530,37 @@ def download_inventory_excel(request: Request, db: Session = Depends(get_db)):
         headers={"Content-Disposition": download_content_disposition(
             "수불 재고 현황", "inventory"
         )}
+    )
+
+
+@router.get("/inventory/lot-upload-template")
+def download_inventory_lot_upload_template():
+    sample = pd.DataFrame(
+        [
+            {
+                "품목코드": "RAW-001",
+                "Grade": "A",
+                "LOT": "LOT-20261028-01",
+                "수량": 100,
+                "최초 입고일자": "2026-10-28",
+            }
+        ]
+    )
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        sample.to_excel(writer, index=False, sheet_name="원자재 LOT 등록")
+        sheet = writer.sheets["원자재 LOT 등록"]
+        widths = {"A": 20, "B": 12, "C": 24, "D": 12, "E": 18}
+        for column, width in widths.items():
+            sheet.column_dimensions[column].width = width
+        sheet.freeze_panes = "A2"
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": download_content_disposition(
+            "원자재 LOT 업로드 예시", "raw-material-lot-upload-template"
+        )},
     )
 
 @router.post("/inventory/init-excel")
@@ -1655,6 +1722,127 @@ async def init_inventory_excel(
                 f"신규 {created}건 / 제외 {skipped}건"
         }
     )
+
+@router.post("/inventory/lot-upload")
+async def upload_inventory_lot_excel(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """Register raw-material LOT balances from a dedicated Excel sheet.
+
+    Required columns: 품목코드, Grade, LOT, 수량. 수량 is treated as inbound
+    stock, matching the existing single LOT registration flow.
+    """
+    try:
+        df = pd.read_excel(file.file)
+    except Exception:
+        return JSONResponse(
+            {"status": "error", "message": "엑셀 파일을 읽을 수 없습니다."},
+            status_code=400,
+        )
+
+    required = ["품목코드", "Grade", "LOT", "수량"]
+    missing = [column for column in required if column not in df.columns]
+    if missing:
+        return JSONResponse(
+            {"status": "error", "message": f"필수 컬럼이 없습니다: {', '.join(missing)}"},
+            status_code=400,
+        )
+
+    date_column = next(
+        (column for column in ("최초 입고일자", "입고일자") if column in df.columns),
+        None,
+    )
+    prepared = []
+    for row_number, (_, row) in enumerate(df.iterrows(), start=2):
+        item_code = normalize_item_code(row["품목코드"])
+        grade = str(row["Grade"]).strip() if pd.notna(row["Grade"]) else ""
+        lot = str(row["LOT"]).strip() if pd.notna(row["LOT"]) else ""
+        if not item_code or not grade or not lot:
+            return JSONResponse(
+                {"status": "error", "message": f"엑셀 {row_number}행의 품목코드, Grade, LOT를 확인하세요."},
+                status_code=400,
+            )
+        if grade not in GRADES:
+            return JSONResponse(
+                {"status": "error", "message": f"엑셀 {row_number}행의 Grade는 A, B, F 중 하나여야 합니다."},
+                status_code=400,
+            )
+        try:
+            qty = parse_excel_quantity(row["수량"])
+        except ValueError:
+            return JSONResponse(
+                {"status": "error", "message": f"엑셀 {row_number}행의 수량 값이 올바르지 않습니다: {row['수량']}"},
+                status_code=400,
+            )
+        if qty < 0:
+            return JSONResponse(
+                {"status": "error", "message": f"엑셀 {row_number}행의 수량은 0 이상이어야 합니다."},
+                status_code=400,
+            )
+        raw_received_date = None if date_column is None else row[date_column]
+        try:
+            if raw_received_date is None or pd.isna(raw_received_date):
+                received_date = None
+            elif isinstance(raw_received_date, (datetime, date, pd.Timestamp)):
+                received_date = raw_received_date.date() if hasattr(raw_received_date, "date") else raw_received_date
+            else:
+                received_date = parse_first_received_date(str(raw_received_date))
+        except ValueError:
+            return JSONResponse(
+                {"status": "error", "message": f"엑셀 {row_number}행의 입고일자는 YYYY-MM-DD 형식이어야 합니다."},
+                status_code=400,
+            )
+
+        item = (
+            db.query(Inventory)
+            .filter(
+                Inventory.item_code == item_code,
+                Inventory.warehouse_type == "창고재고",
+                Inventory.category == "원자재",
+                Inventory.grade == grade,
+            )
+            .first()
+        )
+        if item is None:
+            return JSONResponse(
+                {"status": "error", "message": f"엑셀 {row_number}행에 해당하는 원자재 재고가 없습니다: {item_code} / {grade}"},
+                status_code=400,
+            )
+        prepared.append((item, lot[:100], qty, received_date))
+
+    username = current_user(request)
+    for item, lot, qty, received_date in prepared:
+        add_to_inventory_lot(db, item, lot, qty, received_date)
+        if qty > 0:
+            item.qty = (item.qty or 0) + qty
+            db.add(
+                InventoryMovement(
+                    item_code=item.item_code,
+                    item_name=item.item_name,
+                    category=item.category,
+                    warehouse_type=item.warehouse_type,
+                    movement_type="IN",
+                    qty=qty,
+                    user=username,
+                    source="LOT 엑셀 업로드",
+                    lot=lot,
+                    first_received_date=received_date,
+                )
+            )
+
+    db.commit()
+    total_qty = sum(qty for _, _, qty, _ in prepared)
+    message = f"LOT {len(prepared)}건 등록 / 입고 {total_qty} EA"
+    save_log(
+        user=username,
+        product=INVENTORY_LOG_PRODUCT,
+        action="INVENTORY_LOT_UPLOAD_EXCEL",
+        detail=f"원자재 LOT 엑셀 업로드: {message}",
+    )
+    return JSONResponse({"status": "success", "created": len(prepared), "qty": total_qty, "message": message})
+
 
 @router.post("/inventory/upload")
 async def upload_inventory_excel(

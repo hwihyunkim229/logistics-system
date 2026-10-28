@@ -1,8 +1,11 @@
 import asyncio
 import unittest
+from io import BytesIO
 from unittest.mock import patch
 
+import pandas as pd
 from fastapi import Request
+from fastapi import UploadFile
 from pydantic import ValidationError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -18,6 +21,7 @@ from app.routers.inventory import (
     inventory_mobile_duplicate_check,
     inventory_mobile_items,
     inventory_lot_register,
+    upload_inventory_lot_excel,
     inventory_move_in,
     inventory_move_out,
 )
@@ -191,6 +195,36 @@ class InventoryMobileApiTests(unittest.TestCase):
         self.db.refresh(self.item)
         self.assertEqual(self.item.qty, 13)
         self.assertEqual(self.db.query(InventoryLot).filter_by(lot="LOT-NEW").one().qty, 3)
+
+    @patch("app.routers.inventory.save_log")
+    def test_lot_excel_upload_registers_raw_material_lot_and_inbound_stock(self, _save_log):
+        stream = BytesIO()
+        pd.DataFrame(
+            [{
+                "품목코드": "ITEM-001",
+                "Grade": "A",
+                "LOT": "LOT-EXCEL",
+                "수량": 4,
+                "최초 입고일자": "2026-10-07",
+            }]
+        ).to_excel(stream, index=False)
+        stream.seek(0)
+
+        response = asyncio.run(
+            upload_inventory_lot_excel(
+                request_with_session(),
+                UploadFile(filename="lots.xlsx", file=stream),
+                self.db,
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.db.refresh(self.item)
+        self.assertEqual(self.item.qty, 14)
+        lot = self.db.query(InventoryLot).filter_by(lot="LOT-EXCEL").one()
+        self.assertEqual(lot.qty, 4)
+        self.assertEqual(lot.first_received_date.isoformat(), "2026-10-07")
+        self.assertEqual(self.db.query(InventoryMovement).filter_by(lot="LOT-EXCEL").one().qty, 4)
 
     @patch("app.routers.inventory.save_log")
     def test_lot_register_allows_empty_quantity(self, _save_log):
