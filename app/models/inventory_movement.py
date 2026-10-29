@@ -5,8 +5,8 @@ from sqlalchemy import (
     String,
     DateTime
 )
-from datetime import datetime
 from app.database import Base
+from app.utils.timezone import utc_now_naive
 
 class InventoryMovement(Base):
 
@@ -26,5 +26,5 @@ class InventoryMovement(Base):
     first_received_date = Column(Date)
     created_at = Column(
         DateTime,
-        default=datetime.now
+        default=utc_now_naive
     )

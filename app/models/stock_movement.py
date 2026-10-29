@@ -4,8 +4,8 @@ from sqlalchemy import (
     String,
     DateTime
 )
-from datetime import datetime
 from app.database import Base
+from app.utils.timezone import utc_now_naive
 
 class StockMovement(Base):
 
@@ -21,5 +21,5 @@ class StockMovement(Base):
     source = Column(String)
     created_at = Column(
         DateTime,
-        default=datetime.now
+        default=utc_now_naive
     )

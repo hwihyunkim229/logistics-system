@@ -20,7 +20,7 @@ from app.models.stock import Stock
 from app.utils.logger import save_log
 from app.utils.downloads import download_content_disposition
 from app.utils.item_codes import normalize_item_code
-from app.utils.timezone import format_kst
+from app.utils.timezone import format_kst, kst_to_utc_naive, utc_now_naive
 
 router = APIRouter()
 
@@ -631,7 +631,7 @@ async def inventory_mobile_duplicate_check(
             InventoryMovement.movement_type == movement_type,
             InventoryMovement.qty == qty,
             InventoryMovement.lot == lot,
-            InventoryMovement.created_at >= datetime.now() - timedelta(minutes=3),
+            InventoryMovement.created_at >= utc_now_naive() - timedelta(minutes=3),
         )
         .order_by(InventoryMovement.created_at.desc())
         .first()
@@ -1402,12 +1402,12 @@ def inventory_dashboard(
 
     if start and end:
 
-        start_date = datetime.strptime(start, "%Y-%m-%d")
-        end_date = datetime.strptime(end, "%Y-%m-%d")
+        start_date = kst_to_utc_naive(datetime.strptime(start, "%Y-%m-%d"))
+        end_date = kst_to_utc_naive(datetime.strptime(end, "%Y-%m-%d") + timedelta(days=1))
 
         movement_query = movement_query.filter(
             InventoryMovement.created_at >= start_date,
-            InventoryMovement.created_at <= end_date
+            InventoryMovement.created_at < end_date
         )
 
     for move in movement_query.all():
