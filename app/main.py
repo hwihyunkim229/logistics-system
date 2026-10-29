@@ -294,6 +294,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 request=request,
                 status_code=response.status_code,
                 user=user,
+                result=getattr(request.state, "access_log_result", None),
+                detail=getattr(request.state, "access_log_detail", ""),
             )
 
         return response

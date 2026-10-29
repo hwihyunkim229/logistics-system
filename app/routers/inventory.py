@@ -130,6 +130,26 @@ def get_db():
 def current_user(request: Request):
     return request.session.get("user") or "system"
 
+
+def inventory_upload_error(request, message, action):
+    """Return an upload error and preserve its reason in operational logs."""
+    request.state.access_log_result = "실패"
+    request.state.access_log_detail = message
+    save_log(
+        user=current_user(request),
+        product=INVENTORY_LOG_PRODUCT,
+        action=action,
+        detail=f"실패: {message}",
+    )
+    return JSONResponse({"status": "error", "message": message}, status_code=400)
+
+
+def summarize_upload_exclusions(exclusions, limit=20):
+    shown = exclusions[:limit]
+    summary = "; ".join(shown)
+    remaining = len(exclusions) - len(shown)
+    return summary + (f"; 외 {remaining}건" if remaining > 0 else "")
+
 def summarize_items(items):
     codes = [item.item_code for item in items[:10]]
 
@@ -1736,18 +1756,20 @@ async def upload_inventory_lot_excel(
     """
     try:
         df = pd.read_excel(file.file)
-    except Exception:
-        return JSONResponse(
-            {"status": "error", "message": "엑셀 파일을 읽을 수 없습니다."},
-            status_code=400,
+    except Exception as exc:
+        return inventory_upload_error(
+            request,
+            f"엑셀 파일을 읽을 수 없습니다. ({type(exc).__name__})",
+            "INVENTORY_LOT_UPLOAD_EXCEL",
         )
 
     required = ["품목코드", "Grade", "LOT", "수량"]
     missing = [column for column in required if column not in df.columns]
     if missing:
-        return JSONResponse(
-            {"status": "error", "message": f"필수 컬럼이 없습니다: {', '.join(missing)}"},
-            status_code=400,
+        return inventory_upload_error(
+            request,
+            f"필수 컬럼이 없습니다: {', '.join(missing)}",
+            "INVENTORY_LOT_UPLOAD_EXCEL",
         )
 
     date_column = next(
@@ -1756,30 +1778,30 @@ async def upload_inventory_lot_excel(
     )
     prepared = []
     for row_number, (_, row) in enumerate(df.iterrows(), start=2):
-        item_code = normalize_item_code(row["품목코드"])
+        item_code = "" if pd.isna(row["품목코드"]) else normalize_item_code(row["품목코드"])
         grade = str(row["Grade"]).strip() if pd.notna(row["Grade"]) else ""
         lot = str(row["LOT"]).strip() if pd.notna(row["LOT"]) else ""
         if not item_code or not grade or not lot:
-            return JSONResponse(
-                {"status": "error", "message": f"엑셀 {row_number}행의 품목코드, Grade, LOT를 확인하세요."},
-                status_code=400,
+            return inventory_upload_error(
+                request, f"엑셀 {row_number}행의 품목코드, Grade, LOT를 확인하세요.",
+                "INVENTORY_LOT_UPLOAD_EXCEL",
             )
         if grade not in GRADES:
-            return JSONResponse(
-                {"status": "error", "message": f"엑셀 {row_number}행의 Grade는 A, B, F 중 하나여야 합니다."},
-                status_code=400,
+            return inventory_upload_error(
+                request, f"엑셀 {row_number}행의 Grade는 A, B, F 중 하나여야 합니다.",
+                "INVENTORY_LOT_UPLOAD_EXCEL",
             )
         try:
             qty = parse_excel_quantity(row["수량"])
         except ValueError:
-            return JSONResponse(
-                {"status": "error", "message": f"엑셀 {row_number}행의 수량 값이 올바르지 않습니다: {row['수량']}"},
-                status_code=400,
+            return inventory_upload_error(
+                request, f"엑셀 {row_number}행의 수량 값이 올바르지 않습니다: {row['수량']}",
+                "INVENTORY_LOT_UPLOAD_EXCEL",
             )
         if qty < 0:
-            return JSONResponse(
-                {"status": "error", "message": f"엑셀 {row_number}행의 수량은 0 이상이어야 합니다."},
-                status_code=400,
+            return inventory_upload_error(
+                request, f"엑셀 {row_number}행의 수량은 0 이상이어야 합니다.",
+                "INVENTORY_LOT_UPLOAD_EXCEL",
             )
         raw_received_date = None if date_column is None else row[date_column]
         try:
@@ -1790,9 +1812,9 @@ async def upload_inventory_lot_excel(
             else:
                 received_date = parse_first_received_date(str(raw_received_date))
         except ValueError:
-            return JSONResponse(
-                {"status": "error", "message": f"엑셀 {row_number}행의 입고일자는 YYYY-MM-DD 형식이어야 합니다."},
-                status_code=400,
+            return inventory_upload_error(
+                request, f"엑셀 {row_number}행의 입고일자는 YYYY-MM-DD 형식이어야 합니다.",
+                "INVENTORY_LOT_UPLOAD_EXCEL",
             )
 
         item = (
@@ -1806,9 +1828,9 @@ async def upload_inventory_lot_excel(
             .first()
         )
         if item is None:
-            return JSONResponse(
-                {"status": "error", "message": f"엑셀 {row_number}행에 해당하는 원자재 재고가 없습니다: {item_code} / {grade}"},
-                status_code=400,
+            return inventory_upload_error(
+                request, f"엑셀 {row_number}행에 해당하는 원자재 재고가 없습니다: {item_code} / {grade}",
+                "INVENTORY_LOT_UPLOAD_EXCEL",
             )
         prepared.append((item, lot[:100], qty, received_date))
 
@@ -1835,6 +1857,7 @@ async def upload_inventory_lot_excel(
     db.commit()
     total_qty = sum(qty for _, _, qty, _ in prepared)
     message = f"LOT {len(prepared)}건 등록 / 입고 {total_qty} EA"
+    request.state.access_log_detail = message
     save_log(
         user=username,
         product=INVENTORY_LOG_PRODUCT,
@@ -1851,20 +1874,29 @@ async def upload_inventory_excel(
     db: Session = Depends(get_db)
 ):
 
-    df = pd.read_excel(file.file)
+    try:
+        df = pd.read_excel(file.file)
+    except Exception as exc:
+        return inventory_upload_error(
+            request,
+            f"엑셀 파일을 읽을 수 없습니다. ({type(exc).__name__})",
+            "INVENTORY_UPLOAD_EXCEL",
+        )
 
     required = ["품목코드", "창고구분"]
 
     for col in required:
         if col not in df.columns:
-            return JSONResponse(
-                {"status": "error", "message": f"{col} 컬럼이 없습니다."},
-                status_code=400
+            return inventory_upload_error(
+                request,
+                f"{col} 컬럼이 없습니다.",
+                "INVENTORY_UPLOAD_EXCEL",
             )
 
     created = 0
     updated = 0
     skipped = 0
+    exclusions = []
 
     has_note_col = "비고" in df.columns
     has_category_col = "구분" in df.columns
@@ -1874,8 +1906,9 @@ async def upload_inventory_excel(
 
     for row_number, (_, row) in enumerate(df.iterrows(), start=2):
 
-        item_code = normalize_item_code(
-            row["품목코드"]
+        item_code = (
+            "" if pd.isna(row["품목코드"])
+            else normalize_item_code(row["품목코드"])
         )
         warehouse_type = str(row["창고구분"]).strip()
 
@@ -1894,12 +1927,10 @@ async def upload_inventory_excel(
         try:
             qty = parse_excel_quantity(row["수량"]) if has_qty_col else 0
         except ValueError:
-            return JSONResponse(
-                {
-                    "status": "error",
-                    "message": f"엑셀 {row_number}행의 수량 값이 올바르지 않습니다: {row['수량']}"
-                },
-                status_code=400
+            return inventory_upload_error(
+                request,
+                f"엑셀 {row_number}행의 수량 값이 올바르지 않습니다: {row['수량']}",
+                "INVENTORY_UPLOAD_EXCEL",
             )
 
         note = (
@@ -1919,6 +1950,10 @@ async def upload_inventory_excel(
         if not item_name:
 
             skipped += 1
+            exclusions.append(
+                f"{row_number}행 {item_code or '(빈 품목코드)'}: "
+                "품목 기준정보와 가계상 재고에서 품명을 찾을 수 없음"
+            )
             continue
 
         category = given_category if given_category in CATEGORIES else auto_category
@@ -1978,12 +2013,18 @@ async def upload_inventory_excel(
         f"/ 수정 {updated}건 "
         f"/ 제외 {skipped}건"
     )
+    exclusion_summary = summarize_upload_exclusions(exclusions)
+    log_detail = f"수불 재고 업로드: {message}"
+    if exclusion_summary:
+        log_detail += f" / 제외 사유: {exclusion_summary}"
+        request.state.access_log_result = "부분 성공"
+    request.state.access_log_detail = log_detail
 
     save_log(
         user=current_user(request),
         product=INVENTORY_LOG_PRODUCT,
         action="INVENTORY_UPLOAD_EXCEL",
-        detail=f"수불 재고 업로드: {message}"
+        detail=log_detail
     )
 
     return JSONResponse(
@@ -1992,6 +2033,7 @@ async def upload_inventory_excel(
         "created":created,
         "updated":updated,
         "skipped":skipped,
+        "exclusions": exclusions,
         "message":message
     }
     )

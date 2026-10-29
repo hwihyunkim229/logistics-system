@@ -88,6 +88,10 @@
     color:#dc2626;
     font-weight:800
 }
+.result-partial{
+    color:#b45309;
+    font-weight:800
+}
 .pager{
     display:flex;
     justify-content:center;
@@ -119,7 +123,7 @@
         <input name="path" value="{{ search_path }}" placeholder="경로/기능">
         <select data-multi-filter name="result">
             <option value="">전체 결과</option>
-            {% for value in ["성공", "실패", "인증필요", "세션만료", "권한없음", "충돌/중복"] %}
+            {% for value in ["성공", "부분 성공", "실패", "인증필요", "세션만료", "권한없음", "충돌/중복"] %}
             <option value="{{ value }}" {% if selected_result == value %}selected{% endif %}>{{ value }}</option>
             {% endfor %}
         </select>
@@ -140,7 +144,7 @@
                 <td>{{ log.ip_address }}</td>
                 <td>{{ log.action }}</td>
                 <td class="audit-path">{{ log.method }} {{ log.path }}</td>
-                <td class="{% if log.result == '성공' %}result-success{% elif log.result == '실패' %}result-fail{% endif %}">
+                <td class="{% if log.result == '성공' %}result-success{% elif log.result == '부분 성공' %}result-partial{% elif log.result == '실패' %}result-fail{% endif %}">
                     {{ log.result }} ({{ log.status_code }})
                 </td>
                 <td>{{ log.detail }}</td>
