@@ -58,7 +58,8 @@ from app.routers import (
     mrp,
     inventory as inventory_router,
     assistant,
-    rental
+    rental,
+    guide,
 )
 from app.workflow.routers import (
     purchase,
@@ -336,6 +337,7 @@ app.include_router(mrp.router)
 app.include_router(inventory_router.router)
 app.include_router(assistant.router)
 app.include_router(rental.router)
+app.include_router(guide.router)
 app.include_router(purchase.router)
 app.include_router(quality.router)
 app.include_router(material.router)

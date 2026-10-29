@@ -123,6 +123,35 @@ html.sidebar-collapsed-preload .sidebar .submenu{
 .sidebar-toggle:hover{
     background:rgba(255,255,255,.08);
 }
+.sidebar-guide-link-wrap{
+    margin-top:8px;
+    padding-top:14px;
+    border-top:1px solid rgba(255,255,255,.1);
+}
+.sidebar .sidebar-guide-link{
+    justify-content:flex-start;
+    margin-bottom:0;
+    color:#dce8ff;
+    background:rgba(255,255,255,.04);
+}
+.sidebar-guide-link i{
+    width:18px;
+    text-align:center;
+    color:#8fb3ff;
+}
+.sidebar.collapsed .sidebar-guide-link-wrap,
+html.sidebar-collapsed-preload .sidebar-guide-link-wrap{
+    padding-top:10px;
+}
+.sidebar.collapsed .sidebar-guide-link,
+html.sidebar-collapsed-preload .sidebar-guide-link{
+    justify-content:center;
+    padding:12px 0;
+}
+.sidebar.collapsed .sidebar-guide-link span,
+html.sidebar-collapsed-preload .sidebar-guide-link span{
+    display:none;
+}
 .main{
     margin-left:260px;
     height:100vh;
@@ -1002,6 +1031,14 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
     </div>
 
     {% endif %}
+
+    <div class="sidebar-guide-link-wrap">
+        <a href="/guide" class="sidebar-guide-link" target="_blank" rel="noopener"
+           title="사용 안내 새 탭에서 열기">
+            <i class="fa-regular fa-circle-question" aria-hidden="true"></i>
+            <span>사용 안내</span>
+        </a>
+    </div>
 
 </div>
 

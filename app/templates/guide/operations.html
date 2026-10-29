@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>물류 시스템 운영가이드</title>
+<style>
+:root{--navy:#0f292d;--navy2:#173a3e;--mint:#20a58f;--mint2:#e6f5f1;--ink:#173033;--muted:#64777a;--line:#dbe5e4;--paper:#fff;--bg:#f2f6f5;--warn:#b66a13;--danger:#bd3c42;--shadow:0 12px 34px rgba(15,41,45,.09)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,"Noto Sans KR","Malgun Gothic",sans-serif;line-height:1.72;word-break:keep-all}.shell{display:grid;grid-template-columns:280px minmax(0,1fr);min-height:100vh}.sidebar{position:sticky;top:0;height:100vh;padding:26px 20px;background:linear-gradient(180deg,var(--navy),#0b2023);color:#d8e8e6;overflow:auto}.brand{display:flex;align-items:center;gap:12px;margin-bottom:24px}.brand-mark{display:grid;place-items:center;width:42px;height:42px;border-radius:12px;background:#2cbaa3;color:#092522;font-weight:900}.brand b{display:block;color:white;font-size:15px;letter-spacing:.04em}.brand small{color:#8fb0ac;font-size:10px}.search{width:100%;height:40px;margin-bottom:18px;padding:0 12px;border:1px solid #345458;border-radius:9px;background:#153438;color:white;outline:none}.search::placeholder{color:#87a5a2}.nav-title{margin:18px 8px 7px;color:#6f9490;font-size:10px;font-weight:800;letter-spacing:.12em}.nav a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px;color:#c2d7d4;font-size:12px;text-decoration:none}.nav a:hover,.nav a.active{background:rgba(45,188,163,.13);color:#67ddc9}.nav i{display:inline-grid;place-items:center;width:21px;height:21px;border-radius:6px;background:rgba(255,255,255,.06);font-style:normal;font-size:10px}.sidebar-foot{margin-top:24px;padding:14px;border-top:1px solid #2a474b;color:#7f9f9c;font-size:10px}.main{min-width:0}.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;height:58px;padding:0 38px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.93);backdrop-filter:blur(12px)}.crumb{color:var(--muted);font-size:11px}.actions{display:flex;gap:8px}.btn{height:32px;padding:0 12px;border:1px solid var(--line);border-radius:7px;background:white;color:var(--ink);font-size:11px;font-weight:750;cursor:pointer}.btn:hover{border-color:var(--mint);color:var(--mint)}.content{max-width:1180px;margin:auto;padding:36px 38px 80px}.hero{position:relative;overflow:hidden;padding:44px;border-radius:18px;background:linear-gradient(130deg,#123438,#1d5a57);color:white;box-shadow:var(--shadow)}.hero:after{content:"";position:absolute;right:-70px;top:-90px;width:300px;height:300px;border:55px solid rgba(88,220,193,.11);border-radius:50%}.eyebrow{color:#71dbc8;font-size:11px;font-weight:850;letter-spacing:.16em}.hero h1{max-width:720px;margin:12px 0 14px;font-size:38px;line-height:1.18;letter-spacing:-.04em}.hero p{max-width:700px;margin:0;color:#c1d9d6;font-size:14px}.hero-meta{display:flex;gap:9px;margin-top:24px;flex-wrap:wrap}.chip{padding:5px 9px;border:1px solid rgba(255,255,255,.18);border-radius:999px;background:rgba(255,255,255,.06);font-size:10px}.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:18px 0 34px}.quick a{padding:16px;border:1px solid var(--line);border-radius:12px;background:white;color:inherit;text-decoration:none;box-shadow:0 4px 16px rgba(15,41,45,.04)}.quick a:hover{border-color:#8acfc2;transform:translateY(-1px)}.quick b{display:block;font-size:12px}.quick span{display:block;margin-top:4px;color:var(--muted);font-size:10px}.section{scroll-margin-top:78px;margin:0 0 28px;padding:30px;border:1px solid var(--line);border-radius:15px;background:var(--paper);box-shadow:0 4px 20px rgba(15,41,45,.035)}.section-head{display:flex;align-items:flex-start;gap:14px;margin-bottom:20px}.num{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:9px;background:var(--navy);color:#6bdbc7;font-size:12px;font-weight:900}.section h2{margin:0;font-size:23px;line-height:1.25;letter-spacing:-.03em}.section-head p{margin:4px 0 0;color:var(--muted);font-size:11px}.section h3{margin:28px 0 10px;padding-top:2px;font-size:15px}.section h4{margin:18px 0 6px;font-size:12px}.section p,.section li{font-size:12px}.section ul,.section ol{padding-left:20px}.section li{margin:4px 0}.callout{margin:14px 0;padding:14px 16px;border-left:3px solid var(--mint);border-radius:0 9px 9px 0;background:var(--mint2);font-size:11px}.callout.warn{border-color:#e19a45;background:#fff7e9;color:#74430c}.callout.danger{border-color:#d2575d;background:#fff1f2;color:#792d32}.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.card{padding:16px;border:1px solid var(--line);border-radius:11px;background:#fbfdfc}.card b{display:block;margin-bottom:5px;font-size:12px}.card p{margin:0;color:var(--muted);font-size:10.5px}.steps{counter-reset:step;display:grid;gap:9px;margin:12px 0}.step{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:#fcfefd;font-size:11px}.step:before{counter-increment:step;content:counter(step);display:grid;place-items:center;width:24px;height:24px;border-radius:7px;background:var(--mint2);color:#087966;font-size:10px;font-weight:900}.table-wrap{overflow:auto;margin:13px 0;border:1px solid var(--line);border-radius:10px}table{width:100%;border-collapse:collapse;font-size:10.5px}th{padding:10px 11px;background:#173a3e;color:#e9f4f2;text-align:left;white-space:nowrap}td{padding:10px 11px;border-bottom:1px solid var(--line);vertical-align:top}tr:last-child td{border-bottom:0}tr:nth-child(even) td{background:#f8fbfa}code{padding:2px 5px;border-radius:5px;background:#edf3f2;color:#0c6e60;font-family:Consolas,monospace;font-size:10px}.flow{display:flex;gap:6px;align-items:center;overflow:auto;padding:6px 0 13px}.flow span{flex:0 0 auto;padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:#f8fbfa;font-size:10px;font-weight:750}.flow em{color:#8aa09e;font-style:normal}.checklist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.check{padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:11px}.check:before{content:"✓";margin-right:8px;color:var(--mint);font-weight:900}.footer{padding:24px 0;color:#738689;font-size:10px;text-align:center}.hidden{display:none!important}@media(max-width:920px){.shell{grid-template-columns:1fr}.sidebar{position:relative;height:auto}.nav{display:grid;grid-template-columns:repeat(2,1fr)}.topbar{top:0;padding:0 18px}.content{padding:22px 16px 50px}.hero{padding:30px}.hero h1{font-size:30px}.quick{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}@media(max-width:560px){.quick,.checklist{grid-template-columns:1fr}.section{padding:21px}.hero h1{font-size:26px}.actions .btn:first-child{display:none}}@media print{body{background:white}.shell{display:block}.sidebar,.topbar,.quick{display:none}.content{max-width:none;padding:0}.hero{box-shadow:none;print-color-adjust:exact}.section{break-inside:avoid;box-shadow:none}.section h2{font-size:19px}}
+</style>
+<style>
+.sidebar{scrollbar-width:thin;scrollbar-color:#4a7772 transparent}.sidebar::-webkit-scrollbar{width:7px}.sidebar::-webkit-scrollbar-track{background:transparent}.sidebar::-webkit-scrollbar-thumb{border:2px solid transparent;border-radius:20px;background:#4a7772;background-clip:padding-box}.sidebar::-webkit-scrollbar-thumb:hover{background:#65a39a;background-clip:padding-box}.sidebar-collapse{position:absolute;top:18px;right:14px;display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid #36575a;border-radius:8px;background:#153438;color:#b8d1ce;cursor:pointer}.sidebar-collapse:hover{border-color:#58bbaa;color:#73dcc9}.step{display:flex!important;grid-template-columns:none!important;gap:12px}.step:before{flex:0 0 24px}.step code{display:inline;white-space:normal;overflow-wrap:anywhere}.section p,.section li,.step{word-break:normal;overflow-wrap:anywhere}.sidebar,.shell{transition:.2s ease}.guide-sidebar-collapsed .shell{grid-template-columns:76px minmax(0,1fr)}.guide-sidebar-collapsed .sidebar{padding:64px 12px 18px}.guide-sidebar-collapsed .sidebar-collapse{right:23px}.guide-sidebar-collapsed .brand,.guide-sidebar-collapsed .search,.guide-sidebar-collapsed .nav-title,.guide-sidebar-collapsed .sidebar-foot{display:none}.guide-sidebar-collapsed .nav a{justify-content:center;padding:8px 0;font-size:0;white-space:nowrap}.guide-sidebar-collapsed .nav i{width:28px;height:28px;font-size:10px}.guide-sidebar-collapsed .sidebar-collapse span{transform:rotate(180deg)}@media(max-width:920px){.sidebar-collapse{display:none}.guide-sidebar-collapsed .shell{grid-template-columns:1fr}.guide-sidebar-collapsed .sidebar{padding:26px 20px}.guide-sidebar-collapsed .brand{display:flex}.guide-sidebar-collapsed .search,.guide-sidebar-collapsed .nav-title,.guide-sidebar-collapsed .sidebar-foot{display:block}.guide-sidebar-collapsed .nav a{justify-content:flex-start;padding:8px 10px;font-size:12px}}
+</style>
+<style>
+/* 넓은 화면에서는 사이드바를 제외한 영역을 모두 사용한다. */
+.content{
+  width:100%;
+  max-width:none;
+  margin:0;
+  padding:32px clamp(24px,3vw,56px) 80px;
+}
+@media(max-width:920px){
+  .content{padding:22px 16px 50px}
+}
+@media print{
+  .content{padding:0}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+<aside class="sidebar">
+  <button class="sidebar-collapse" id="sidebarCollapse" type="button" aria-label="메뉴 접기" title="메뉴 접기"><span>‹</span></button>
+  <div class="brand"><span class="brand-mark">물류</span><span><b>물류 시스템</b><small>운영가이드</small></span></div>
+  <input class="search" id="guideSearch" placeholder="가이드 검색 (예: LOT, MRP)">
+  <div class="nav-title">메뉴</div>
+  <nav class="nav" id="guideNav">
+    <a href="#map"><i>01</i>메뉴별 용도</a><a href="#start"><i>02</i>로그인·공통 기능</a><a href="#inventory"><i>03</i>수불재고</a><a href="#stock"><i>04</i>가계상·품목관리</a><a href="#logistics"><i>05</i>제품·대여</a><a href="#workflow"><i>06</i>부서별 업무</a><a href="#mrp"><i>07</i>MRP</a><a href="#admin"><i>08</i>관리자 기능</a><a href="#excel"><i>09</i>엑셀 업로드</a><a href="#trouble"><i>10</i>오류 확인</a><a href="#check"><i>11</i>통합검색·도우미</a><a href="#change"><i>12</i>대량 변경</a>
+  </nav>
+  <div class="sidebar-foot">기준 버전 2026-10-29<br>현재 메뉴·라우트·권한·로그 기준</div>
+</aside>
+<main class="main">
+  <div class="topbar"><span class="crumb">물류 시스템 / 운영가이드 / 2026.10.29</span><div class="actions"><button class="btn" onclick="document.getElementById('guideSearch').focus()">검색</button><button class="btn" onclick="window.print()">인쇄·PDF</button></div></div>
+  <div class="content">
+    <header class="hero"><div class="eyebrow">물류 시스템 사용 안내</div><h1>업무별 사용 방법과<br>확인 사항</h1><p>재고 입출고, LOT 등록, 엑셀 업로드, 부서별 업무 처리 방법을 정리했습니다. 작업 전 준비사항과 처리 후 확인할 내용을 함께 확인하세요.</p><div class="hero-meta"><span class="chip">수불재고·LOT</span><span class="chip">부서별 업무</span><span class="chip">MRP</span><span class="chip">엑셀 업로드</span><span class="chip">업무 로그</span></div></header>
+    <div class="quick"><a href="#inventory"><b>원자재 LOT 등록</b><span>직접 등록, 엑셀 등록, LOT 출고</span></a><a href="#excel"><b>엑셀 업로드</b><span>추가, 수량 변경, 전체 교체 구분</span></a><a href="#trouble"><b>업로드 오류 확인</b><span>행 번호와 원인을 로그에서 확인</span></a><a href="#check"><b>통합 검색과 도우미</b><span>품목코드, S/N, LOT로 관련 데이터 찾기</span></a></div>
+
+    <section class="section searchable" id="map"><div class="section-head"><span class="num">01</span><div><h2>메뉴별 용도</h2><p>각 메뉴에서 관리하는 데이터와 수량의 의미가 다릅니다.</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>메뉴</th><th>관리 대상</th><th>업무 기준</th></tr></thead><tbody><tr><td>제품 물류</td><td>완제품 S/N 입출고</td><td>이력 건수</td></tr><tr><td>수불재고</td><td>창고·제공·외주 재고</td><td>품목·Grade·LOT별 EA</td></tr><tr><td>가계상재고</td><td>품목·등급별 별도 재고</td><td>EA</td></tr><tr><td>대여 관리</td><td>대여용 재고와 사용자 이력</td><td>EA·대여 기록</td></tr><tr><td>CART PLATFORM IEM</td><td>구매부터 출하까지 진행</td><td>Workflow별 진행 수량</td></tr><tr><td>MRP</td><td>BOM·계획·수불재고</td><td>필요·가용·부족·발주 권고</td></tr></tbody></table></div>
+      <div class="callout warn"><b>수불재고, 가계상재고, 대여재고는 서로 독립적입니다.</b> 한 화면의 수정이 다른 화면을 자동으로 바꾸지 않습니다. MRP는 수불재고를 기준으로 계산합니다.</div>
+      <div class="grid2"><div class="card"><b>재고 연결</b><p>품목 관리 ↔ 재고 ↔ 자재기준정보는 품목코드로 연결됩니다.</p></div><div class="card"><b>계획 연결</b><p>BOM과 생산계획은 제품명으로 연결되므로 표기가 정확히 같아야 합니다.</p></div></div>
+    </section>
+
+    <section class="section searchable" id="start"><div class="section-head"><span class="num">02</span><div><h2>처음 사용할 때</h2><p>기준정보와 재고를 처음 등록할 때 아래 순서대로 진행합니다.</p></div></div>
+      <h3>로그인과 비밀번호</h3><ul><li>관리자가 전달한 계정으로 로그인합니다.</li><li>최초 로그인에서 비밀번호 변경 안내가 나오면 새 비밀번호를 설정합니다.</li><li>2시간 동안 작업이 없으면 세션이 만료될 수 있으므로 다시 로그인합니다.</li><li>메뉴나 버튼이 보이지 않으면 계정의 조회·수정·다운로드 권한을 관리자에게 확인합니다.</li></ul>
+      <div class="steps"><div class="step">계정 생성 후 기능별 조회·수정·다운로드 권한을 부여합니다.</div><div class="step">품목 관리에 표준 품목코드, 품명, Rev를 등록합니다.</div><div class="step">가계상·수불재고 기본 행을 만들고 실제 수량을 업로드합니다.</div><div class="step">원자재 LOT, BOM, 생산계획, 자재기준정보를 준비합니다.</div><div class="step">대표 품목을 수기로 검산하고 성공·부분 성공 로그를 확인합니다.</div></div>
+      <div class="callout">중요한 일괄 작업 전에는 현재 화면의 엑셀을 내려받아 작업 전 비교본을 보관하세요.</div>
+    </section>
+
+    <section class="section searchable" id="inventory"><div class="section-head"><span class="num">03</span><div><h2>수불재고 사용 방법</h2><p>입출고, 원자재 LOT 등록, 엑셀 업로드 방법을 설명합니다.</p></div></div>
+      <h3>입고·출고 표준 절차</h3><div class="grid2"><div class="card"><b>입고</b><p>창고·분류 선택 → 행 선택 → 입고 이동 → 수량·비고 입력 → 재고와 최근 이력 대조</p></div><div class="card"><b>출고</b><p>행 선택 → 출고 이동 → 수량 입력 → 원자재 LOT 선택 → 총재고·LOT 잔량·이력 확인</p></div></div>
+      <div class="callout warn">등록되지 않은 LOT 또는 잔량이 부족한 LOT는 출고할 수 없습니다. 총재고만 임의로 차감하지 마세요.</div>
+      <h3>원자재 LOT 직접 등록</h3><div class="steps"><div class="step"><code>창고재고 → 원자재</code>에서 대상 행 하나만 선택합니다.</div><div class="step"><code>LOT 등록 → 직접 등록</code>을 선택합니다.</div><div class="step">LOT, 수량, 최초 입고일자, 검사원, 비고를 입력합니다.</div><div class="step">수량 입력 시 LOT 잔량과 총재고가 함께 증가합니다. 수량을 비우면 정보만 등록됩니다.</div></div>
+      <p><b>LOT 내역의 숫자 버튼</b>은 등록된 LOT 개수입니다. 누르면 LOT·최초 입고일자·현재 잔량을 확인합니다.</p>
+      <h3>원자재 LOT 엑셀 등록</h3><div class="table-wrap"><table><thead><tr><th>필수 열</th><th>허용 값</th><th>실패 조건</th></tr></thead><tbody><tr><td>품목코드</td><td>창고재고 원자재에 존재하는 코드</td><td>코드+Grade 대상 없음</td></tr><tr><td>Grade</td><td>A / B / F</td><td>그 외 값 또는 빈칸</td></tr><tr><td>LOT</td><td>실제 LOT</td><td>빈칸</td></tr><tr><td>수량</td><td>0 이상의 정수</td><td>음수·소수·문자</td></tr><tr><td>최초 입고일자</td><td>YYYY-MM-DD, 선택</td><td>날짜 형식 오류</td></tr></tbody></table></div>
+      <div class="callout danger">예시 파일의 <code>RAW-001</code>은 샘플입니다. 그대로 올리지 말고 실제 품목코드로 교체하세요.</div>
+      <h3>일반 수불재고 업로드</h3><ul><li>필수 열: <code>품목코드 / 창고구분</code></li><li>선택 열: <code>구분 / LOT / Grade / 수량 / 비고</code></li><li>기존 코드+창고+LOT+Grade는 수량이 대체되고 신규 조합은 생성됩니다.</li><li>품명을 찾지 못한 행은 제외되며 결과가 <b>부분 성공</b>으로 기록됩니다.</li><li>활동 로그 상세에 최대 20개 제외 행·품목코드·원인이 남습니다.</li></ul>
+      <h3>다운로드 검산</h3><p>원자재는 LOT별 행과 미분류 잔량 행으로 내려갑니다. 화면 총재고와 비교할 때 LOT 행과 LOT가 빈 미분류 행을 함께 합산합니다.</p>
+      <h3>대량 초기화</h3><div class="callout danger">재고 0 처리와 이력 삭제는 별도 DB 작업입니다. Neon 백업·승인·작업 전후 합계 검증 없이 실행하지 마세요. 상위 재고와 <code>inventory_lot</code>를 함께 확인해야 합니다.</div>
+      <h3>모바일·QR 재고 처리</h3><div class="steps"><div class="step">로그인 후 현재 계정과 서버 주소를 확인하고 입고·출고·LOT 등록 중 작업을 선택합니다.</div><div class="step">창고 유형을 선택하고 QR을 스캔하거나 품목코드·품명을 검색합니다.</div><div class="step">품목코드·LOT·총재고·LOT 잔량을 확인한 뒤 수량과 검사 정보를 입력합니다.</div><div class="step">최근 3분 내 동일 작업 경고가 나오면 실제 연속 작업인지 확인합니다.</div><div class="step">완료 화면과 앱 이력에서 변경 전후 수량을 대조합니다.</div></div><div class="callout warn">개발 서버 주소를 바꾸면 저장된 로그인 세션이 초기화될 수 있습니다. 운영·개발 서버를 혼동하지 마세요.</div>
+    </section>
+
+    <section class="section searchable" id="stock"><div class="section-head"><span class="num">04</span><div><h2>가계상재고 운영</h2><p>수불재고와 독립된 품목·등급별 재고입니다.</p></div></div>
+      <h3>품목 관리</h3><ul><li><code>기준 정보 → 품목 관리</code>에서 품목코드, 품명, Rev를 등록합니다.</li><li>신규 품목은 직접 등록하거나 엑셀로 추가합니다.</li><li>엑셀 업로드는 없는 코드만 추가하며 기존 품목을 수정하지 않습니다.</li><li>기존 품목의 코드·품명·Rev 변경은 화면의 수정 기능을 사용합니다.</li><li>화면 수정 후 가계상재고, 수불재고, BOM, 자재기준정보 등 연결된 화면을 확인합니다.</li></ul>
+      <div class="steps"><div class="step">품목 관리에서 기준 품목을 준비합니다.</div><div class="step">초기 생성으로 품목·등급 행을 0으로 만듭니다.</div><div class="step"><code>품목코드 / 구분 / 등급 / 수량</code> 파일로 실제 수량을 등록합니다.</div><div class="step">입출고 후 이력과 Dashboard를 확인합니다.</div></div>
+      <div class="callout warn">수량 업로드는 기존 수량에 더하지 않고 업로드 값으로 대체합니다. 빈 수량은 0이 될 수 있습니다.</div><p>수불·가계상 입출고 화면과 이력 다운로드 시간은 한국시간(KST)으로 표시됩니다.</p>
+    </section>
+
+    <section class="section searchable" id="logistics"><div class="section-head"><span class="num">05</span><div><h2>제품 물류와 대여 관리</h2><p>S/N 이력과 대여용 재고는 일반 수불재고와 별도로 운영합니다.</p></div></div>
+      <div class="grid2"><div class="card"><b>제품 물류</b><p>제품 분류 → 입고/출고 → 스캔 또는 엑셀 → 날짜·Size·출고처 확인 → Dashboard 검증</p></div><div class="card"><b>대여 관리</b><p>분류·품목 재고 준비 → 요청자·조직·S/N 포함 출고/입고 → 이력 확인</p></div></div>
+      <h3>제품 입고·출고</h3><ul><li>제품 분류를 먼저 선택한 뒤 입고 또는 출고 화면으로 이동합니다.</li><li>S/N 스캔, 엑셀 업로드, 선택 행 이동으로 입출고를 처리할 수 있습니다.</li><li>잘못 등록한 Size와 일부 항목은 화면에서 수정할 수 있으며 삭제 작업은 권한과 대상 범위를 확인합니다.</li><li>Dashboard에서 기간·제품·Size별 입출고 건수를 확인합니다.</li><li>제품 물류의 건수와 수불재고의 EA 수량은 관리 기준이 다릅니다.</li></ul>
+      <h3>대여 재고와 이력</h3><ul><li>분류를 만든 뒤 품목을 직접 등록하거나 엑셀로 업로드합니다.</li><li>출고 시 본부, 부서, 요청자, 사이즈, S/N, 비고를 확인합니다.</li><li>입고는 기존 출고 이력을 기준으로 반납 처리합니다.</li><li>재고 현황과 입출고 이력은 각각 엑셀로 다운로드할 수 있습니다.</li></ul>
+      <h3>권장 엑셀 열</h3><ul><li>제품 입고: <code>입고일자 / Serial / Size</code></li><li>제품 출고: <code>출고일자 / Serial / Size / 출고처</code></li><li>대여 재고: <code>품목코드 / 품명 / 수량</code></li><li>대여 이력: 전용 13개 열을 유지하고 신규 행의 이력ID는 비웁니다.</li></ul><div class="callout warn">같은 제품 물류 파일을 다시 올리면 중복 이력이 생길 수 있습니다. 재업로드 전 기존 S/N을 조회하세요.</div>
+    </section>
+
+    <section class="section searchable" id="workflow"><div class="section-head"><span class="num">06</span><div><h2>CART PLATFORM IEM 업무 처리</h2><p>구매 입고부터 검사, 생산, 포장, 출하까지 같은 Workflow 번호로 처리합니다.</p></div></div>
+      <p>Dashboard에서 부서별 대기·진행·완료 건을 먼저 확인하고, 각 담당 메뉴에서 본인 단계의 작업을 처리합니다.</p>
+      <div class="flow"><span>구매 입고</span><em>›</em><span>수입 검사</span><em>›</em><span>자재 확인</span><em>›</em><span>생산 승인</span><em>›</em><span>생산 완료</span><em>›</em><span>공정 검사</span><em>›</em><span>포장</span><em>›</em><span>출하</span></div>
+      <div class="table-wrap"><table><thead><tr><th>담당</th><th>주요 작업</th><th>완료 전 확인</th></tr></thead><tbody><tr><td>구매</td><td>입고 등록·검사 의뢰</td><td>Product·코드·품명·LOT·수량·입고일</td></tr><tr><td>품질</td><td>승인/반려·수입/공정 검사</td><td>의뢰 수량·결과·첨부</td></tr><tr><td>자재</td><td>단계 확인·다음 요청·출하</td><td>실물 수량·LOT·잔량·불량</td></tr><tr><td>생산</td><td>생산 승인·생산/포장 완료</td><td>구성품·양품·불량·새 LOT</td></tr></tbody></table></div>
+      <div class="callout">반려, 불량 이관, 잔량 재입고·재사용은 전용 기능을 사용합니다. 원본 Workflow를 삭제해 이력을 끊지 않습니다.</div>
+      <h3>추가 처리</h3><ul><li>검사 첨부파일은 해당 검사 건에서 등록·다운로드·삭제합니다.</li><li>생산 중 발생한 불량과 입고 원자재 불량을 구분해 입력합니다.</li><li>남은 자재는 잔량 기능에서 재입고하거나 다음 생산에 사용합니다.</li><li>생산·포장 완료 전 양품, 불량, 사용 구성품, 새 LOT를 확인합니다.</li></ul>
+    </section>
+
+    <section class="section searchable" id="mrp"><div class="section-head"><span class="num">07</span><div><h2>MRP 운영</h2><p>BOM, 생산계획, 수불재고, 공급 조건을 같은 기준으로 맞춥니다.</p></div></div>
+      <div class="steps"><div class="step">BOM 전체본을 백업하고 업로드합니다.</div><div class="step">전용 생산계획 양식에 날짜별 계획을 입력합니다.</div><div class="step">수불재고 품목코드와 실제 수량을 확인합니다.</div><div class="step">업체·LT(주)·MOQ를 입력하고 MRP Result를 조회합니다.</div><div class="step">대표 품목의 필요량·가용재고·부족량을 수기로 검산합니다.</div></div>
+      <div class="callout danger"><b>BOM 업로드는 전체 교체입니다.</b> 일부 제품만 업로드하면 파일에 없는 기존 BOM이 사라질 수 있습니다.</div>
+      <div class="table-wrap"><table><thead><tr><th>재고 구분</th><th>MRP 포함</th></tr></thead><tbody><tr><td>창고재고</td><td>A등급만</td></tr><tr><td>제공재고</td><td>등급 제한 없이</td></tr><tr><td>외주재고</td><td>등급 제한 없이</td></tr></tbody></table></div>
+      <p><b>필요량</b> = 계획 × BOM · <b>가용재고</b> = 대상 재고 − 이전 계획 소요량 · <b>부족량</b> = 필요량 − 가용재고 · <b>발주 권고</b> = 부족량을 MOQ 배수로 올림</p>
+      <div class="callout">MRP 화면에 표시되는 발주량은 참고용입니다. 실제 발주나 재고 차감은 자동으로 처리되지 않습니다.</div>
+      <h3>각 메뉴에서 하는 일</h3><ul><li><b>BOM:</b> 제품별 구성품과 1대당 소요량을 관리하고 목록을 다운로드합니다.</li><li><b>생산 계획:</b> 월별 일자별 생산 수량을 입력하고 주별 합계를 확인합니다.</li><li><b>자재 기준 정보:</b> 공급업체, LT(주), MOQ, 비고를 관리합니다.</li><li><b>MRP Result:</b> 기간별 필요량, 가용재고, 부족량, 권장 발주량을 조회·다운로드합니다.</li><li><b>Dashboard:</b> 전체 부족 품목과 주요 지표를 확인합니다.</li></ul>
+    </section>
+
+    <section class="section searchable" id="admin"><div class="section-head"><span class="num">08</span><div><h2>권한과 작업 기록 확인</h2><p>사용자별 권한과 실제 작업 내역을 확인하는 방법입니다.</p></div></div>
+      <h3>계정 관리</h3><ul><li>관리자는 계정을 만들고 역할과 팀을 지정합니다.</li><li>기능별 조회·수정·다운로드 권한을 따로 설정합니다.</li><li>비밀번호를 잊은 사용자는 관리자가 초기화할 수 있습니다.</li><li>계정 삭제 전 해당 사용자의 업무 이력과 인수인계를 확인합니다.</li></ul>
+      <div class="grid2"><div class="card"><b>활동 로그</b><p>입고, 업로드, 수정, 삭제, 권한 변경 등 실제 업무 변경 내용을 확인합니다.</p></div><div class="card"><b>접근 감사 로그</b><p>URL, 상태코드, IP, 브라우저, 실패·부분 성공의 상세 사유를 확인합니다.</p></div></div>
+      <div class="table-wrap"><table><thead><tr><th>결과</th><th>의미</th><th>조치</th></tr></thead><tbody><tr><td>성공</td><td>요청 정상 처리</td><td>건수·대표 데이터를 검증</td></tr><tr><td>부분 성공</td><td>일부 반영·일부 제외</td><td>제외 행과 품목코드 수정</td></tr><tr><td>실패</td><td>검증 실패</td><td>상세 사유의 행·컬럼·값 수정</td></tr><tr><td>세션/권한</td><td>로그인 또는 권한 문제</td><td>재로그인·관리자 권한 확인</td></tr></tbody></table></div>
+      <p>권한은 기능별 <code>조회 / 수정 / 다운로드</code>로 나뉩니다. <code>200 OK</code>는 요청 처리 성공일 뿐 데이터 정확성을 보장하지 않습니다.</p>
+      <h3>품목 기준정보 변경 영향</h3><ul><li>화면에서 품목을 수정하면 연결된 가계상재고, 이력, BOM, 수불재고, 자재기준정보 등에 변경을 전달합니다.</li><li>품목 관리 엑셀 업로드는 없는 코드만 추가하고 기존 코드를 갱신하지 않습니다.</li><li>Workflow 구성품 설정은 MRP BOM과 별도일 수 있으므로 관련 부서 화면을 함께 확인합니다.</li></ul>
+      <h3>백업</h3><p>관리자 DB 백업 기능은 현재 데이터 파일을 내려받는 기능입니다. Neon 운영 DB의 복구 시점이 필요한 작업은 Neon 스냅샷과 별도 백업 절차를 사용합니다.</p>
+    </section>
+
+    <section class="section searchable" id="excel"><div class="section-head"><span class="num">09</span><div><h2>엑셀 업로드할 때</h2><p>업로드 전 준비사항과 업로드 후 확인할 내용을 정리했습니다.</p></div></div>
+      <div class="grid2"><div class="card"><b>업로드 전 확인</b><p>해당 화면에서 받은 최신 양식을 사용하고 열 제목과 시작 행을 유지합니다. 품목코드, 날짜, Grade, LOT를 확인하고 해당 업로드가 추가·수량 대체·전체 교체 중 어느 방식인지 먼저 확인합니다.</p></div><div class="card"><b>업로드 후 확인</b><p>처리 결과의 신규·수정·제외 건수를 확인합니다. 제외된 행은 로그에서 원인을 확인하고, 대표 품목의 화면 수량과 이력이 실제 파일 내용과 일치하는지 대조합니다.</p></div></div>
+      <h3>저장 방식</h3><div class="table-wrap"><table><thead><tr><th>업로드</th><th>동작</th></tr></thead><tbody><tr><td>품목 관리</td><td>없는 코드만 추가</td></tr><tr><td>가계상 수량</td><td>품목+등급 수량 대체</td></tr><tr><td>수불 수량</td><td>코드+창고+LOT+Grade 대체/생성</td></tr><tr><td>원자재 LOT</td><td>LOT 잔량과 총재고에 입고 수량 추가</td></tr><tr><td>BOM</td><td>기존 BOM 전체 교체</td></tr><tr><td>생산계획</td><td>제품+날짜 추가/수정</td></tr><tr><td>Workflow 구매</td><td>행마다 신규 Workflow 생성</td></tr></tbody></table></div>
+    </section>
+
+    <section class="section searchable" id="trouble"><div class="section-head"><span class="num">10</span><div><h2>오류가 발생했을 때</h2><p>화면 메시지, 작업 기록, 업로드한 원본 파일을 차례로 확인합니다.</p></div></div>
+      <h3>업로드 400 실패</h3><ol><li>화면 오류 메시지를 확인합니다.</li><li>접근 감사 로그에서 해당 URL의 상세 사유를 확인합니다.</li><li>표시된 행 번호의 필수 컬럼, Grade, 수량, 날짜를 수정합니다.</li><li>LOT 업로드는 실제 원자재 코드+Grade 존재 여부를 확인합니다.</li></ol>
+      <h3>부분 성공</h3><p>활동 로그의 제외 사유에서 행 번호와 품목코드를 확인합니다. 품목 관리와 가계상재고에서 품명을 찾지 못한 품목은 기준정보 등록 후 재업로드합니다.</p>
+      <h3>MRP 재고 0</h3><ul><li>BOM 코드와 수불재고 코드가 같은가?</li><li>생산계획 제품명과 BOM 제품명이 같은가?</li><li>창고재고가 A등급인가?</li><li>재고가 가계상 또는 대여재고에만 있는가?</li><li>선택 기간 이전 계획이 차감됐는가?</li></ul>
+      <h3>수량 불일치</h3><ul><li>창고·분류·Grade·기간 필터를 확인합니다.</li><li>원자재 총재고 = LOT 잔량 합 + 미분류 잔량인지 확인합니다.</li><li>다운로드에서 LOT 행과 미분류 행을 함께 합산합니다.</li><li>활동 로그로 마지막 작업자를 확인합니다.</li></ul>
+      <div class="callout">수불·가계상 이력은 UTC 저장값을 한국시간(KST)으로 변환합니다. 9시간 차이가 나면 최신 배포 여부를 확인합니다.</div>
+    </section>
+
+    <section class="section searchable" id="check"><div class="section-head"><span class="num">11</span><div><h2>통합 검색과 화면 도우미</h2><p>여러 메뉴에 흩어진 데이터를 찾거나 화면 이동이 필요할 때 사용합니다.</p></div></div>
+      <h3>통합 검색</h3><ul><li>품목코드, 품명, S/N, LOT 등 알고 있는 값을 입력합니다.</li><li>검색 결과가 어느 메뉴의 데이터인지 확인한 뒤 원본 화면으로 이동합니다.</li><li>재고 수량과 입출고 이력은 검색 결과만으로 판단하지 말고 해당 재고 화면에서 다시 확인합니다.</li></ul>
+      <h3>화면 도우미</h3><ul><li>우측 하단 도우미에서 재고, 입출고, MRP 관련 질문을 입력할 수 있습니다.</li><li>답변에 이동 버튼이 표시되면 해당 메뉴로 이동해 실제 데이터를 확인합니다.</li><li>도우미 답변은 조회를 돕는 기능입니다. 입력·수정·삭제를 대신 처리하지 않습니다.</li><li>기간, 품목코드, 창고구분을 구체적으로 입력할수록 결과를 확인하기 쉽습니다.</li></ul>
+      <div class="callout warn">검색 결과나 도우미 답변이 실제 화면과 다르면 실제 업무 화면과 활동 로그를 기준으로 판단합니다.</div>
+    </section>
+
+    <section class="section searchable" id="change"><div class="section-head"><span class="num">12</span><div><h2>데이터를 크게 변경할 때</h2><p>대량 수정이나 초기화 작업 전에 확인해야 할 내용입니다.</p></div></div>
+      <ul><li>중요 데이터 수정은 작업자, 승인자, 작업 전후 합계를 기록합니다.</li><li>대량 삭제·초기화는 Neon 백업 후 승인된 SQL만 사용합니다.</li><li>기능 변경 시 메뉴, 엑셀 열, 저장 방식, 검증 절차를 함께 갱신합니다.</li><li>오류는 화면 메시지, 접근 감사 로그, 활동 로그, 원본 파일로 원인을 확정합니다.</li></ul>
+    </section>
+    <footer class="footer">물류 시스템 운영가이드 · 2026-10-29 기준</footer>
+  </div>
+</main>
+</div>
+<script>
+const search=document.getElementById('guideSearch');const sections=[...document.querySelectorAll('.searchable')];search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();sections.forEach(s=>s.classList.toggle('hidden',q&&!s.innerText.toLowerCase().includes(q)))});const links=[...document.querySelectorAll('.nav a')];const observer=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting){links.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+e.target.id))}})},{rootMargin:'-20% 0px -70% 0px'});sections.forEach(s=>observer.observe(s));
+const collapse=document.getElementById('sidebarCollapse');const collapsed=localStorage.getItem('operationsGuideSidebar')==='collapsed';document.body.classList.toggle('guide-sidebar-collapsed',collapsed);collapse.setAttribute('aria-label',collapsed?'메뉴 펼치기':'메뉴 접기');collapse.title=collapse.getAttribute('aria-label');collapse.addEventListener('click',()=>{const next=!document.body.classList.contains('guide-sidebar-collapsed');document.body.classList.toggle('guide-sidebar-collapsed',next);localStorage.setItem('operationsGuideSidebar',next?'collapsed':'open');collapse.setAttribute('aria-label',next?'메뉴 펼치기':'메뉴 접기');collapse.title=collapse.getAttribute('aria-label')});
+</script>
+</body>
+</html>

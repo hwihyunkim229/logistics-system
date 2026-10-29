@@ -35,6 +35,7 @@ ALWAYS_ALLOWED_PREFIXES = (
     "/logout",
     "/change-password",
     "/assistant",
+    "/guide",
     "/workflow/notification",
 )
 
