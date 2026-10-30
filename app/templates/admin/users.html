@@ -261,18 +261,28 @@
 .permission-row td{padding:18px !important;background:#f8fafc !important}
 .permission-panel{
     border:1px solid #dbe3ef;
-    border-radius:12px;
-    padding:16px;
+    border-radius:16px;
+    padding:20px;
     background:white;
+    box-shadow:0 10px 30px rgba(15,23,42,.05);
 }
 .permission-help{
-    margin-bottom:12px;
+    margin:0;
     color:#64748b;
     font-size:13px;
 }
+.permission-toolbar{display:flex;align-items:center;gap:8px;margin:16px 0 12px;flex-wrap:wrap}
+.permission-search{flex:1 1 260px;height:40px;padding:0 13px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#0f172a;outline:none}
+.permission-search:focus{border-color:#2563eb;box-shadow:0 0 0 3px #dbeafe}
+.permission-tool-btn{height:40px;padding:0 13px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;color:#334155;font-size:12px;font-weight:800;cursor:pointer}
+.permission-tool-btn:hover{background:#f8fafc;border-color:#94a3b8}
+.permission-tool-btn.primary{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+.permission-summary{margin-left:auto;color:#475569;font-size:12px;font-weight:800;white-space:nowrap}
+.permission-table-wrap{overflow:auto;border:1px solid #e2e8f0;border-radius:12px}
 .permission-matrix{
     width:100%;
     border-collapse:collapse;
+    min-width:620px;
 }
 .permission-matrix th,
 .permission-matrix td{
@@ -285,17 +295,31 @@
 .permission-matrix th{
     font-size:13px;
     font-weight:800;
+    background:#f8fafc !important;
 }
 .permission-matrix th:first-child,
 .permission-matrix td:first-child{text-align:left}
+.permission-group-row td{padding:10px 12px !important;background:#f1f5f9 !important;border-bottom:1px solid #dbe3ef !important}
+.permission-group-head{display:flex;align-items:center;gap:9px}
+.permission-group-name{color:#0f172a;font-size:13px;font-weight:900}
+.permission-group-count{padding:3px 7px;border-radius:999px;background:#e2e8f0;color:#64748b;font-size:11px;font-weight:800}
+.permission-group-actions{margin-left:auto;display:flex;gap:6px}
+.permission-group-btn{border:0;background:transparent;color:#475569;font-size:11px;font-weight:800;cursor:pointer}
+.permission-group-btn:hover{color:#2563eb}
+.permission-feature-row:hover td{background:#f8fbff !important}
+.permission-feature-name{display:flex;align-items:center;gap:10px}
+.permission-menu-dot{width:7px;height:7px;border-radius:50%;background:#94a3b8;flex:none}
+.permission-check{width:18px;height:18px;accent-color:#2563eb;cursor:pointer}
+.permission-column-btn{border:0;background:transparent;color:#334155;font:inherit;font-weight:800;cursor:pointer}
+.permission-column-btn:hover{color:#2563eb}
 .permission-save{
     display:flex;
     justify-content:flex-end;
     margin-top:14px;
 }
 .permission-save button{
-    height:38px;
-    padding:0 16px;
+    height:42px;
+    padding:0 20px;
     border:0;
     border-radius:9px;
     background:#2563eb;
@@ -303,6 +327,7 @@
     font-weight:800;
     cursor:pointer;
 }
+@media(max-width:720px){.permission-panel{padding:14px}.permission-summary{width:100%;margin-left:0}}
 </style>
 
 <div class="admin-page">
@@ -468,27 +493,50 @@
                                     <form
                                         method="post"
                                         action="/admin/users/{{ user.id }}/permissions"
+                                        class="permission-form"
                                     >
                                         <div class="permission-help">
-                                            수정 또는 다운로드를 허용하면 조회 권한도 함께 필요합니다.
+                                            사이드바 메뉴별로 접근 범위를 설정합니다. 수정 또는 다운로드를 선택하면 조회 권한도 자동으로 적용됩니다.
                                         </div>
+                                        <div class="permission-toolbar">
+                                            <input class="permission-search" type="search" placeholder="메뉴 이름 검색" oninput="filterPermissionRows(this)">
+                                            <button class="permission-tool-btn primary" type="button" onclick="setPermissionAction(this, 'view', true)">조회 전체</button>
+                                            <button class="permission-tool-btn" type="button" onclick="setAllPermissions(this, true)">전체 권한</button>
+                                            <button class="permission-tool-btn" type="button" onclick="setAllPermissions(this, false)">전체 해제</button>
+                                            <span class="permission-summary"></span>
+                                        </div>
+                                        <div class="permission-table-wrap">
                                         <table class="permission-matrix">
                                             <thead>
                                                 <tr>
-                                                    <th>기능</th>
+                                                    <th>사이드바 메뉴</th>
                                                     {% for action, action_name in permission_actions %}
-                                                    <th>{{ action_name }}</th>
+                                                    <th><button type="button" class="permission-column-btn" onclick="togglePermissionColumn(this, '{{ action }}')">{{ action_name }}</button></th>
                                                     {% endfor %}
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {% for feature, feature_name in permission_features %}
-                                                <tr>
-                                                    <td><strong>{{ feature_name }}</strong></td>
+                                                {% for group_name, features in permission_groups %}
+                                                {% set group_id = 'permission-group-' ~ user.id ~ '-' ~ loop.index %}
+                                                <tr class="permission-group-row" data-group-id="{{ group_id }}">
+                                                    <td colspan="4"><div class="permission-group-head">
+                                                        <span class="permission-group-name">{{ group_name }}</span>
+                                                        <span class="permission-group-count">{{ features|length }}개 메뉴</span>
+                                                        <div class="permission-group-actions">
+                                                            <button type="button" class="permission-group-btn" onclick="setPermissionGroup(this, true)">그룹 전체</button>
+                                                            <button type="button" class="permission-group-btn" onclick="setPermissionGroup(this, false)">해제</button>
+                                                        </div>
+                                                    </div></td>
+                                                </tr>
+                                                {% for feature, feature_name in features %}
+                                                <tr class="permission-feature-row" data-group-id="{{ group_id }}" data-search="{{ group_name }} {{ feature_name }}">
+                                                    <td><div class="permission-feature-name"><span class="permission-menu-dot"></span><strong>{{ feature_name }}</strong></div></td>
                                                     {% for action, action_name in permission_actions %}
                                                     <td>
                                                         <input
                                                             type="checkbox"
+                                                            class="permission-check"
+                                                            data-action="{{ action }}"
                                                             name="perm__{{ feature }}__{{ action }}"
                                                             {% if user_permissions[user.id].get((feature, action), false) %}checked{% endif %}
                                                         >
@@ -496,8 +544,10 @@
                                                     {% endfor %}
                                                 </tr>
                                                 {% endfor %}
+                                                {% endfor %}
                                             </tbody>
                                         </table>
+                                        </div>
                                         <div class="permission-save">
                                             <button type="submit">권한 저장</button>
                                         </div>
@@ -562,7 +612,71 @@ function togglePermissions(rowId){
     const row = document.getElementById(rowId);
     if(row){
         row.classList.toggle("open");
+        const form = row.querySelector(".permission-form");
+        if(form) updatePermissionSummary(form);
     }
+}
+
+function normalizePermissionDependencies(form){
+    form.querySelectorAll(".permission-feature-row").forEach(row => {
+        const view = row.querySelector('[data-action="view"]');
+        const edit = row.querySelector('[data-action="edit"]');
+        const download = row.querySelector('[data-action="download"]');
+        if((edit.checked || download.checked) && !view.checked) view.checked = true;
+        if(!view.checked){ edit.checked = false; download.checked = false; }
+    });
+    updatePermissionSummary(form);
+}
+
+function updatePermissionSummary(form){
+    const total = form.querySelectorAll(".permission-feature-row").length;
+    const allowed = form.querySelectorAll('.permission-check[data-action="view"]:checked').length;
+    const summary = form.querySelector(".permission-summary");
+    if(summary) summary.textContent = `${total}개 메뉴 중 ${allowed}개 조회 가능`;
+}
+
+function setAllPermissions(button, checked){
+    const form = button.closest(".permission-form");
+    form.querySelectorAll(".permission-check").forEach(box => box.checked = checked);
+    normalizePermissionDependencies(form);
+}
+
+function setPermissionAction(button, action, checked){
+    const form = button.closest(".permission-form");
+    form.querySelectorAll(`.permission-check[data-action="${action}"]`).forEach(box => box.checked = checked);
+    normalizePermissionDependencies(form);
+}
+
+function togglePermissionColumn(button, action){
+    const form = button.closest(".permission-form");
+    const boxes = Array.from(form.querySelectorAll(`.permission-check[data-action="${action}"]`));
+    const checked = boxes.some(box => !box.checked);
+    boxes.forEach(box => box.checked = checked);
+    normalizePermissionDependencies(form);
+}
+
+function setPermissionGroup(button, checked){
+    const groupRow = button.closest(".permission-group-row");
+    const form = button.closest(".permission-form");
+    const groupId = groupRow.dataset.groupId;
+    form.querySelectorAll(`.permission-feature-row[data-group-id="${groupId}"] .permission-check`).forEach(box => box.checked = checked);
+    normalizePermissionDependencies(form);
+}
+
+function filterPermissionRows(input){
+    const form = input.closest(".permission-form");
+    const query = input.value.trim().toLocaleLowerCase("ko");
+    form.querySelectorAll(".permission-group-row").forEach(group => {
+        const groupId = group.dataset.groupId;
+        const rows = Array.from(form.querySelectorAll(`.permission-feature-row[data-group-id="${groupId}"]`));
+        let visible = 0;
+        rows.forEach(row => {
+            const show = !query || row.dataset.search.toLocaleLowerCase("ko").includes(query);
+            row.style.display = show ? "" : "none";
+            if(show) visible += 1;
+        });
+        group.style.display = visible ? "" : "none";
+    });
 }
 
 document.querySelectorAll(".permission-matrix").forEach(matrix => {
@@ -570,11 +684,11 @@ document.querySelectorAll(".permission-matrix").forEach(matrix => {
         const checkbox = event.target;
         if(checkbox.type !== "checkbox") return;
 
-        const row = checkbox.closest("tr");
-        const boxes = Array.from(
-            row.querySelectorAll('input[type="checkbox"]')
-        );
-        const [viewBox, editBox, downloadBox] = boxes;
+        const row = checkbox.closest(".permission-feature-row");
+        if(!row) return;
+        const viewBox = row.querySelector('[data-action="view"]');
+        const editBox = row.querySelector('[data-action="edit"]');
+        const downloadBox = row.querySelector('[data-action="download"]');
 
         if((checkbox === editBox || checkbox === downloadBox) && checkbox.checked){
             viewBox.checked = true;
@@ -583,8 +697,11 @@ document.querySelectorAll(".permission-matrix").forEach(matrix => {
             editBox.checked = false;
             downloadBox.checked = false;
         }
+        updatePermissionSummary(checkbox.closest(".permission-form"));
     });
 });
+
+document.querySelectorAll(".permission-form").forEach(updatePermissionSummary);
 
 function openConfirm(form, message){
 

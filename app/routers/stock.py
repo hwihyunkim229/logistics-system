@@ -324,7 +324,7 @@ async def delete_selected_stock(
 @router.get("/stock/history")
 def stock_history(
     request: Request,
-    movement_type: str = "IN",
+    movement_type: str = "",
     page: int = 1,
     keyword: str = "",
     category: str = "",
@@ -332,13 +332,9 @@ def stock_history(
 ):
     per_page = 50
 
-    query = (
-        db.query(StockMovement)
-        .filter(
-            StockMovement.movement_type
-            == movement_type
-        )
-    )
+    query = db.query(StockMovement)
+    if movement_type in {"IN", "OUT"}:
+        query = query.filter(StockMovement.movement_type == movement_type)
 
     if keyword:
 
@@ -366,20 +362,9 @@ def stock_history(
     if category_values:
         query = query.filter(StockMovement.category.in_(category_values))
 
-    query = query.order_by(
-        StockMovement.created_at.desc()
-    )
-
-    total_count = query.count()
-
-    history = (
-        query
-        .offset(
-            (page - 1) * per_page
-        )
-        .limit(per_page)
-        .all()
-    )
+    all_rows = query.order_by(StockMovement.created_at.desc()).all()
+    total_count = len(all_rows)
+    history = all_rows[(page - 1) * per_page: page * per_page]
 
     total_pages = max(
         1,
@@ -391,6 +376,13 @@ def stock_history(
         name="stock/history.html",
         context={
             "history": history,
+            "total_count": total_count,
+            "summary": {
+                "inbound": sum(1 for row in all_rows if row.movement_type == "IN"),
+                "outbound": sum(1 for row in all_rows if row.movement_type == "OUT"),
+                "in_qty": sum(row.qty or 0 for row in all_rows if row.movement_type == "IN"),
+                "out_qty": sum(row.qty or 0 for row in all_rows if row.movement_type == "OUT"),
+            },
             "page": page,
             "total_pages": total_pages,
             "movement_type": movement_type,

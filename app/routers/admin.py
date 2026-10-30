@@ -14,6 +14,7 @@ from app.models.user_permission import UserPermission
 from app.utils.permissions import (
     PERMISSION_ACTIONS,
     PERMISSION_FEATURES,
+    PERMISSION_GROUPS,
     permission_map,
     replace_user_permissions,
 )
@@ -67,6 +68,7 @@ def admin_users(request: Request):
             "users": users,
             "current_user": request.session.get("user"),
             "permission_features": PERMISSION_FEATURES,
+            "permission_groups": PERMISSION_GROUPS,
             "permission_actions": PERMISSION_ACTIONS,
             "user_permissions": user_permissions,
         }

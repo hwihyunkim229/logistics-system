@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from math import ceil
 from typing import Optional
+from uuid import uuid4
 import pandas as pd
 from fastapi import APIRouter, Body, Depends, File, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
@@ -697,6 +698,11 @@ def inventory_mobile_history(
                 "lot": row.lot or "",
                 "inspector": row.inspector or "",
                 "source": row.source or "",
+                "grade": row.grade or "",
+                "request_id": row.request_id or "",
+                "set_name": row.set_name or "",
+                "set_component": row.set_component or "",
+                "set_count": row.set_count or 0,
                 "created_at": format_kst(row.created_at),
             }
             for row in rows
@@ -750,6 +756,7 @@ async def inventory_lot_register(
                 qty=qty,
                 user=username,
                 source=remark or "LOT 등록 입고",
+                grade=item.grade,
                 lot=lot,
                 inspector=inspector,
                 first_received_date=received_date,
@@ -866,6 +873,7 @@ async def inventory_move_in(
                 qty=qty,
                 user=username,
                 source=remark,
+                grade=item.grade,
                 lot=lot,
                 inspector=inspector,
                 first_received_date=first_received_date,
@@ -896,6 +904,191 @@ async def inventory_move_in(
             for item, before_qty, lot_before in before_rows
         ],
     })
+
+@router.post("/inventory/mobile/set-move-out")
+async def inventory_mobile_set_move_out(
+    request: Request,
+    data: dict = Body(...),
+    db: Session = Depends(get_db),
+):
+    """APK 세트 출고: 품목별 여러 LOT를 하나의 트랜잭션으로 검증하고 차감한다."""
+    raw_lines = data.get("lines")
+    if not isinstance(raw_lines, list) or not raw_lines or len(raw_lines) > 100:
+        return JSONResponse(
+            {"status": "error", "message": "세트 출고 품목을 확인하세요."},
+            status_code=400,
+        )
+
+    try:
+        target_sets = int(data.get("target_sets", 0))
+    except (TypeError, ValueError):
+        target_sets = 0
+    if target_sets <= 0:
+        return JSONResponse(
+            {"status": "error", "message": "세트 수량은 1 이상이어야 합니다."},
+            status_code=400,
+        )
+
+    set_name = str(data.get("set_name") or "세트 출고").strip()[:100]
+    request_id = str(data.get("request_id") or uuid4()).strip()[:100]
+    remark = str(data.get("remark") or "").strip()[:300]
+    username = current_user(request)
+    component_types = {"PBA", "OUTER", "INNER", "TOP_COVER"}
+    parsed_lines = []
+    seen_keys = set()
+
+    try:
+        for raw in raw_lines:
+            inventory_id = int(raw.get("inventory_id"))
+            qty = int(raw.get("qty"))
+            lot = str(raw.get("lot") or "").strip()[:100]
+            component = str(raw.get("component") or "").strip().upper()
+            if inventory_id <= 0 or qty <= 0 or not lot or component not in component_types:
+                raise ValueError
+            key = (inventory_id, lot)
+            if key in seen_keys:
+                return JSONResponse(
+                    {"status": "error", "message": f"중복된 LOT가 있습니다: {lot}"},
+                    status_code=400,
+                )
+            seen_keys.add(key)
+            parsed_lines.append((inventory_id, lot, qty, component))
+    except (AttributeError, TypeError, ValueError):
+        return JSONResponse(
+            {"status": "error", "message": "세트 출고의 품목·LOT·수량을 확인하세요."},
+            status_code=400,
+        )
+
+    totals_by_component = {component: 0 for component in component_types}
+    totals_by_item = {}
+    for inventory_id, lot, qty, component in parsed_lines:
+        totals_by_component[component] += qty
+        totals_by_item[inventory_id] = totals_by_item.get(inventory_id, 0) + qty
+    incomplete = [
+        component
+        for component, total in totals_by_component.items()
+        if total != target_sets
+    ]
+    if incomplete:
+        return JSONResponse(
+            {
+                "status": "error",
+                "message": "모든 구성품의 출고 수량이 세트 수량과 같아야 합니다.",
+                "components": incomplete,
+            },
+            status_code=400,
+        )
+
+    items = {
+        item.id: item
+        for item in db.query(Inventory)
+        .filter(Inventory.id.in_(list(totals_by_item)))
+        .all()
+    }
+    if len(items) != len(totals_by_item):
+        return JSONResponse(
+            {"status": "error", "message": "존재하지 않는 재고 품목이 포함되어 있습니다."},
+            status_code=404,
+        )
+
+    lot_rows = {}
+    for inventory_id, lot, qty, component in parsed_lines:
+        item = items[inventory_id]
+        if (item.qty or 0) < totals_by_item[inventory_id]:
+            return JSONResponse(
+                {"status": "error", "message": f"{item.item_code} 전체 재고가 부족합니다."},
+                status_code=400,
+            )
+        if item.category == "원자재":
+            lot_row = inventory_lot_row(db, item, lot)
+            if lot_row is None:
+                return JSONResponse(
+                    {"status": "error", "message": f"등록되지 않은 LOT입니다: {lot}"},
+                    status_code=400,
+                )
+            if (lot_row.qty or 0) < qty:
+                return JSONResponse(
+                    {"status": "error", "message": f"LOT {lot} 재고 부족 (현재 {lot_row.qty or 0} EA)"},
+                    status_code=400,
+                )
+            lot_rows[(inventory_id, lot)] = lot_row
+
+    existing = (
+        db.query(InventoryMovement)
+        .filter(
+            InventoryMovement.user == username,
+            InventoryMovement.request_id == request_id,
+        )
+        .first()
+    )
+    if existing is not None:
+        return JSONResponse(
+            {"status": "error", "message": "이미 처리된 세트 출고 요청입니다."},
+            status_code=409,
+        )
+
+    results = []
+    try:
+        for inventory_id, lot, qty, component in parsed_lines:
+            item = items[inventory_id]
+            before_qty = item.qty or 0
+            lot_before_qty = 0
+            lot_row = lot_rows.get((inventory_id, lot))
+            if lot_row is not None:
+                lot_before_qty = lot_row.qty or 0
+                lot_row.qty -= qty
+            item.qty -= qty
+            db.add(
+                InventoryMovement(
+                    item_code=item.item_code,
+                    item_name=item.item_name,
+                    category=item.category,
+                    warehouse_type=item.warehouse_type,
+                    movement_type="OUT",
+                    qty=qty,
+                    user=username,
+                    source=remark,
+                    grade=item.grade,
+                    request_id=request_id,
+                    set_name=set_name,
+                    set_component=component,
+                    set_count=target_sets,
+                    lot=lot,
+                )
+            )
+            results.append(
+                {
+                    "inventory_id": inventory_id,
+                    "component": component,
+                    "item_code": item.item_code,
+                    "lot": lot,
+                    "qty": qty,
+                    "before_qty": before_qty,
+                    "after_qty": item.qty or 0,
+                    "lot_before_qty": lot_before_qty,
+                    "lot_after_qty": (lot_row.qty or 0) if lot_row is not None else 0,
+                }
+            )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    save_log(
+        user=username,
+        product=INVENTORY_LOG_PRODUCT,
+        action="INVENTORY_SET_MOVE_OUT",
+        serial=set_name,
+        detail=f"세트 출고: {target_sets} SET / LOT {len(parsed_lines)}개 / 그룹 {request_id}",
+    )
+    return {
+        "status": "success",
+        "group_id": request_id,
+        "set_name": set_name,
+        "target_sets": target_sets,
+        "results": results,
+    }
+
 
 @router.post("/inventory/move-out")
 async def inventory_move_out(
@@ -990,6 +1183,7 @@ async def inventory_move_out(
                 qty=qty,
                 user=username,
                 source=remark,
+                grade=item.grade,
                 lot=lot,
                 inspector=inspector,
                 first_received_date=first_received_date,
@@ -1218,7 +1412,7 @@ async def bulk_update_inventory_lot(
 @router.get("/inventory/history")
 def inventory_history(
     request: Request,
-    movement_type: str = "IN",
+    movement_type: str = "",
     page: int = 1,
     keyword: str = "",
     category: str = "",
@@ -1226,9 +1420,9 @@ def inventory_history(
 ):
     per_page = 50
 
-    query = db.query(InventoryMovement).filter(
-        InventoryMovement.movement_type == movement_type
-    )
+    query = db.query(InventoryMovement)
+    if movement_type in {"IN", "OUT"}:
+        query = query.filter(InventoryMovement.movement_type == movement_type)
 
     if keyword:
         query = query.filter(
@@ -1245,24 +1439,68 @@ def inventory_history(
     if category_values:
         query = query.filter(InventoryMovement.category.in_(category_values))
 
-    query = query.order_by(InventoryMovement.created_at.desc())
+    rows = query.order_by(InventoryMovement.created_at.desc(), InventoryMovement.id.desc()).all()
+    grouped = []
+    set_groups = {}
+    for row in rows:
+        legacy_meta = {}
+        if not row.request_id and (row.source or "").startswith("SET_OUT:"):
+            parts = (row.source or "").split("|")
+            legacy_meta["request_id"] = parts[0].removeprefix("SET_OUT:")
+            for part in parts[1:]:
+                if "=" in part:
+                    key, value = part.split("=", 1)
+                    legacy_meta[key] = value
+            legacy_meta["remark"] = parts[-1] if parts and "=" not in parts[-1] else ""
 
-    total_count = query.count()
+        effective_request_id = row.request_id or legacy_meta.get("request_id", "")
+        effective_component = row.set_component or legacy_meta.get("COMP", "")
+        effective_set_count = row.set_count or int(legacy_meta.get("SETS", "0") or 0)
+        effective_set_name = row.set_name or legacy_meta.get("SET", "") or "세트 출고"
+        effective_remark = row.source or ""
+        if legacy_meta:
+            effective_remark = legacy_meta.get("remark", "")
 
-    history = (
-        query
-        .offset((page - 1) * per_page)
-        .limit(per_page)
-        .all()
-    )
+        if effective_request_id:
+            group = set_groups.get(effective_request_id)
+            if group is None:
+                group = {
+                    "kind": "set",
+                    "request_id": effective_request_id,
+                    "created_at": row.created_at,
+                    "user": row.user,
+                    "source": effective_remark,
+                    "set_count": effective_set_count,
+                    "set_name": effective_set_name,
+                    "rows": [],
+                    "total_qty": 0,
+                }
+                set_groups[effective_request_id] = group
+                grouped.append(group)
+            group["rows"].append({"row": row, "component": effective_component})
+            group["total_qty"] += row.qty or 0
+        else:
+            grouped.append({"kind": "single", "row": row, "created_at": row.created_at})
 
+    total_count = len(grouped)
     total_pages = max(1, ceil(total_count / per_page))
+    history_groups = grouped[(page - 1) * per_page: page * per_page]
+    summary = {
+        "inbound": sum(1 for row in rows if row.movement_type == "IN"),
+        "outbound": sum(1 for group in grouped if group["kind"] == "single" and group["row"].movement_type == "OUT"),
+        "set_jobs": len(set_groups),
+        "set_count": sum(group["set_count"] for group in set_groups.values()),
+        "lots": len({row.lot for row in rows if row.lot}),
+    }
 
     return templates.TemplateResponse(
         request=request,
         name="inventory/history.html",
         context={
-            "history": history,
+            "history": rows,
+            "history_groups": history_groups,
+            "total_count": total_count,
+            "summary": summary,
             "page": page,
             "total_pages": total_pages,
             "movement_type": movement_type,
@@ -1291,6 +1529,7 @@ def download_inventory_history_excel(
             "품명": row.item_name,
             "구분": row.category,
             "창고구분": row.warehouse_type,
+            "등급": row.grade or "",
             "유형": "입고" if row.movement_type == "IN" else "출고",
             "수량": row.qty,
             "LOT": row.lot or "",

@@ -5,6 +5,11 @@ MOVEMENT_COLUMNS = {
     "lot": "VARCHAR",
     "inspector": "VARCHAR",
     "first_received_date": "DATE",
+    "grade": "VARCHAR",
+    "request_id": "VARCHAR",
+    "set_name": "VARCHAR",
+    "set_component": "VARCHAR",
+    "set_count": "INTEGER",
 }
 
 

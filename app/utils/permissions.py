@@ -7,17 +7,21 @@ PERMISSION_ACTIONS = (
     ("download", "다운로드"),
 )
 
-PERMISSION_FEATURES = (
-    ("logistics", "통합 물류"),
-    ("inventory", "수불재고"),
-    ("stock", "가계상 재고"),
-    ("mrp", "MRP"),
-    ("rental", "대여재고"),
-    ("workflow_overview", "Workflow 현황/이력"),
-    ("workflow_purchase", "Workflow 구매"),
-    ("workflow_quality", "Workflow 품질"),
-    ("workflow_material", "Workflow 자재"),
-    ("workflow_production", "Workflow 생산"),
+PERMISSION_GROUPS = (
+    ("공통", (("common_search", "통합 검색"),)),
+    ("제품 물류", (("logistics_outbound", "출고 관리"), ("logistics_inbound", "입고 관리"), ("logistics_dashboard", "Dashboard"))),
+    ("수불 재고", (("inventory_stock", "재고 현황"), ("inventory_history", "입출고 현황"), ("inventory_dashboard", "Dashboard"))),
+    ("가계상 재고", (("stock_stock", "재고 현황"), ("stock_history", "입출고 현황"), ("stock_dashboard", "Dashboard"))),
+    ("대여 관리", (("rental_stock", "재고 현황"), ("rental_history", "입출고 현황"))),
+    ("CART PLATFORM IEM", (("workflow_overview", "Dashboard"), ("workflow_purchase", "구매 관리"), ("workflow_quality", "품질 관리"), ("workflow_material", "자재 관리"), ("workflow_production", "생산 관리"))),
+    ("MRP", (("mrp_result", "MRP Result"), ("mrp_bom", "BOM"), ("mrp_plan", "생산 계획"), ("mrp_material", "자재 기준 정보"), ("mrp_dashboard", "Dashboard"))),
+    ("기준 정보", (("master_items", "품목 관리"),)),
+)
+
+PERMISSION_FEATURES = tuple(
+    feature
+    for _, features in PERMISSION_GROUPS
+    for feature in features
 )
 
 FEATURE_KEYS = {key for key, _ in PERMISSION_FEATURES}
@@ -28,7 +32,7 @@ LEGACY_TEAM_FEATURE = {
     "quality": "workflow_quality",
     "material": "workflow_material",
     "production": "workflow_production",
-    "vsp": "rental",
+    "vsp": "rental_stock",
 }
 
 ALWAYS_ALLOWED_PREFIXES = (
@@ -40,22 +44,45 @@ ALWAYS_ALLOWED_PREFIXES = (
 )
 
 FEATURE_HOME_PATHS = {
-    "logistics": "/search",
-    "inventory": "/inventory",
-    "stock": "/stock",
-    "mrp": "/mrp/result",
-    "rental": "/rental",
+    "common_search": "/search",
+    "logistics_outbound": "/product/cart_bp_pro/outbound",
+    "logistics_inbound": "/product/cart_bp_pro/inbound",
+    "logistics_dashboard": "/dashboard/overview",
+    "inventory_stock": "/inventory",
+    "inventory_history": "/inventory/history",
+    "inventory_dashboard": "/inventory/dashboard",
+    "stock_stock": "/stock",
+    "stock_history": "/stock/history",
+    "stock_dashboard": "/stock/dashboard",
+    "rental_stock": "/rental",
+    "rental_history": "/rental/history",
     "workflow_overview": "/workflow/dashboard",
     "workflow_purchase": "/workflow/purchase",
     "workflow_quality": "/workflow/quality",
     "workflow_material": "/workflow/material",
     "workflow_production": "/workflow/production",
+    "mrp_result": "/mrp/result",
+    "mrp_bom": "/mrp/bom",
+    "mrp_plan": "/mrp/production-plan",
+    "mrp_material": "/mrp/material-master",
+    "mrp_dashboard": "/mrp",
+    "master_items": "/stock/item-master/manage",
+}
+
+LEGACY_FEATURE_CHILDREN = {
+    "logistics": ("common_search", "logistics_outbound", "logistics_inbound", "logistics_dashboard"),
+    "inventory": ("inventory_stock", "inventory_history", "inventory_dashboard"),
+    "stock": ("stock_stock", "stock_history", "stock_dashboard", "master_items"),
+    "rental": ("rental_stock", "rental_history"),
+    "mrp": ("mrp_result", "mrp_bom", "mrp_plan", "mrp_material", "mrp_dashboard"),
 }
 
 
 def feature_for_path(path):
     if path.startswith("/admin"):
         return "admin"
+    if path.startswith("/search") or path.startswith("/history-api"):
+        return "common_search"
     if path.startswith("/workflow/purchase"):
         return "workflow_purchase"
     if path.startswith("/workflow/quality"):
@@ -72,15 +99,43 @@ def feature_for_path(path):
         or path.startswith("/workflow/history")
     ):
         return "workflow_overview"
+    if path.startswith("/stock/item-master"):
+        return "master_items"
+    if path.startswith("/stock/history"):
+        return "stock_history"
+    if path.startswith("/stock/dashboard"):
+        return "stock_dashboard"
     if path.startswith("/stock"):
-        return "stock"
+        return "stock_stock"
+    if path.startswith("/inventory/history"):
+        return "inventory_history"
+    if path.startswith("/inventory/dashboard"):
+        return "inventory_dashboard"
     if path.startswith("/inventory"):
-        return "inventory"
+        return "inventory_stock"
+    if path.startswith("/mrp/result"):
+        return "mrp_result"
+    if path.startswith("/mrp/bom"):
+        return "mrp_bom"
+    if path.startswith("/mrp/production-plan"):
+        return "mrp_plan"
+    if path.startswith("/mrp/material-master"):
+        return "mrp_material"
+    if path == "/mrp" or path.startswith("/mrp/dashboard"):
+        return "mrp_dashboard"
     if path.startswith("/mrp"):
-        return "mrp"
+        return "mrp_dashboard"
+    if path.startswith("/rental/history"):
+        return "rental_history"
     if path.startswith("/rental"):
-        return "rental"
-    return "logistics"
+        return "rental_stock"
+    if path.startswith("/product") and "/outbound" in path:
+        return "logistics_outbound"
+    if path.startswith("/product") and "/inbound" in path:
+        return "logistics_inbound"
+    if path.startswith("/dashboard"):
+        return "logistics_dashboard"
+    return "logistics_dashboard"
 
 
 def action_for_request(method, path):
@@ -169,6 +224,9 @@ def permission_map(db, user):
     for row in rows:
         if row.feature in FEATURE_KEYS and row.action in ACTION_KEYS:
             permissions[(row.feature, row.action)] = bool(row.allowed)
+        elif row.feature in LEGACY_FEATURE_CHILDREN and row.action in ACTION_KEYS:
+            for child in LEGACY_FEATURE_CHILDREN[row.feature]:
+                permissions[(child, row.action)] = bool(row.allowed)
 
     return permissions
 

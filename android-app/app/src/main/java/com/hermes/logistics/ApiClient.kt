@@ -39,6 +39,21 @@ data class DuplicateCheck(
     val previousAt: String,
 )
 
+data class SetOutboundLine(
+    val inventoryId: Int,
+    val component: String,
+    val lot: String,
+    val qty: Int,
+)
+
+data class SetOutboundResult(
+    val groupId: String,
+    val setName: String,
+    val targetSets: Int,
+    val lineCount: Int,
+    val totalQty: Int,
+)
+
 data class InventoryHistoryItem(
     val id: Int,
     val itemCode: String,
@@ -49,6 +64,11 @@ data class InventoryHistoryItem(
     val lot: String,
     val inspector: String,
     val source: String,
+    val grade: String,
+    val requestId: String,
+    val setName: String,
+    val setComponent: String,
+    val setCount: Int,
     val createdAt: String,
 )
 
@@ -61,6 +81,7 @@ data class ApiResult<T>(
 object ApiClient {
     private const val PREFS_NAME = "logistics_session"
     private const val COOKIE_KEY = "session_cookie"
+    private const val USER_KEY = "session_user"
     private const val DEV_SERVER_KEY = "dev_server_url"
     @Volatile private var sessionCookie: String? = null
     private var preferences: SharedPreferences? = null
@@ -75,6 +96,8 @@ object ApiClient {
     }
 
     fun hasStoredSession(): Boolean = !sessionCookie.isNullOrBlank()
+
+    fun currentUser(): String = preferences?.getString(USER_KEY, "").orEmpty().ifBlank { "확인 중..." }
 
     fun baseUrl(): String {
         if (!BuildConfig.IS_DEV) return BuildConfig.API_BASE_URL
@@ -93,7 +116,7 @@ object ApiClient {
         }
         preferences?.edit()?.putString(DEV_SERVER_KEY, normalized)?.apply()
         sessionCookie = null
-        preferences?.edit()?.remove(COOKIE_KEY)?.apply()
+        preferences?.edit()?.remove(COOKIE_KEY)?.remove(USER_KEY)?.apply()
         (CookieHandler.getDefault() as? CookieManager)?.cookieStore?.removeAll()
         return null
     }
@@ -110,7 +133,10 @@ object ApiClient {
         if (response.code !in 200..299) return ApiResult(error = "아이디 또는 비밀번호를 확인하세요.")
         response.sessionCookie?.let {
             sessionCookie = it
-            preferences?.edit()?.putString(COOKIE_KEY, it)?.apply()
+            preferences?.edit()
+                ?.putString(COOKIE_KEY, it)
+                ?.putString(USER_KEY, username)
+                ?.apply()
         }
 
         return runCatching {
@@ -130,14 +156,16 @@ object ApiClient {
         val response = request("/inventory/mobile/session")
         if (response.code !in 200..299) return ApiResult(error = "로그인이 만료되었습니다.")
         return runCatching {
-            ApiResult(value = JSONObject(response.body).getString("user"))
+            val user = JSONObject(response.body).getString("user")
+            preferences?.edit()?.putString(USER_KEY, user)?.apply()
+            ApiResult(value = user)
         }.getOrElse { ApiResult(error = "로그인 상태를 확인할 수 없습니다.") }
     }
 
     fun logout() {
         runCatching { request("/logout") }
         sessionCookie = null
-        preferences?.edit()?.remove(COOKIE_KEY)?.apply()
+        preferences?.edit()?.remove(COOKIE_KEY)?.remove(USER_KEY)?.apply()
         (CookieHandler.getDefault() as? CookieManager)?.cookieStore?.removeAll()
     }
 
@@ -210,6 +238,11 @@ object ApiClient {
                             lot = item.optString("lot"),
                             inspector = item.optString("inspector"),
                             source = item.optString("source"),
+                            grade = item.optString("grade"),
+                            requestId = item.optString("request_id"),
+                            setName = item.optString("set_name"),
+                            setComponent = item.optString("set_component"),
+                            setCount = item.optInt("set_count"),
                             createdAt = item.optString("created_at"),
                         )
                     )
@@ -285,6 +318,58 @@ object ApiClient {
                 lotAfterQty = if (lot.isBlank()) 0 else if (inbound) lotBeforeQty + qty else lotBeforeQty - qty,
             ),
         )
+    }
+
+    fun setMoveOut(
+        setName: String,
+        targetSets: Int,
+        requestId: String,
+        lines: List<SetOutboundLine>,
+        remark: String = "",
+    ): ApiResult<SetOutboundResult> {
+        val payloadLines = JSONArray()
+        lines.forEach { line ->
+            payloadLines.put(
+                JSONObject()
+                    .put("inventory_id", line.inventoryId)
+                    .put("component", line.component)
+                    .put("lot", line.lot)
+                    .put("qty", line.qty)
+            )
+        }
+        val body = JSONObject()
+            .put("set_name", setName)
+            .put("target_sets", targetSets)
+            .put("request_id", requestId)
+            .put("remark", remark)
+            .put("lines", payloadLines)
+        val response = request(
+            path = "/inventory/mobile/set-move-out",
+            method = "POST",
+            body = body.toString(),
+            contentType = "application/json",
+        )
+        if (response.code == 401 || response.code in 300..399) {
+            return ApiResult(error = "로그인이 만료되었습니다. 다시 로그인하세요.")
+        }
+        if (response.code !in 200..299) return ApiResult(error = response.message())
+        return runCatching {
+            val json = JSONObject(response.body)
+            val results = json.optJSONArray("results") ?: JSONArray()
+            var totalQty = 0
+            for (index in 0 until results.length()) {
+                totalQty += results.getJSONObject(index).optInt("qty")
+            }
+            ApiResult(
+                value = SetOutboundResult(
+                    groupId = json.optString("group_id"),
+                    setName = json.optString("set_name"),
+                    targetSets = json.optInt("target_sets"),
+                    lineCount = results.length(),
+                    totalQty = totalQty,
+                )
+            )
+        }.getOrElse { ApiResult(error = "세트 출고 결과를 확인할 수 없습니다.") }
     }
 
     fun registerLot(

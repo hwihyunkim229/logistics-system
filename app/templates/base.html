@@ -781,13 +781,15 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
     <h3><span class="brand-mark"><i class="fa-solid fa-cubes-stacked"></i></span><span class="brand-copy">LOGISTICS <small>OPERATIONS</small></span></h3>
 
     <div class="sidebar-search-link-wrap">
+        {% if is_admin or current_permissions.get("common_search.view", false) %}
         <a href="/search" class="sidebar-search-link {% if request.url.path == '/search' %}active{% endif %}">
             <i class="fa-solid fa-magnifying-glass"></i>
             <span>통합 검색</span>
         </a>
+        {% endif %}
     </div>
 
-    {% if is_admin or current_permissions.get("logistics.view", false) %}
+    {% if is_admin or current_permissions.get("logistics_outbound.view", false) or current_permissions.get("logistics_inbound.view", false) or current_permissions.get("logistics_dashboard.view", false) %}
     <div class="menu-group" data-menu="logistics">
 
         <div class="menu-title" onclick="toggleMenu(this)">
@@ -796,26 +798,26 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
 
         <div class="submenu">
 
-            <a href="/product/cart_bp_pro/outbound" class="menu-single">
+            {% if is_admin or current_permissions.get("logistics_outbound.view", false) %}<a href="/product/cart_bp_pro/outbound" class="menu-single">
                 출고 관리
-            </a>
+            </a>{% endif %}
 
-            <a href="/product/cart_bp_pro/inbound" class="menu-single">
+            {% if is_admin or current_permissions.get("logistics_inbound.view", false) %}<a href="/product/cart_bp_pro/inbound" class="menu-single">
                 입고 관리
-            </a>
+            </a>{% endif %}
 
-            <a href="/dashboard/overview" class="menu-single">
+            {% if is_admin or current_permissions.get("logistics_dashboard.view", false) %}<a href="/dashboard/overview" class="menu-single">
                 Dashboard
-            </a>
+            </a>{% endif %}
 
         </div>
     </div>
     {% endif %}
 
     {% if is_admin
-        or current_permissions.get("inventory.view", false)
-        or current_permissions.get("stock.view", false)
-        or current_permissions.get("rental.view", false)
+        or current_permissions.get("inventory_stock.view", false) or current_permissions.get("inventory_history.view", false) or current_permissions.get("inventory_dashboard.view", false)
+        or current_permissions.get("stock_stock.view", false) or current_permissions.get("stock_history.view", false) or current_permissions.get("stock_dashboard.view", false)
+        or current_permissions.get("rental_stock.view", false) or current_permissions.get("rental_history.view", false)
     %}
     <div class="menu-group" data-menu="total-stock">
 
@@ -828,7 +830,7 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
 
         <div class="submenu">
 
-            {% if is_admin or current_permissions.get("inventory.view", false) %}
+            {% if is_admin or current_permissions.get("inventory_stock.view", false) or current_permissions.get("inventory_history.view", false) or current_permissions.get("inventory_dashboard.view", false) %}
             <a
                 href="javascript:void(0)"
                 class="menu-parent"
@@ -839,16 +841,16 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
 
             <div class="child-menu">
 
-                <a href="/inventory">재고 현황</a>
-                <a href="/inventory/history">입출고 현황</a>
-                <a href="/inventory/dashboard">Dashboard</a>
+                {% if is_admin or current_permissions.get("inventory_stock.view", false) %}<a href="/inventory">재고 현황</a>{% endif %}
+                {% if is_admin or current_permissions.get("inventory_history.view", false) %}<a href="/inventory/history">입출고 현황</a>{% endif %}
+                {% if is_admin or current_permissions.get("inventory_dashboard.view", false) %}<a href="/inventory/dashboard">Dashboard</a>{% endif %}
 
             </div>
             {% endif %}
 
             {% if is_admin
-                or current_permissions.get("stock.view", false)
-                or current_permissions.get("rental.view", false)
+                or current_permissions.get("stock_stock.view", false) or current_permissions.get("stock_history.view", false) or current_permissions.get("stock_dashboard.view", false)
+                or current_permissions.get("rental_stock.view", false) or current_permissions.get("rental_history.view", false)
             %}
             <a
                 href="javascript:void(0)"
@@ -860,20 +862,20 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
 
             <div class="child-menu">
 
-                {% if is_admin or current_permissions.get("stock.view", false) %}
-                <a href="/stock">재고 현황</a>
-                <a href="/stock/history">입/출고 현황</a>
-                <a href="/stock/dashboard">Dashboard</a>
+                {% if is_admin or current_permissions.get("stock_stock.view", false) or current_permissions.get("stock_history.view", false) or current_permissions.get("stock_dashboard.view", false) %}
+                {% if is_admin or current_permissions.get("stock_stock.view", false) %}<a href="/stock">재고 현황</a>{% endif %}
+                {% if is_admin or current_permissions.get("stock_history.view", false) %}<a href="/stock/history">입출고 현황</a>{% endif %}
+                {% if is_admin or current_permissions.get("stock_dashboard.view", false) %}<a href="/stock/dashboard">Dashboard</a>{% endif %}
                 {% endif %}
 
-                {% if is_admin or current_permissions.get("rental.view", false) %}
+                {% if is_admin or current_permissions.get("rental_stock.view", false) or current_permissions.get("rental_history.view", false) %}
                 <a href="javascript:void(0)" class="menu-parent nested-menu-parent" onclick="toggleSubmenu(this)">
                     대여 관리
                 </a>
 
                 <div class="child-menu nested-child-menu">
-                    <a href="/rental">재고 현황</a>
-                    <a href="/rental/history">입/출고 현황</a>
+                    {% if is_admin or current_permissions.get("rental_stock.view", false) %}<a href="/rental">재고 현황</a>{% endif %}
+                    {% if is_admin or current_permissions.get("rental_history.view", false) %}<a href="/rental/history">입/출고 현황</a>{% endif %}
                 </div>
                 {% endif %}
 
@@ -947,7 +949,7 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
     </div>
     {% endif %}
 
-    {% if is_admin or current_permissions.get("mrp.view", false) %}
+    {% if is_admin or current_permissions.get("mrp_result.view", false) or current_permissions.get("mrp_bom.view", false) or current_permissions.get("mrp_plan.view", false) or current_permissions.get("mrp_material.view", false) or current_permissions.get("mrp_dashboard.view", false) %}
     <div class="menu-group" data-menu="mrp">
 
         <div
@@ -959,32 +961,32 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
 
         <div class="submenu">
 
-            <a href="/mrp/result" class="menu-single">
+            {% if is_admin or current_permissions.get("mrp_result.view", false) %}<a href="/mrp/result" class="menu-single">
                 MRP Result
-            </a>
+            </a>{% endif %}
 
-            <a href="/mrp/bom" class="menu-single">
+            {% if is_admin or current_permissions.get("mrp_bom.view", false) %}<a href="/mrp/bom" class="menu-single">
                 BOM
-            </a>
+            </a>{% endif %}
 
-            <a href="/mrp/production-plan" class="menu-single">
+            {% if is_admin or current_permissions.get("mrp_plan.view", false) %}<a href="/mrp/production-plan" class="menu-single">
                 생산 계획
-            </a>
+            </a>{% endif %}
 
-            <a href="/mrp/material-master" class="menu-single">
+            {% if is_admin or current_permissions.get("mrp_material.view", false) %}<a href="/mrp/material-master" class="menu-single">
                 자재 기준 정보
-            </a>
+            </a>{% endif %}
 
-            <a href="/mrp" class="menu-single">
+            {% if is_admin or current_permissions.get("mrp_dashboard.view", false) %}<a href="/mrp" class="menu-single">
                 Dashboard
-            </a>
+            </a>{% endif %}
 
         </div>
 
     </div>
     {% endif %}
 
-    {% if is_admin or current_permissions.get("stock.view", false) %}
+    {% if is_admin or current_permissions.get("master_items.view", false) %}
     <div class="menu-group" data-menu="master">
 
         <div
@@ -1043,15 +1045,17 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
 </div>
 
 <div class="top-bar">
+    {% if is_admin or current_permissions.get("common_search.view", false) %}
     <a class="gnb-search-trigger" href="/search" title="통합 검색">
         <i class="fa-solid fa-magnifying-glass"></i>
         <span class="gnb-search-label">S/N 또는 품목코드 검색</span>
         <kbd>Ctrl K</kbd>
     </a>
+    {% endif %}
 
-    <a class="system-status" href="/search" aria-label="통합 검색 열기">
+    <div class="system-status">
         <span></span> 운영 중
-    </a>
+    </div>
 
     <div class="bell-menu" id="bellMenu">
         <div class="bell-trigger" onclick="toggleBellMenu()">
@@ -1084,7 +1088,9 @@ window.__CURRENT_CAN_DOWNLOAD__ = {{ (
 
 <script>
 document.addEventListener("keydown", function (event) {
+    const canOpenSearch = {{ (is_admin or current_permissions.get("common_search.view", false))|tojson }};
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        if (!canOpenSearch) return;
         event.preventDefault();
         window.location.href = "/search";
     }
