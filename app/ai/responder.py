@@ -72,6 +72,9 @@ def make_answer(question, result):
 def _fallback_answer(result):
     status = result.get("status")
 
+    if status in ("capabilities", "analysis_limit", "project_knowledge"):
+        return result.get("message", "요청을 처리할 수 없습니다.")
+
     if status == "blocked":
         return result.get("message", "보안상 해당 정보는 제공할 수 없습니다.")
 
@@ -490,6 +493,7 @@ def _domain_label(domain):
         "inventory": "수불 재고",
         "bom": "BOM",
         "production_plan": "생산계획",
+        "production_products": "생산계획 등록 제품",
         "material_master": "자재 기준정보",
         "item_master": "품목 기준정보",
         "item_master_history": "품목 변경 이력",
@@ -497,6 +501,8 @@ def _domain_label(domain):
         "inventory_movement": "수불 재고 입출고 이력",
         "stock_movement": "가계상 재고 입출고 이력",
         "mrp_result": "MRP 부족 수량",
+        "workflow": "Workflow",
+        "inventory_lot": "수불 재고 LOT",
     }.get(domain, "데이터")
 
 def _format_row(domain, row):
@@ -514,6 +520,13 @@ def _format_row(domain, row):
                 f"Grade {row['grade']}" if row.get("grade") else "",
             ])
         )
+
+    if domain == "inventory_lot":
+        return (
+            f"LOT {row.get('lot') or '-'} · "
+            f"{row.get('item_name') or '-'} ({row.get('item_code') or '-'}) · "
+            f"{row.get('warehouse_type') or '-'} · {row.get('qty', 0):,} EA"
+        )
         return (
             f"{row['item_name']} ({row['item_code']}) "
             f"{row['warehouse_type']}"
@@ -530,6 +543,13 @@ def _format_row(domain, row):
         return (
             f"{row['plan_date']} {row['product_name']} "
             f"{row['plan_qty']:,} EA"
+        )
+
+    if domain == "production_products":
+        return (
+            f"{row.get('product_name') or '-'} · 계획 {row.get('plan_count', 0):,}건 · "
+            f"총 {row.get('plan_qty', 0):,} EA · "
+            f"{row.get('first_date') or '-'} ~ {row.get('last_date') or '-'}"
         )
 
     if domain == "material_master":
@@ -569,6 +589,14 @@ def _format_row(domain, row):
             f"{row['created_at']} {row.get('old_code') or '-'}->{row.get('new_code') or '-'} "
             f"({row.get('old_name') or '-'}->{row.get('new_name') or '-'}), "
             f"Rev {row.get('old_rev') or '-'}->{row.get('new_rev') or '-'} ({row.get('user') or '-'})"
+        )
+
+    if domain == "workflow":
+        return (
+            f"{row.get('workflow_no') or '-'} · "
+            f"{row.get('item_name') or '-'} ({row.get('item_code') or '-'}) · "
+            f"LOT {row.get('lot') or '-'} · {row.get('qty', 0):,} EA · "
+            f"{row.get('status') or '-'}"
         )
 
     return ", ".join(f"{key}: {value}" for key, value in row.items())

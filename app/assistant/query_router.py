@@ -7,6 +7,8 @@ STOPWORDS = {
     "검색",
     "현황",
     "목록",
+    "내역",
+    "기록",
     "정보",
     "몇개",
     "몇",
@@ -69,6 +71,7 @@ STOPWORDS = {
     "물류",
     "있는",
     "어떤",
+    "말고",
 }
 
 PRODUCT_ALIASES = {
@@ -108,6 +111,7 @@ PRODUCT_SEARCH_TERMS = {
 
 PAGE_KEYWORDS = [
     (("mrp result", "mrp 결과", "mrp result", "소요량 결과"), "mrp_result"),
+    (("result", "결과 화면", "결과 페이지", "결과로"), "mrp_result"),
     (("bom", "자재명세", "부품 구성"), "bom"),
     (("생산계획", "생산 계획", "production plan"), "production_plan"),
     (("자재 기준", "material master", "업체", "리드타임", "moq"), "material_master"),
@@ -199,6 +203,64 @@ def is_out_of_scope(text):
         ("날씨", "환율", "주가", "뉴스", "날짜", "시간")
     )
 
+def asks_capabilities(text):
+    compact = "".join((text or "").split())
+    return any(
+        phrase in compact
+        for phrase in (
+            "뭘할수있", "뭐할수있", "무엇을할수있", "어떤걸할수있",
+            "어떤질문", "사용법", "도움말", "기능알려", "뭐하는애",
+            "뭐하는거", "무슨일해", "너는누구", "넌누구", "정체가뭐",
+            "역할이뭐", "어떤도우미", "너뭐야", "넌뭐야",
+        )
+    )
+
+def looks_like_conversation(text):
+    compact = "".join((text or "").split())
+    return any(
+        marker in compact
+        for marker in (
+            "안녕", "고마워", "감사", "반가워", "잘가", "수고",
+            "너", "넌", "assistant", "어시스턴트", "도우미",
+        )
+    )
+
+def asks_unsupported_analysis(text):
+    """Detect questions that require causal or cross-domain computation.
+
+    Sending these to a single lookup tool produces a confident but unrelated
+    answer. Until composed queries are implemented, be explicit about the
+    limitation and suggest the closest supported questions.
+    """
+    compact = "".join((text or "").split())
+    return any(
+        phrase in compact
+        for phrase in (
+            "왜줄", "왜늘", "원인이뭐", "원인알려",
+            "생산가능한수량", "몇개생산가능", "문제될자재",
+            "부족자재우선순위", "재고부족한거우선순위",
+        )
+    )
+
+def asks_upload_help(text):
+    return contains_any(
+        text,
+        ("엑셀", "excel", "업로드", "양식", "필수 열", "필수행", "필수 행", "컬럼"),
+    ) or ("파일" in text and contains_any(text, ("열", "필수", "lot")))
+
+def has_inventory_context(text):
+    compact = re.sub(r"\s+", "", text or "")
+    if any(term in compact for term in ("수불재고", "계상재고", "창고재고", "제공재고", "외주재고")):
+        return True
+    return "재고" in compact and any(term in compact for term in ("창고", "제공", "외주"))
+
+def extract_warehouse_type(text):
+    compact = re.sub(r"\s+", "", text or "")
+    for marker, value in (("외주", "외주재고"), ("제공", "제공재고"), ("창고", "창고재고")):
+        if marker in compact and "재고" in compact:
+            return value
+    return ""
+
 def translate_product_terms(text):
 
     if not text:
@@ -228,6 +290,19 @@ def extract_product(text):
 
     return ""
 
+def extract_workflow_item(text):
+    value = text or ""
+    for alias in PRODUCT_ALIASES:
+        value = re.sub(re.escape(alias), " ", value, flags=re.IGNORECASE)
+    value = re.sub(
+        r"(?i)workflow|워크플로우|번호|부여된|부여|지금|현재|알려줘|알려주세요|찾아줘|찾기|검색|조회",
+        " ",
+        value,
+    )
+    value = re.sub(r"[?.,!]", " ", value)
+    value = re.sub(r"(?:에|의|은|는|이|가)$", "", " ".join(value.split()))
+    return value.strip()
+
 def extract_period(text):
     lowered = normalize(text)
 
@@ -251,10 +326,10 @@ def extract_flow_type(text):
     if "입출고" in lowered:
         return "both"
 
-    if "출고" in lowered or "outbound" in lowered:
+    if "출고" in lowered or "outbound" in lowered or "나갔" in lowered or "내보" in lowered:
         return "outbound"
 
-    if "입고" in lowered or "inbound" in lowered:
+    if "입고" in lowered or "inbound" in lowered or "들어왔" in lowered or "들어온" in lowered:
         return "inbound"
 
     return "both"
@@ -280,13 +355,27 @@ def extract_stock_category(text):
     if "반제품" in lowered:
         return "반제품"
 
-    if "원자재" in lowered:
+    if "원자재" in lowered or "원료" in lowered or "자재" in lowered:
         return "원자재"
 
     if "제품" in lowered:
         return "제품"
 
     return ""
+
+def remove_inventory_scope_words(keyword, category=""):
+    """Remove generic inventory scope nouns accidentally parsed as item names."""
+    value = (keyword or "").strip()
+    generic_by_category = {
+        "원자재": {"자재", "원료", "원자재"},
+        "반제품": {"반제품"},
+        "제품": {"제품", "완제품"},
+    }
+    if value in generic_by_category.get(category, set()):
+        return ""
+    if value in {"재고", "품목", "물품", "전체", "전부", "창고", "외주", "제공"}:
+        return ""
+    return value
 
 def extract_sort(text):
     lowered = normalize(text)
@@ -372,12 +461,71 @@ def extract_keyword(question):
 
     compact = " ".join(cleaned.split())
 
+    # Korean sentence endings must not become database search keywords.
+    # e.g. "수불재고 원자재 총 몇개야?" previously searched for item "야".
+    compact = re.sub(
+        r"(?:이야|야|인가요|인가|일까요|나요|니|죠|지요|예요|이에요)$",
+        "",
+        compact,
+    ).strip()
+
+    filler_tokens = {
+        "가", "이", "은", "는", "을", "를", "에", "의", "중", "좀", "만",
+        "입니까", "있", "있나요", "있어", "있음", "남음", "남았어", "돼", "됨",
+    }
+    compact = " ".join(
+        token for token in compact.split()
+        if token not in filler_tokens
+    ).strip()
+
     return compact[:80]
 
 def resolve_tool(question):
     text = normalize(question)
 
-    if "mrp" in text and "부족" in text:
+    if (
+        "lot" in text
+        and has_inventory_context(text)
+        and contains_any(text, ("현황", "목록", "보여", "알려", "조회"))
+        and not re.search(r"lot\s*[A-Za-z]*\d+", question or "", re.IGNORECASE)
+    ):
+        return {
+            "tool": "inventory.lot_summary",
+            "arguments": {}
+        }
+
+    if contains_any(text, ("workflow", "워크플로우")) and contains_any(text, ("번호", "찾", "조회", "알려")):
+        return {
+            "tool": "workflow.search",
+            "arguments": {
+                "item": extract_workflow_item(question),
+                "service_type": extract_product(question),
+            }
+        }
+
+    if asks_capabilities(text):
+        return {
+            "tool": "assistant.capabilities",
+            "arguments": {}
+        }
+
+    if asks_upload_help(text):
+        return {
+            "tool": "project.upload_help",
+            "arguments": {"question": question}
+        }
+
+    if asks_unsupported_analysis(text):
+        return {
+            "tool": "assistant.analysis_limit",
+            "arguments": {"question": question}
+        }
+
+    asks_shortage_materials = "부족" in text and contains_any(
+        text, ("mrp", "자재", "품목", "재고")
+    )
+
+    if asks_shortage_materials:
 
         number = extract_number(question)
 
@@ -401,6 +549,28 @@ def resolve_tool(question):
                 "tool": "mrp.shortage_max",
                 "arguments": {}
             }
+
+        return {
+            "tool": "mrp.shortage_search",
+            "arguments": {
+                "sort": "desc",
+                "limit": 5,
+            }
+        }
+
+    if contains_any(text, ("생산계획", "생산 계획", "production plan")):
+        if "제품" in text and contains_any(text, ("있는", "목록", "어떤", "알려", "보여", "뭐")):
+            return {
+                "tool": "production.products",
+                "arguments": {"period": extract_period(question)}
+            }
+        return {
+            "tool": "production.plan",
+            "arguments": {
+                "item": extract_keyword(question),
+                "period": extract_period(question),
+            }
+        }
 
     if is_secret_question(text):
         return {
@@ -544,8 +714,9 @@ def resolve_tool(question):
 
         return data_result
 
-    if contains_any(text, ("입고", "출고", "inbound", "outbound")):
-        matched = [kw for kw in ("입고", "출고", "inbound", "outbound") if kw in text]
+    flow_words = ("입고", "출고", "inbound", "outbound", "나갔", "내보", "들어왔", "들어온")
+    if contains_any(text, flow_words):
+        matched = [kw for kw in flow_words if kw in text]
         product = extract_product(question)
 
         return _meaning_or(matched, {
@@ -568,20 +739,13 @@ def resolve_tool(question):
 
         }
 
-    if "가계상" not in text and contains_any(
-        text,
-        ("수불 재고", "수불재고", "계상 재고", "계상재고", "창고재고", "제공재고", "외주재고")
-    ):
+    if "가계상" not in text and has_inventory_context(text):
         matched = [
             kw for kw in ("수불 재고", "수불재고", "계상 재고", "계상재고", "창고재고", "제공재고", "외주재고")
             if kw in text
         ]
 
-        warehouse_type = ""
-        for wt in ("창고재고", "제공재고", "외주재고"):
-            if wt in text:
-                warehouse_type = wt
-                break
+        warehouse_type = extract_warehouse_type(text)
 
         grade = ""
         grade_match = re.search(r"\b([ABF])\s*등급|등급\s*([ABF])\b", question or "", re.IGNORECASE)
@@ -592,22 +756,34 @@ def resolve_tool(question):
         lot_match = re.search(r"lot\s*([A-Za-z]*\d+)", question or "", re.IGNORECASE)
         if lot_match:
             lot = lot_match.group(1)
+        else:
+            # In an explicit inventory question, codes such as F25/G23 are
+            # commonly LOT values even when the user omits the word "LOT".
+            lot_match = re.search(r"(?<![A-Za-z0-9_-])([A-Za-z]\d{2,})(?![A-Za-z0-9_-])", question or "")
+            if lot_match:
+                lot = lot_match.group(1)
 
         scrubbed = re.sub(
             r"(?i)[ABF]\s*등급|등급\s*[ABF]|lot\s*[A-Za-z]*\d*",
             " ",
             question or ""
         )
+        if lot:
+            scrubbed = re.sub(rf"(?<![A-Za-z0-9_-]){re.escape(lot)}(?![A-Za-z0-9_-])", " ", scrubbed, flags=re.IGNORECASE)
 
         sort, order = extract_sort(question)
-        item = "" if sort else extract_keyword(scrubbed)
+        category = extract_stock_category(question)
+        item = "" if sort else remove_inventory_scope_words(
+            extract_keyword(scrubbed),
+            category,
+        )
 
         return _meaning_or(matched, {
             "tool": "inventory.search",
             "arguments": {
                 "item": item,
                 "warehouse_type": warehouse_type,
-                "category": extract_stock_category(question),
+                "category": category,
                 "grade": grade,
                 "lot": lot,
                 "sort": sort,
@@ -654,6 +830,12 @@ def resolve_tool(question):
                 "question": question,
                 "topic": extract_keyword(question),
             }
+        }
+
+    if looks_like_conversation(text):
+        return {
+            "tool": "general.chat",
+            "arguments": {"question": question}
         }
 
     keyword = extract_keyword(question)

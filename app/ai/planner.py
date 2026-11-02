@@ -671,6 +671,7 @@ ALLOWED_TOOLS = {
     "inventory.search",
     "bom.detail",
     "production.plan",
+    "production.products",
     "material.master",
     "item.master",
     "movement.search",
@@ -694,6 +695,11 @@ ALLOWED_TOOLS = {
     "logistics.flow_count",
     "mrp.shortage_max",
     "mrp.shortage_min",
+    "assistant.capabilities",
+    "assistant.analysis_limit",
+    "project.upload_help",
+    "workflow.search",
+    "inventory.lot_summary",
 }
 
 

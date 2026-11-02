@@ -1,4 +1,5 @@
 from collections import Counter, defaultdict
+import re
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace
 from urllib.parse import quote
@@ -6,6 +7,7 @@ from zoneinfo import ZoneInfo
 from app.routers.mrp import calculate_mrp
 from sqlalchemy import distinct, func, or_
 from app.assistant.registry import tool
+from app.assistant.project_knowledge import format_upload_help
 from app.models.activity_log import ActivityLog
 from app.models.bom import BOM
 from app.models.inbound import Inbound
@@ -22,8 +24,107 @@ from app.models.production_plan import ProductionPlan
 from app.models.stock import Stock
 from app.models.stock_movement import StockMovement
 from app.models.user import User
+from app.workflow.models.workflow_item import WorkflowItem
 
 MAX_ROWS = 15
+
+@tool("workflow.search")
+def workflow_search(db, item: str = "", service_type: str = ""):
+    keyword = _keyword(item)
+    query = db.query(WorkflowItem)
+
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(or_(
+            func.lower(WorkflowItem.item_code).like(pattern),
+            func.lower(WorkflowItem.item_name).like(pattern),
+            func.lower(WorkflowItem.lot).like(pattern),
+        ))
+
+    if service_type:
+        service_pattern = "%" + "%".join(
+            part for part in re.split(r"[_\s-]+", service_type.lower()) if part
+        ) + "%"
+        query = query.filter(func.lower(WorkflowItem.service_type).like(service_pattern))
+
+    rows = query.order_by(WorkflowItem.id.desc()).limit(MAX_ROWS + 1).all()
+    return {
+        "status": "rows" if rows else "none",
+        "domain": "workflow",
+        "keyword": keyword,
+        "truncated": len(rows) > MAX_ROWS,
+        "rows": [
+            {
+                "workflow_no": row.workflow_no,
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "lot": row.lot,
+                "qty": row.qty or 0,
+                "status": row.status,
+                "service_type": row.service_type,
+            }
+            for row in rows[:MAX_ROWS]
+        ],
+    }
+
+@tool("inventory.lot_summary")
+def inventory_lot_summary(db, limit: int = MAX_ROWS):
+    limit = max(1, min(int(limit or MAX_ROWS), 30))
+    base_filter = (
+        Inventory.lot.isnot(None),
+        func.trim(Inventory.lot) != "",
+    )
+    query = (
+        db.query(
+            Inventory.lot,
+            Inventory.item_code,
+            Inventory.item_name,
+            Inventory.warehouse_type,
+            Inventory.category,
+            func.sum(Inventory.qty).label("qty"),
+        )
+        .filter(*base_filter)
+        .group_by(
+            Inventory.lot,
+            Inventory.item_code,
+            Inventory.item_name,
+            Inventory.warehouse_type,
+            Inventory.category,
+        )
+        .order_by(Inventory.lot, Inventory.item_code)
+    )
+    rows = query.limit(limit + 1).all()
+    total_lots = (
+        db.query(func.count(distinct(Inventory.lot)))
+        .filter(*base_filter)
+        .scalar()
+        or 0
+    )
+    total_qty = (
+        db.query(func.coalesce(func.sum(Inventory.qty), 0))
+        .filter(*base_filter)
+        .scalar()
+        or 0
+    )
+    return {
+        "status": "rows" if rows else "none",
+        "domain": "inventory_lot",
+        "message": "현재 수불 재고에 등록된 LOT 데이터가 없습니다." if not rows else "",
+        "total_rows": int(total_lots),
+        "total_qty": int(total_qty),
+        "truncated": len(rows) > limit,
+        "rows": [
+            {
+                "lot": row.lot,
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "warehouse_type": row.warehouse_type,
+                "category": row.category,
+                "qty": row.qty or 0,
+            }
+            for row in rows[:limit]
+        ],
+    }
 
 SERVICE_NAMES = {
     "cart_bp_pro": "CART BP pro",
@@ -248,6 +349,42 @@ def general_chat(db, question: str):
             "Logistics 시스템의 재고, 입출고, BOM, 생산계획, MRP, "
             "품목/자재 기준정보, 사용자/활동 로그에 대해 질문할 수 있습니다."
         )
+    }
+
+@tool("assistant.capabilities")
+def assistant_capabilities(db):
+    return {
+        "status": "capabilities",
+        "message": (
+            "저는 이 Logistics 시스템의 업무 Assistant입니다. "
+            "시스템 데이터 조회, 업무 용어 설명, 화면 이동과 업로드 양식 안내를 도와드립니다.\n\n"
+            "다음과 같은 질문을 처리할 수 있습니다.\n\n"
+            "- 가계상 재고 및 수불 재고 수량/등급/LOT 조회\n"
+            "- 제품 입고·출고 건수와 이력 조회\n"
+            "- BOM, 생산계획, 품목·자재 기준정보 조회\n"
+            "- MRP 부족 품목과 대시보드 요약\n"
+            "- 관련 화면 이동 및 품목 위치 찾기\n\n"
+            "예: ‘수불 재고 F25 LOT A등급 수량’, ‘MRP 부족 품목 상위 5개’, "
+            "‘CART BP 이번 달 출고 건수’처럼 질문해 주세요."
+        )
+    }
+
+@tool("assistant.analysis_limit")
+def assistant_analysis_limit(db, question: str = ""):
+    return {
+        "status": "analysis_limit",
+        "message": (
+            "이 질문은 여러 업무 데이터를 조합하거나 원인을 분석해야 해서 현재 한 번에 정확히 답할 수 없습니다. "
+            "대신 기간별 입출고 건수, MRP 부족 품목, BOM, 생산계획 또는 재고를 각각 조회할 수 있습니다. "
+            "예: ‘이번 달 입고 건수’ 또는 ‘MRP 부족 품목 상위 5개’처럼 나누어 질문해 주세요."
+        )
+    }
+
+@tool("project.upload_help")
+def project_upload_help(db, question: str = ""):
+    return {
+        "status": "project_knowledge",
+        "message": format_upload_help(question),
     }
 
 @tool("security.block")
@@ -1135,6 +1272,43 @@ def production_plan(
                 "plan_qty": row.plan_qty or 0,
             }
             for row in rows[:limit]
+        ],
+    }
+
+@tool("production.products")
+def production_products(db, period: str = "all"):
+    query = db.query(
+        ProductionPlan.product_name,
+        func.sum(ProductionPlan.plan_qty).label("plan_qty"),
+        func.min(ProductionPlan.plan_date).label("first_date"),
+        func.max(ProductionPlan.plan_date).label("last_date"),
+        func.count(ProductionPlan.id).label("plan_count"),
+    )
+    start, end = _period_range(period)
+    if start and end:
+        query = query.filter(
+            ProductionPlan.plan_date >= start.date(),
+            ProductionPlan.plan_date < end.date(),
+        )
+    rows = (
+        query.group_by(ProductionPlan.product_name)
+        .order_by(ProductionPlan.product_name)
+        .all()
+    )
+    return {
+        "status": "rows" if rows else "none",
+        "domain": "production_products",
+        "period": period,
+        "message": "등록된 생산계획 제품이 없습니다." if not rows else "",
+        "rows": [
+            {
+                "product_name": row.product_name,
+                "plan_qty": int(row.plan_qty or 0),
+                "plan_count": int(row.plan_count or 0),
+                "first_date": _fmt_date(row.first_date),
+                "last_date": _fmt_date(row.last_date),
+            }
+            for row in rows
         ],
     }
 

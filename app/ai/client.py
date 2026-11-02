@@ -1,3 +1,4 @@
+import logging
 import os
 
 from app.ai.prompts import SYSTEM_PROMPT
@@ -19,6 +20,7 @@ MODEL_NAME = "llama-3.3-70b-versatile"
 
 api_key = os.getenv("GROQ_API_KEY")
 client = Groq(api_key=api_key) if Groq and api_key else None
+logger = logging.getLogger(__name__)
 
 
 def ask_ai(
@@ -51,4 +53,5 @@ def ask_ai(
         return response.choices[0].message.content.strip()
 
     except Exception:
+        logger.exception("AI request failed for model %s", MODEL_NAME)
         return ""

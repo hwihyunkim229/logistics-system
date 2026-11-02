@@ -368,6 +368,115 @@
     height:16px;
     flex-shrink:0;
 }
+
+/* 2026 workspace copilot redesign */
+#assistant-widget{right:22px;bottom:22px}
+#assistant-btn{
+    width:auto!important;height:56px!important;min-height:56px!important;padding:0 16px!important;
+    border:1px solid rgba(255,255,255,.12)!important;border-radius:18px!important;
+    background:#102a2e!important;color:#fff!important;
+    box-shadow:0 14px 34px rgba(16,42,46,.28)!important;gap:11px;
+}
+#assistant-btn::after{content:none}
+#assistant-btn:hover{background:#173b40!important;color:#fff!important;box-shadow:0 18px 38px rgba(16,42,46,.32)!important}
+#assistant-btn svg{width:24px;height:24px}
+#assistant-btn{touch-action:none;user-select:none}
+.assistant-launcher-copy{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15;text-align:left}
+.assistant-launcher-copy strong{font-size:13px;font-weight:800;color:#fff}
+.assistant-launcher-copy small{margin-top:4px;font-size:10.5px;font-weight:600;color:#a9c8c2}
+#assistant-btn .assistant-btn-badge{top:8px;right:8px;width:7px;height:7px;border-width:1px;background:#56d8ac}
+#assistant-widget #assistant-window{bottom:64px}
+#assistant-widget.is-open #assistant-btn{opacity:0;transform:translateY(8px)!important;pointer-events:none}
+#assistant-widget.is-open #assistant-hide{display:none}
+#assistant-widget.is-open #assistant-window{bottom:0}
+#assistant-window{
+    width:min(460px,calc(100vw - 32px));height:min(700px,calc(100vh - 112px));
+    border:1px solid #d9e4e1;border-radius:22px;background:#f6f8f7;
+    box-shadow:0 28px 70px rgba(8,28,31,.25),0 4px 16px rgba(8,28,31,.08);
+    transform:translateY(12px) scale(.985);
+}
+#assistant-header{
+    min-height:72px;padding:15px 18px;background:#fff;color:#102a2e;
+    border-bottom:1px solid #e1e9e7;gap:12px;
+    cursor:grab;touch-action:none;user-select:none;
+}
+#assistant-header:active{cursor:grabbing}
+#assistant-header button{cursor:pointer}
+#assistant-header .assistant-avatar{width:40px;height:40px;border-radius:13px;background:#e5f6f1;color:#006c5b}
+#assistant-header .assistant-avatar svg path{fill:#006c5b}
+#assistant-header .assistant-avatar svg circle{fill:#fff}
+#assistant-header .assistant-title{font-size:15px;font-weight:800;letter-spacing:-.25px}
+#assistant-header .assistant-subtitle{color:#6a7f7b;opacity:1;font-size:11.5px}
+#assistant-header .assistant-subtitle .dot{background:#13a77b;box-shadow:none}
+.assistant-header-actions{display:flex;align-items:center;gap:6px}
+#assistant-clear,#assistant-close{
+    width:34px;height:34px;border:1px solid #dce7e4;border-radius:10px;
+    background:#fff;color:#506460;
+}
+#assistant-clear{display:grid;place-items:center;padding:0;cursor:pointer;font-size:16px}
+#assistant-clear:hover,#assistant-close:hover{background:#eef4f2;color:#102a2e}
+#assistant-close svg path{stroke:currentColor}
+#assistant-suggestions{
+    display:flex;gap:7px;padding:10px 14px;overflow-x:auto;background:#fff;
+    border-bottom:1px solid #e7eeec;scrollbar-width:none;
+}
+#assistant-suggestions::-webkit-scrollbar{display:none}
+.assistant-suggestion{
+    flex:0 0 auto;border:1px solid #cfe0dc;background:#fff;color:#29423f;
+    border-radius:999px;padding:7px 11px;font:700 11.5px/1 'Segoe UI',sans-serif;cursor:pointer;
+}
+.assistant-suggestion:hover{background:#e5f6f1;border-color:#8bc6b7;color:#005f50}
+#assistant-body{padding:20px 16px;background:#f6f8f7}
+.assistant-message{margin-bottom:16px}
+.assistant-bubble{max-width:86%;padding:12px 14px;border-radius:14px;font-size:13.5px;line-height:1.65}
+.assistant-user .assistant-bubble{
+    background:#102a2e;color:#fff;border-radius:14px 14px 4px 14px;box-shadow:none;
+}
+.assistant-bot .assistant-bubble{
+    background:#fff;color:#203735;border:1px solid #dfe8e6;border-radius:4px 14px 14px 14px;
+    box-shadow:0 3px 12px rgba(16,42,46,.05);
+}
+.assistant-move-btn{background:#006c5b;border-radius:9px;padding:9px 12px}
+.assistant-move-btn:hover{background:#00594b}
+#assistant-footer{padding:12px;background:#fff;border-top:1px solid #dfe8e6;gap:8px}
+#assistant-question{
+    height:44px;border:1px solid #cfddda;background:#f8faf9;border-radius:12px;padding:0 14px;
+}
+#assistant-question:focus{border-color:#4aa58f;background:#fff;box-shadow:0 0 0 3px rgba(0,108,91,.09)}
+#assistant-footer #assistant-send{
+    width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;
+    padding:0!important;border:1px solid #006c5b!important;border-radius:12px!important;
+    background:#006c5b!important;color:#fff!important;box-shadow:none!important;
+}
+#assistant-footer #assistant-send:hover:not(:disabled){background:#00594b!important;border-color:#00594b!important;color:#fff!important}
+#assistant-footer #assistant-send svg path{stroke:#fff!important}
+.assistant-typing{border-color:#dfe8e6;border-radius:4px 14px 14px 14px}
+.assistant-typing span{background:#559487}
+#assistant-restore{
+    right:14px!important;bottom:22px!important;height:48px!important;min-height:48px!important;
+    padding:0 15px!important;border:1px solid rgba(255,255,255,.12)!important;
+    border-radius:16px!important;background:#102a2e!important;color:#fff!important;
+    box-shadow:0 12px 30px rgba(16,42,46,.25)!important;gap:9px!important;
+    font-size:12px!important;font-weight:800!important;
+}
+#assistant-restore:hover{
+    padding:0 15px!important;background:#173b40!important;color:#fff!important;
+    border-color:rgba(255,255,255,.16)!important;
+}
+#assistant-restore svg{width:20px;height:20px}
+#assistant-restore svg path{fill:#fff}
+#assistant-restore svg circle{fill:#102a2e}
+.assistant-restore-copy{display:flex;flex-direction:column;align-items:flex-start;line-height:1.05}
+.assistant-restore-copy strong{font-size:12px;color:#fff}
+.assistant-restore-copy small{margin-top:4px;font-size:9.5px;color:#a9c8c2}
+@media(max-width:600px){
+    #assistant-widget{right:12px;bottom:12px}
+    #assistant-window{position:fixed!important;inset:10px!important;width:auto;height:auto;border-radius:18px}
+    .assistant-launcher-copy{display:none}
+    #assistant-btn{width:56px!important;padding:0!important;justify-content:center}
+    #assistant-restore{right:10px!important;bottom:12px!important;width:48px!important;padding:0!important;justify-content:center}
+    .assistant-restore-copy{display:none}
+}
 </style>
 
 <div id="assistant-widget">
@@ -378,6 +487,10 @@
             <circle cx="12" cy="11" r="1.15" fill="#2563eb"/>
             <circle cx="15.5" cy="11" r="1.15" fill="#2563eb"/>
         </svg>
+        <span class="assistant-launcher-copy">
+            <strong>Assistant</strong>
+            <small>재고 · MRP · Workflow</small>
+        </span>
         <span class="assistant-btn-badge"></span>
     </button>
 
@@ -401,11 +514,26 @@
                 <div class="assistant-title">Logistics Assistant</div>
                 <div class="assistant-subtitle"><span class="dot"></span>온라인</div>
             </div>
-            <button id="assistant-close" type="button" aria-label="닫기">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M6 6l12 12M18 6L6 18" stroke="white" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-            </button>
+            <div class="assistant-header-actions">
+                <button id="assistant-clear" type="button" aria-label="대화 초기화" title="대화 초기화">↻</button>
+                <button id="assistant-close" type="button" aria-label="닫기">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div id="assistant-suggestions" aria-label="추천 질문">
+            <button class="assistant-suggestion" type="button">창고재고 원자재 총수량</button>
+            <button class="assistant-suggestion" type="button">가계상 재고 현황</button>
+            <button class="assistant-suggestion" type="button">MRP 부족 품목 상위 5개</button>
+            <button class="assistant-suggestion" type="button">이번 달 제품 입고 건수</button>
+            <button class="assistant-suggestion" type="button">이번 달 제품 출고 건수</button>
+            <button class="assistant-suggestion" type="button">생산계획 조회</button>
+            <button class="assistant-suggestion" type="button">BOM 조회</button>
+            <button class="assistant-suggestion" type="button">Workflow 번호 찾기</button>
+            <button class="assistant-suggestion" type="button">엑셀 업로드 필수 열</button>
+            <button class="assistant-suggestion" type="button">이 시스템에서 뭘 할 수 있어?</button>
         </div>
         <div id="assistant-body"></div>
         <div id="assistant-footer">
@@ -431,12 +559,16 @@
         <circle cx="12" cy="11" r="1.15" fill="white"/>
         <circle cx="15.5" cy="11" r="1.15" fill="white"/>
     </svg>
-    Assistant
+    <span class="assistant-restore-copy">
+        <strong>Assistant</strong>
+        <small>다시 표시</small>
+    </span>
 </button>
 
 <script>
 (() => {
     const STORAGE_KEY = "assistant_chat_state::{{ request.session.get('user', '') }}";
+    const POSITION_KEY = "assistant_position::{{ request.session.get('user', '') }}";
     const GREETING = "안녕하세요.\n무엇을 도와드릴까요?";
 
     const assistantWidget = document.getElementById("assistant-widget");
@@ -445,6 +577,7 @@
     const assistantRestore = document.getElementById("assistant-restore");
     const assistantWindow = document.getElementById("assistant-window");
     const assistantClose = document.getElementById("assistant-close");
+    const assistantClear = document.getElementById("assistant-clear");
     const assistantBody = document.getElementById("assistant-body");
     const assistantQuestion = document.getElementById("assistant-question");
     const assistantSend = document.getElementById("assistant-send");
@@ -493,11 +626,107 @@
     }
 
     const state = loadState();
+    let suppressLauncherClick = false;
+
+    function applySavedPosition(){
+        try{
+            const saved = JSON.parse(localStorage.getItem(POSITION_KEY) || "null");
+            if(!saved || !Number.isFinite(saved.left) || !Number.isFinite(saved.top)) return;
+            const maxLeft = Math.max(8, window.innerWidth - assistantWidget.offsetWidth - 8);
+            const maxTop = Math.max(8, window.innerHeight - assistantWidget.offsetHeight - 8);
+            assistantWidget.style.left = `${Math.min(Math.max(8, saved.left), maxLeft)}px`;
+            assistantWidget.style.top = `${Math.min(Math.max(8, saved.top), maxTop)}px`;
+            assistantWidget.style.right = "auto";
+            assistantWidget.style.bottom = "auto";
+        }catch(err){
+            console.error(err);
+        }
+    }
+
+    function savePosition(){
+        const rect = assistantWidget.getBoundingClientRect();
+        try{
+            localStorage.setItem(POSITION_KEY, JSON.stringify({left:rect.left, top:rect.top}));
+        }catch(err){
+            console.error(err);
+        }
+    }
+
+    function keepAssistantOnScreen(){
+        const rect = state.open
+            ? assistantWindow.getBoundingClientRect()
+            : assistantWidget.getBoundingClientRect();
+        let dx = 0;
+        let dy = 0;
+        if(rect.left < 8) dx = 8 - rect.left;
+        if(rect.right > window.innerWidth - 8) dx = window.innerWidth - 8 - rect.right;
+        if(rect.top < 8) dy = 8 - rect.top;
+        if(rect.bottom > window.innerHeight - 8) dy = window.innerHeight - 8 - rect.bottom;
+        if(dx || dy){
+            const widgetRect = assistantWidget.getBoundingClientRect();
+            assistantWidget.style.left = `${widgetRect.left + dx}px`;
+            assistantWidget.style.top = `${widgetRect.top + dy}px`;
+            assistantWidget.style.right = "auto";
+            assistantWidget.style.bottom = "auto";
+            savePosition();
+        }
+    }
+
+    function enableDrag(handle, expanded){
+        handle.addEventListener("pointerdown", (event) => {
+            if(event.button !== 0 || event.target.closest("button") && handle !== assistantBtn) return;
+
+            const targetRect = expanded
+                ? assistantWindow.getBoundingClientRect()
+                : assistantWidget.getBoundingClientRect();
+            const widgetRect = assistantWidget.getBoundingClientRect();
+            const startX = event.clientX;
+            const startY = event.clientY;
+            let moved = false;
+
+            handle.setPointerCapture(event.pointerId);
+
+            const onMove = (moveEvent) => {
+                const dx = moveEvent.clientX - startX;
+                const dy = moveEvent.clientY - startY;
+                if(Math.abs(dx) + Math.abs(dy) > 5) moved = true;
+
+                const width = targetRect.width;
+                const height = targetRect.height;
+                const left = Math.min(Math.max(8, targetRect.left + dx), Math.max(8, window.innerWidth - width - 8));
+                const top = Math.min(Math.max(8, targetRect.top + dy), Math.max(8, window.innerHeight - height - 8));
+
+                const widgetLeft = expanded ? left + width - widgetRect.width : left;
+                const widgetTop = expanded ? top + height - widgetRect.height : top;
+                assistantWidget.style.left = `${widgetLeft}px`;
+                assistantWidget.style.top = `${widgetTop}px`;
+                assistantWidget.style.right = "auto";
+                assistantWidget.style.bottom = "auto";
+            };
+
+            const onUp = () => {
+                handle.removeEventListener("pointermove", onMove);
+                handle.removeEventListener("pointerup", onUp);
+                handle.removeEventListener("pointercancel", onUp);
+                if(moved){
+                    suppressLauncherClick = handle === assistantBtn;
+                    savePosition();
+                    setTimeout(() => { suppressLauncherClick = false; }, 0);
+                }
+            };
+
+            handle.addEventListener("pointermove", onMove);
+            handle.addEventListener("pointerup", onUp);
+            handle.addEventListener("pointercancel", onUp);
+        });
+    }
 
     function setOpen(open){
         state.open = open;
+        assistantWidget.classList.toggle("is-open", open);
         assistantWindow.classList.toggle("open", open);
         saveState();
+        requestAnimationFrame(keepAssistantOnScreen);
 
         if(open){
             assistantBody.scrollTop = assistantBody.scrollHeight;
@@ -505,8 +734,15 @@
         }
     }
 
-    assistantBtn.onclick = () => setOpen(!state.open);
+    assistantBtn.onclick = () => {
+        if(!suppressLauncherClick) setOpen(!state.open);
+    };
     assistantClose.onclick = () => setOpen(false);
+    assistantClear.onclick = () => {
+        state.messages = [{ text:GREETING, sender:"bot" }];
+        saveState();
+        renderAll();
+    };
 
     const logoutLink = document.querySelector('a[href="/logout"]');
     if(logoutLink){
@@ -624,13 +860,24 @@
     }
 
     assistantSend.onclick = sendQuestion;
+    document.querySelectorAll(".assistant-suggestion").forEach((button) => {
+        button.addEventListener("click", () => {
+            assistantQuestion.value = button.textContent.trim();
+            sendQuestion();
+        });
+    });
     assistantQuestion.addEventListener("keypress", (event) => {
         if(event.key === "Enter"){
             sendQuestion();
         }
     });
 
+    enableDrag(assistantBtn, false);
+    enableDrag(document.getElementById("assistant-header"), true);
+    applySavedPosition();
+    window.addEventListener("resize", keepAssistantOnScreen);
     renderAll();
+    assistantWidget.classList.toggle("is-open", state.open);
     assistantWindow.classList.toggle("open", state.open);
 })();
 </script>

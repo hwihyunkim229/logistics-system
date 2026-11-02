@@ -77,6 +77,12 @@ class AssistantAgent:
                 "page.choice",
                 result.get("choices", [])
             )
+        elif result.get("type") == "move" and selected_tool.get("tool") in (
+            "page.move", "page.find", "page.choice"
+        ):
+            page = selected_tool.get("arguments", {}).get("page", "")
+            if page:
+                memory.save(session_id, "page.context", [{"page": page}])
 
         answer = make_answer(question, result)
 
@@ -98,6 +104,27 @@ class AssistantAgent:
 
         if not saved:
             return None
+
+        if saved["tool"] == "page.context":
+            previous_page = (saved.get("items") or [{}])[0].get("page", "")
+            lowered = text.lower()
+            if previous_page in ("mrp", "mrp_result") and any(
+                word in lowered for word in ("result", "결과")
+            ):
+                return {
+                    "tool": "page.move",
+                    "arguments": {"page": "mrp_result"}
+                }
+
+        if (
+            saved["tool"] in ("inventory.search", "inventory.lot_summary")
+            and "lot" in text.lower()
+            and any(word in text for word in ("보여", "현황", "목록", "알려", "조회"))
+        ):
+            return {
+                "tool": "inventory.lot_summary",
+                "arguments": {}
+            }
 
         if saved["tool"] == "page.choice":
             resolved = self._resolve_page_choice(text, saved["items"])
