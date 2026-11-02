@@ -568,7 +568,7 @@
 <script>
 (() => {
     const STORAGE_KEY = "assistant_chat_state::{{ request.session.get('user', '') }}";
-    const POSITION_KEY = "assistant_position::{{ request.session.get('user', '') }}";
+    const POSITION_KEY = "assistant_position_v2::{{ request.session.get('user', '') }}";
     const GREETING = "안녕하세요.\n무엇을 도와드릴까요?";
 
     const assistantWidget = document.getElementById("assistant-widget");
@@ -585,8 +585,16 @@
     const HIDDEN_KEY = "assistant_hidden::{{ request.session.get('user', '') }}";
 
     function setHidden(hidden){
+        if(hidden && assistantWidget.style.display !== "none"){
+            savePosition();
+        }
         assistantWidget.style.display = hidden ? "none" : "";
         assistantRestore.style.display = hidden ? "flex" : "none";
+
+        if(!hidden){
+            applySavedPosition();
+            requestAnimationFrame(keepAssistantOnScreen);
+        }
 
         try{
             localStorage.setItem(HIDDEN_KEY, hidden ? "1" : "0");
@@ -653,6 +661,9 @@
     }
 
     function keepAssistantOnScreen(){
+        if(assistantWidget.style.display === "none" || !assistantWidget.isConnected){
+            return;
+        }
         const rect = state.open
             ? assistantWindow.getBoundingClientRect()
             : assistantWidget.getBoundingClientRect();
