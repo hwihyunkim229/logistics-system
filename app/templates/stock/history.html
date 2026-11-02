@@ -2,4 +2,25 @@
 <div class="mh-page"><div class="mh-head"><h2 class="page-title">입출고 이력</h2></div>
 <div class="mh-summary"><div class="mh-stat"><i class="fa-solid fa-box-open"></i><div><small>입고 작업</small><b>{{ summary.inbound }}건</b></div></div><div class="mh-stat orange"><i class="fa-solid fa-arrow-up-from-bracket"></i><div><small>출고 작업</small><b>{{ summary.outbound }}건</b></div></div><div class="mh-stat"><i class="fa-solid fa-arrow-down"></i><div><small>입고 수량</small><b>{{ summary.in_qty }} EA</b></div></div><div class="mh-stat orange"><i class="fa-solid fa-arrow-up"></i><div><small>출고 수량</small><b>{{ summary.out_qty }} EA</b></div></div></div>
 <form class="mh-tools" method="get"><div class="mh-field"><label>유형</label><select name="movement_type"><option value="">전체</option><option value="IN" {% if movement_type=='IN' %}selected{% endif %}>입고</option><option value="OUT" {% if movement_type=='OUT' %}selected{% endif %}>출고</option></select></div><div class="mh-field search"><label>검색어</label><input name="keyword" value="{{ keyword }}" placeholder="품목코드, 품명, 작업자 검색"></div><div class="mh-field"><label>구분</label><select name="category"><option value="">전체 구분</option>{% for value in ['원자재','반제품','제품'] %}<option value="{{ value }}" {% if category==value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></div><div class="mh-field"><label class="mh-placeholder">실행</label><button class="mh-btn primary">검색</button></div><div class="mh-field"><label class="mh-placeholder">실행</label><a class="mh-btn light" href="/stock/history">초기화</a></div><div class="mh-field mh-action-end"><label class="mh-placeholder">실행</label><button type="button" class="mh-btn excel" onclick="location.href='/stock/history/download-excel'"><i class="fa-solid fa-file-excel"></i>&nbsp; 엑셀 다운로드</button></div></form>
-<div class="mh-card"><div class="mh-table-wrap"><table class="mh-table"><thead><tr><th>일시</th><th>유형</th><th>품목</th><th>구분</th><th>수량</th><th>작업자</th><th>비고</th></tr></thead><tbody>{% for row in history %}<tr><td>{{ format_kst(row.created_at) }}</td><td><span class="mh-badge {{ 'mh-in' if row.movement_type=='IN' else 'mh-out' }}">{{ '입고' if row.movement_type=='IN' else '출고' }}</span></td><td><div class="mh-code">{{ row.item_code }}</div><div class="mh-sub">{{ row.item_name }}</div></td><td>{{ row.category or '-' }}</td><td class="mh-qty">{{ '+' if row.movement_type=='IN' else '−' }}{{ row.qty }} EA</td><td>{{ row.user }}</td><td>{{ row.source or '-' }}</td></tr>{% else %}<tr><td colspan="7" style="text-align:center;padding:50px;color:#70807d">조건에 맞는 이력이 없습니다.</td></tr>{% endfor %}</tbody></table></div><div class="mh-pagination"><span>총 {{ total_count }}개 작업</span><div class="mh-pages">{% if page>1 %}<a href="?movement_type={{ movement_type }}&keyword={{ keyword }}&category={{ category }}&page={{ page-1 }}">‹</a>{% endif %}<span class="active">{{ page }}</span><span>/ {{ total_pages }}</span>{% if page<total_pages %}<a href="?movement_type={{ movement_type }}&keyword={{ keyword }}&category={{ category }}&page={{ page+1 }}">›</a>{% endif %}</div></div></div></div>{% endblock %}
+<div class="mh-card"><div class="mh-table-wrap"><table class="mh-table"><thead><tr><th>일시</th><th>유형</th><th>품목</th><th>구분</th><th>수량</th><th>작업자</th><th>비고</th></tr></thead><tbody>{% for row in history %}<tr><td>{{ format_kst(row.created_at) }}</td><td><span class="mh-badge {{ 'mh-in' if row.movement_type=='IN' else 'mh-out' }}">{{ '입고' if row.movement_type=='IN' else '출고' }}</span></td><td><div class="mh-code">{{ row.item_code }}</div><div class="mh-sub">{{ row.item_name }}</div></td><td>{{ row.category or '-' }}</td><td class="mh-qty">{{ '+' if row.movement_type=='IN' else '−' }}{{ row.qty }} EA</td><td>{{ row.user }}</td><td>{{ row.source or '-' }}</td></tr>{% else %}<tr><td colspan="7" style="text-align:center;padding:50px;color:#70807d">조건에 맞는 이력이 없습니다.</td></tr>{% endfor %}</tbody></table></div>
+{% set base_qs = "movement_type=" ~ (movement_type|urlencode) ~ "&keyword=" ~ (keyword|urlencode) ~ "&category=" ~ (category|urlencode) %}
+<div class="mh-pagination">
+    <span class="mh-total">총 {{ total_count }}개 작업</span>
+    <nav class="mh-pages" aria-label="가계상 재고 입출고 이력 페이지">
+        {% if page > 1 %}
+        <a href="?{{ base_qs }}&page=1" aria-label="첫 페이지">«</a>
+        <a href="?{{ base_qs }}&page={{ page - 1 }}" aria-label="이전 페이지">‹</a>
+        {% else %}
+        <span class="disabled" aria-hidden="true">«</span>
+        <span class="disabled" aria-hidden="true">‹</span>
+        {% endif %}
+        <span class="page-indicator" aria-current="page">{{ page }} / {{ total_pages }}</span>
+        {% if page < total_pages %}
+        <a href="?{{ base_qs }}&page={{ page + 1 }}" aria-label="다음 페이지">›</a>
+        <a href="?{{ base_qs }}&page={{ total_pages }}" aria-label="마지막 페이지">»</a>
+        {% else %}
+        <span class="disabled" aria-hidden="true">›</span>
+        <span class="disabled" aria-hidden="true">»</span>
+        {% endif %}
+    </nav>
+</div></div></div>{% endblock %}
