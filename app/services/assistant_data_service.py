@@ -1,4 +1,5 @@
 from collections import Counter, defaultdict
+from difflib import get_close_matches
 import re
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace
@@ -21,10 +22,14 @@ from app.models.material_note import MaterialNote
 from app.models.movement import Movement
 from app.models.outbound import Outbound
 from app.models.production_plan import ProductionPlan
+from app.models.rental_movement import RentalMovement
+from app.models.rental_stock import RentalStock
 from app.models.stock import Stock
 from app.models.stock_movement import StockMovement
 from app.models.user import User
 from app.workflow.models.workflow_item import WorkflowItem
+from app.workflow.models.workflow_stage import get_stage_name
+from app.utils.timezone import format_kst, kst_to_utc_naive
 
 MAX_ROWS = 15
 
@@ -65,6 +70,101 @@ def workflow_search(db, item: str = "", service_type: str = ""):
             }
             for row in rows[:MAX_ROWS]
         ],
+    }
+
+@tool("workflow.status")
+def workflow_status(db, item: str = "", status: str = "", department: str = "", limit: int = MAX_ROWS):
+    keyword = _keyword(item)
+    query = db.query(WorkflowItem)
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(or_(
+            func.lower(WorkflowItem.workflow_no).like(pattern),
+            func.lower(WorkflowItem.item_code).like(pattern),
+            func.lower(WorkflowItem.item_name).like(pattern),
+            func.lower(WorkflowItem.lot).like(pattern),
+        ))
+    if status:
+        query = query.filter(func.lower(WorkflowItem.status) == status.lower())
+    if department:
+        query = query.filter(func.lower(WorkflowItem.current_department) == department.lower())
+    limit = max(1, min(int(limit or MAX_ROWS), 30))
+    rows = query.order_by(WorkflowItem.updated_at.desc(), WorkflowItem.id.desc()).limit(limit + 1).all()
+    return {
+        "status": "rows" if rows else "none",
+        "domain": "workflow_status",
+        "keyword": keyword,
+        "department": department,
+        "workflow_status": status,
+        "truncated": len(rows) > limit,
+        "rows": [{
+            "workflow_no": row.workflow_no,
+            "item_code": row.item_code,
+            "item_name": row.item_name,
+            "lot": row.lot,
+            "qty": row.qty or 0,
+            "status": row.status,
+            "stage": row.current_stage,
+            "stage_name": get_stage_name(row.current_stage) if row.current_stage else "-",
+            "department": row.current_department,
+        } for row in rows[:limit]],
+    }
+
+@tool("rental.summary")
+def rental_summary(db, item: str = "", category: str = "", limit: int = MAX_ROWS):
+    keyword = _keyword(item)
+    query = db.query(RentalStock)
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(or_(
+            func.lower(RentalStock.item_code).like(pattern),
+            func.lower(RentalStock.item_name).like(pattern),
+            func.lower(RentalStock.category).like(pattern),
+        ))
+    if category:
+        query = query.filter(RentalStock.category == category)
+    limit = max(1, min(int(limit or MAX_ROWS), 30))
+    rows = query.order_by(RentalStock.item_name).limit(limit + 1).all()
+    return {
+        "status": "rows" if rows else "none",
+        "domain": "rental_stock",
+        "keyword": keyword,
+        "total_qty": sum(row.qty or 0 for row in query.all()),
+        "truncated": len(rows) > limit,
+        "rows": [{"item_code": row.item_code, "item_name": row.item_name, "category": row.category, "qty": row.qty or 0} for row in rows[:limit]],
+    }
+
+@tool("rental.movement_search")
+def rental_movement_search(db, item: str = "", movement_type: str = "", period: str = "all", limit: int = MAX_ROWS):
+    keyword = _keyword(item)
+    query = db.query(RentalMovement)
+    if keyword:
+        pattern = _like(keyword)
+        query = query.filter(or_(
+            func.lower(RentalMovement.item_code).like(pattern),
+            func.lower(RentalMovement.item_name).like(pattern),
+            func.lower(RentalMovement.requester).like(pattern),
+            func.lower(RentalMovement.serial_number).like(pattern),
+        ))
+    if movement_type in ("IN", "OUT"):
+        query = query.filter(RentalMovement.movement_type == movement_type)
+    start, end = _period_range(period)
+    if start and end:
+        query = query.filter(RentalMovement.issue_date >= start.date(), RentalMovement.issue_date < end.date())
+    limit = max(1, min(int(limit or MAX_ROWS), 30))
+    rows = query.order_by(RentalMovement.issue_date.desc(), RentalMovement.id.desc()).limit(limit + 1).all()
+    return {
+        "status": "rows" if rows else "none",
+        "domain": "rental_movement",
+        "keyword": keyword,
+        "period": period,
+        "truncated": len(rows) > limit,
+        "rows": [{
+            "issue_date": _fmt_date(row.issue_date), "movement_type": row.movement_type,
+            "item_code": row.item_code, "item_name": row.item_name, "category": row.category,
+            "qty": row.qty or 0, "requester": row.requester, "department": row.department,
+            "serial_number": row.serial_number, "size": row.size,
+        } for row in rows[:limit]],
     }
 
 @tool("inventory.lot_summary")
@@ -162,7 +262,47 @@ def _safe_user(row):
 def _period_range(period):
     today = datetime.now(ZoneInfo("Asia/Seoul")).date()
 
-    if period == "today":
+    explicit_range = re.fullmatch(r"range_(\d{8})_(\d{8})", period or "")
+    explicit_date = re.fullmatch(r"date_(\d{8})", period or "")
+    if explicit_range:
+        start = datetime.strptime(explicit_range.group(1), "%Y%m%d").date()
+        end = datetime.strptime(explicit_range.group(2), "%Y%m%d").date() + timedelta(days=1)
+    elif explicit_date:
+        start = datetime.strptime(explicit_date.group(1), "%Y%m%d").date()
+        end = start + timedelta(days=1)
+
+    rolling = re.fullmatch(r"last_(\d+)_(days|weeks|months)", period or "")
+    if not explicit_range and not explicit_date and rolling:
+        count = max(1, int(rolling.group(1)))
+        unit = rolling.group(2)
+        end = today + timedelta(days=1)
+        if unit == "days":
+            start = today - timedelta(days=count - 1)
+        elif unit == "weeks":
+            start = today - timedelta(weeks=count)
+        else:
+            year = today.year
+            month = today.month - count
+            while month <= 0:
+                year -= 1
+                month += 12
+            import calendar
+            day = min(today.day, calendar.monthrange(year, month)[1])
+            start = date(year, month, day)
+    elif not explicit_range and not explicit_date and period == "previous_month":
+        this_month = date(today.year, today.month, 1)
+        end = this_month
+        start = date(
+            this_month.year - (1 if this_month.month == 1 else 0),
+            12 if this_month.month == 1 else this_month.month - 1,
+            1,
+        )
+
+    elif not explicit_range and not explicit_date and period == "previous_week":
+        this_week = today - timedelta(days=today.weekday())
+        start = this_week - timedelta(days=7)
+        end = this_week
+    elif not explicit_range and not explicit_date and period == "today":
         start = today
         end = today + timedelta(days=1)
     elif period == "yesterday":
@@ -174,7 +314,7 @@ def _period_range(period):
     elif period == "this_month":
         start = date(today.year, today.month, 1)
         end = today + timedelta(days=1)
-    else:
+    elif not explicit_range and not explicit_date and not rolling and period not in ("previous_month", "previous_week"):
         return None, None
 
     return (
@@ -363,11 +503,26 @@ def assistant_capabilities(db):
             "- 제품 입고·출고 건수와 이력 조회\n"
             "- BOM, 생산계획, 품목·자재 기준정보 조회\n"
             "- MRP 부족 품목과 대시보드 요약\n"
+            "- 대여 재고와 대여 입출고 이력 조회\n"
+            "- Workflow 번호, 현재 단계, 담당 부서와 진행 상태 조회\n"
+            "- 품목 변경 이력, 사용자·활동 로그 조회(권한 범위 내)\n"
+            "- 각 업무별 엑셀 업로드 필수 열 안내\n"
             "- 관련 화면 이동 및 품목 위치 찾기\n\n"
             "예: ‘수불 재고 F25 LOT A등급 수량’, ‘MRP 부족 품목 상위 5개’, "
             "‘CART BP 이번 달 출고 건수’처럼 질문해 주세요."
         )
     }
+
+@tool("assistant.smalltalk")
+def assistant_smalltalk(db, question: str = ""):
+    text = (question or "").replace(" ", "")
+    if any(word in text for word in ("고마워", "감사", "수고")):
+        message = "도움이 되었다니 다행입니다. Logistics 시스템과 관련해 더 필요한 내용을 말씀해 주세요."
+    elif any(word in text for word in ("안녕", "반가워")):
+        message = "안녕하세요. 재고, 입출고, MRP, BOM, 생산계획, Workflow 또는 시스템 사용법을 도와드릴 수 있습니다."
+    else:
+        message = "저는 Logistics 시스템 업무 Assistant입니다. 확인하려는 업무나 화면을 편하게 말씀해 주세요."
+    return {"status": "smalltalk", "message": message}
 
 @tool("assistant.analysis_limit")
 def assistant_analysis_limit(db, question: str = ""):
@@ -378,6 +533,22 @@ def assistant_analysis_limit(db, question: str = ""):
             "대신 기간별 입출고 건수, MRP 부족 품목, BOM, 생산계획 또는 재고를 각각 조회할 수 있습니다. "
             "예: ‘이번 달 입고 건수’ 또는 ‘MRP 부족 품목 상위 5개’처럼 나누어 질문해 주세요."
         )
+    }
+
+@tool("assistant.clarify")
+def assistant_clarify(db, prompt: str = "", choices=None):
+    safe_choices = [choice for choice in (choices or []) if isinstance(choice, dict)]
+    return {
+        "status": "need_clarification",
+        "prompt": prompt or "어떤 항목을 말씀하시는지 선택해 주세요.",
+        "choices": safe_choices,
+    }
+
+@tool("assistant.invalid_request")
+def assistant_invalid_request(db, message: str = ""):
+    return {
+        "status": "smalltalk",
+        "message": message or "입력한 조건을 확인해 주세요.",
     }
 
 @tool("project.upload_help")
@@ -830,6 +1001,7 @@ def stock_movement_search(
     item: str = "",
     movement_type: str = "",
     period: str = "all",
+    limit: int = MAX_ROWS,
 ):
     keyword = _keyword(item)
     query = db.query(StockMovement)
@@ -845,32 +1017,37 @@ def stock_movement_search(
 
     if movement_type in ("IN", "OUT"):
         query = query.filter(StockMovement.movement_type == movement_type)
+    else:
+        query = query.filter(StockMovement.movement_type.in_(("IN", "OUT")))
 
     start, end = _period_range(period)
 
     if start and end:
         query = query.filter(
-            StockMovement.created_at >= start,
-            StockMovement.created_at < end,
+            StockMovement.created_at >= kst_to_utc_naive(start),
+            StockMovement.created_at < kst_to_utc_naive(end),
         )
 
-    rows = query.order_by(StockMovement.id.desc()).limit(MAX_ROWS + 1).all()
+    limit = max(1, min(int(limit or MAX_ROWS), MAX_ROWS))
+    rows = query.order_by(StockMovement.created_at.desc(), StockMovement.id.desc()).limit(limit + 1).all()
 
     return {
         "status": "rows",
         "domain": "stock_movement",
         "keyword": keyword,
-        "truncated": len(rows) > MAX_ROWS,
+        "period": period,
+        "truncated": len(rows) > limit,
+        "requested_limit": limit,
         "rows": [
             {
-                "created_at": _fmt_dt(row.created_at),
+                "created_at": format_kst(row.created_at, "%Y-%m-%d %H:%M"),
                 "item_code": row.item_code,
                 "item_name": row.item_name,
                 "movement_type": row.movement_type,
                 "qty": row.qty or 0,
                 "user": row.user,
             }
-            for row in rows[:MAX_ROWS]
+            for row in rows[:limit]
         ],
     }
 
@@ -1140,6 +1317,8 @@ def inventory_movement_search(
     warehouse_type: str = "",
     movement_type: str = "",
     period: str = "all",
+    limit: int = MAX_ROWS,
+    require_lot: bool = False,
 ):
     keyword = _keyword(item)
     query = db.query(InventoryMovement)
@@ -1158,34 +1337,79 @@ def inventory_movement_search(
 
     if movement_type in ("IN", "OUT"):
         query = query.filter(InventoryMovement.movement_type == movement_type)
+    else:
+        # ADJUST is an inventory correction, not an inbound/outbound event.
+        query = query.filter(InventoryMovement.movement_type.in_(("IN", "OUT")))
+
+    if require_lot:
+        query = query.filter(
+            InventoryMovement.lot.isnot(None),
+            func.trim(InventoryMovement.lot) != "",
+        )
 
     start, end = _period_range(period)
 
     if start and end:
         query = query.filter(
-            InventoryMovement.created_at >= start,
-            InventoryMovement.created_at < end,
+            InventoryMovement.created_at >= kst_to_utc_naive(start),
+            InventoryMovement.created_at < kst_to_utc_naive(end),
         )
 
-    rows = query.order_by(InventoryMovement.id.desc()).limit(MAX_ROWS + 1).all()
+    limit = max(1, min(int(limit or MAX_ROWS), MAX_ROWS))
+    rows = query.order_by(
+        InventoryMovement.created_at.desc(), InventoryMovement.id.desc()
+    ).limit(limit + 1).all()
 
     return {
         "status": "rows",
         "domain": "inventory_movement",
         "keyword": keyword,
-        "truncated": len(rows) > MAX_ROWS,
+        "period": period,
+        "truncated": len(rows) > limit,
+        "requested_limit": limit,
         "rows": [
             {
-                "created_at": _fmt_dt(row.created_at),
+                "created_at": format_kst(row.created_at, "%Y-%m-%d %H:%M"),
                 "item_code": row.item_code,
                 "item_name": row.item_name,
                 "warehouse_type": row.warehouse_type,
+                "lot": row.lot,
+                "grade": row.grade,
                 "movement_type": row.movement_type,
                 "qty": row.qty or 0,
                 "user": row.user,
             }
-            for row in rows[:MAX_ROWS]
+            for row in rows[:limit]
         ],
+    }
+
+@tool("stock.combined_movement_search")
+def combined_stock_movement_search(
+    db,
+    movement_type: str = "",
+    period: str = "all",
+    limit: int = MAX_ROWS,
+):
+    limit = max(1, min(int(limit or MAX_ROWS), MAX_ROWS))
+    inventory_result = inventory_movement_search(
+        db, movement_type=movement_type, period=period, limit=limit
+    )
+    stock_result = stock_movement_search(
+        db, movement_type=movement_type, period=period, limit=limit
+    )
+    inventory = inventory_result["rows"]
+    stock = stock_result["rows"]
+    rows = [dict(row, stock_type="수불 재고") for row in inventory]
+    rows.extend(dict(row, stock_type="가계상 재고") for row in stock)
+    rows.sort(key=lambda row: row.get("created_at") or "", reverse=True)
+    return {
+        "status": "rows" if rows else "none",
+        "domain": "combined_stock_movement",
+        "message": "조건에 맞는 재고 입출고 이력이 없습니다." if not rows else "",
+        "period": period,
+        "requested_limit": limit,
+        "truncated": len(rows) > limit or inventory_result.get("truncated", False) or stock_result.get("truncated", False),
+        "rows": rows[:limit],
     }
 
 @tool("bom.detail")
@@ -1590,6 +1814,13 @@ def page_move(db, page: str):
         "users": ("/admin/users", "계정 관리로 이동합니다."),
         "activity": ("/admin/activity", "활동 로그로 이동합니다."),
         "search": ("/search", "전체 조회로 이동합니다."),
+        "rental": ("/rental", "대여 재고 현황으로 이동합니다."),
+        "rental_history": ("/rental/history", "대여 재고 입출고 현황으로 이동합니다."),
+        "workflow_dashboard": ("/workflow/dashboard", "Workflow Dashboard로 이동합니다."),
+        "workflow_purchase": ("/workflow/purchase", "Workflow 구매 화면으로 이동합니다."),
+        "workflow_quality": ("/workflow/quality", "Workflow 품질 화면으로 이동합니다."),
+        "workflow_material": ("/workflow/material", "Workflow 자재 화면으로 이동합니다."),
+        "workflow_production": ("/workflow/production", "Workflow 생산 화면으로 이동합니다."),
     }
 
     url, message = pages.get(page, pages["dashboard"])
@@ -1714,7 +1945,7 @@ def global_search(db, item: str = ""):
     if not keyword:
         return system_summary(db)
 
-    return {
+    result = {
         "status": "global_search",
         "keyword": keyword,
         "book_stock": stock_book(db, keyword)["rows"][:5],
@@ -1724,6 +1955,30 @@ def global_search(db, item: str = ""):
         "material_master": material_master(db, keyword)["rows"][:5],
         "item_master": item_master(db, keyword)["rows"][:5],
     }
+
+    if not any(result[key] for key in (
+        "book_stock", "inventory", "bom", "production_plan", "material_master", "item_master"
+    )):
+        candidate_rows = db.query(ItemMaster.item_code, ItemMaster.item_name).limit(1000).all()
+        candidates = []
+        for row in candidate_rows:
+            candidates.extend(value for value in (row.item_code, row.item_name) if value)
+        matches = get_close_matches(keyword, list(dict.fromkeys(candidates)), n=5, cutoff=0.55)
+        if matches:
+            return {
+                "status": "need_clarification",
+                "prompt": f"'{keyword}'과 정확히 일치하는 항목은 없습니다. 혹시 아래 항목을 찾으셨나요?",
+                "choices": [
+                    {
+                        "label": match,
+                        "tool": "global.search",
+                        "arguments": {"item": match},
+                    }
+                    for match in matches
+                ],
+            }
+
+    return result
 
 @tool("mrp.shortage_max")
 def mrp_shortage_max(db):
@@ -1823,6 +2078,17 @@ def mrp_shortage_search(db, sort: str = "desc", limit: int = 5):
             }
             for row in ordered[:limit]
         ],
+    }
+
+@tool("mrp.shortage_summary")
+def mrp_shortage_summary(db, mode: str = "both"):
+    _, results, _, _ = calculate_mrp(db)
+    shortage_rows = [row for row in results if (row.get("shortage_qty") or 0) > 0]
+    return {
+        "status": "mrp_shortage_summary",
+        "mode": mode if mode in ("count", "qty", "both") else "both",
+        "shortage_count": len(shortage_rows),
+        "total_shortage": sum((row.get("shortage_qty") or 0) for row in shortage_rows),
     }
 
 @tool("mrp.dashboard")

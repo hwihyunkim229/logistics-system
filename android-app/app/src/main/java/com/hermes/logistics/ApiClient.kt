@@ -169,9 +169,9 @@ object ApiClient {
         (CookieHandler.getDefault() as? CookieManager)?.cookieStore?.removeAll()
     }
 
-    fun searchItems(keyword: String, warehouseType: String, itemCode: String = "", lot: String = ""): ApiResult<List<InventoryItem>> {
+    fun searchItems(keyword: String, warehouseType: String, itemCode: String = "", lot: String = "", grade: String = "", stockLedger: Boolean = false): ApiResult<List<InventoryItem>> {
         val path = buildString {
-            append("/inventory/mobile/items?keyword=")
+            append(if (stockLedger) "/stock/mobile/items?keyword=" else "/inventory/mobile/items?keyword=")
             append(encode(if (itemCode.isBlank()) keyword else ""))
             if (itemCode.isNotBlank()) {
                 append("&item_code=")
@@ -181,7 +181,11 @@ object ApiClient {
                 append("&lot=")
                 append(encode(lot))
             }
-            if (warehouseType.isNotBlank()) {
+            if (grade.isNotBlank()) {
+                append("&grade=")
+                append(encode(grade))
+            }
+            if (!stockLedger && warehouseType.isNotBlank()) {
                 append("&warehouse_type=")
                 append(encode(warehouseType))
             }
@@ -216,8 +220,8 @@ object ApiClient {
         return ApiResult(value = items)
     }
 
-    fun history(limit: Int = 50): ApiResult<List<InventoryHistoryItem>> {
-        val response = request("/inventory/mobile/history?limit=$limit")
+    fun history(limit: Int = 50, stockLedger: Boolean = false): ApiResult<List<InventoryHistoryItem>> {
+        val response = request("${if (stockLedger) "/stock" else "/inventory"}/mobile/history?limit=$limit")
         if (response.code == 401 || response.code in 300..399) {
             return ApiResult(error = "로그인이 만료되었습니다. 다시 로그인하세요.")
         }
@@ -257,6 +261,7 @@ object ApiClient {
         qty: Int,
         inbound: Boolean,
         lot: String,
+        stockLedger: Boolean = false,
     ): ApiResult<DuplicateCheck> {
         val json = JSONObject()
             .put("inventory_id", itemId)
@@ -264,7 +269,7 @@ object ApiClient {
             .put("movement_type", if (inbound) "IN" else "OUT")
             .put("lot", lot)
         val response = request(
-            path = "/inventory/mobile/duplicate-check",
+            path = if (stockLedger) "/stock/mobile/duplicate-check" else "/inventory/mobile/duplicate-check",
             method = "POST",
             body = json.toString(),
             contentType = "application/json",
@@ -290,16 +295,20 @@ object ApiClient {
         firstReceivedDate: String = "",
         beforeQty: Int = 0,
         lotBeforeQty: Int = 0,
+        stockLedger: Boolean = false,
     ): ApiResult<MovementResult> {
         val json = JSONObject()
             .put("ids", JSONArray().put(itemId))
+            .put("inventory_id", itemId)
             .put("qty", qty)
             .put("remark", remark)
             .put("lot", lot)
             .put("inspector", inspector)
             .put("first_received_date", firstReceivedDate)
         val response = request(
-            path = if (inbound) "/inventory/move-in" else "/inventory/move-out",
+            path = if (stockLedger) {
+                if (inbound) "/stock/mobile/move-in" else "/stock/mobile/move-out"
+            } else if (inbound) "/inventory/move-in" else "/inventory/move-out",
             method = "POST",
             body = json.toString(),
             contentType = "application/json",
@@ -326,6 +335,7 @@ object ApiClient {
         requestId: String,
         lines: List<SetOutboundLine>,
         remark: String = "",
+        stockLedger: Boolean = false,
     ): ApiResult<SetOutboundResult> {
         val payloadLines = JSONArray()
         lines.forEach { line ->
@@ -344,7 +354,7 @@ object ApiClient {
             .put("remark", remark)
             .put("lines", payloadLines)
         val response = request(
-            path = "/inventory/mobile/set-move-out",
+            path = if (stockLedger) "/stock/mobile/set-move-out" else "/inventory/mobile/set-move-out",
             method = "POST",
             body = body.toString(),
             contentType = "application/json",
@@ -381,6 +391,7 @@ object ApiClient {
         firstReceivedDate: String = "",
         beforeQty: Int = 0,
         lotBeforeQty: Int = 0,
+        stockLedger: Boolean = false,
     ): ApiResult<MovementResult> {
         val json = JSONObject()
             .put("inventory_id", itemId)
@@ -390,7 +401,7 @@ object ApiClient {
             .put("inspector", inspector)
             .put("first_received_date", firstReceivedDate)
         val response = request(
-            path = "/inventory/lot-register",
+            path = if (stockLedger) "/stock/mobile/lot-register" else "/inventory/lot-register",
             method = "POST",
             body = json.toString(),
             contentType = "application/json",

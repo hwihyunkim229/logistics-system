@@ -114,6 +114,8 @@ def format_upload_help(question):
     lines = [f"{schema['name']} 엑셀 업로드의 필수 열은 {required}입니다."]
     if schema["optional"]:
         lines.append(f"선택 열은 {', '.join(schema['optional'])}입니다.")
+    else:
+        lines.append("별도로 지정된 선택 열은 없습니다.")
     if schema["note"]:
         lines.append(schema["note"])
     return "\n".join(lines)

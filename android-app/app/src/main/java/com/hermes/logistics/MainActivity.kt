@@ -2,9 +2,11 @@ package com.logisticssystem.app
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -29,6 +31,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
@@ -82,6 +85,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.camera.core.CameraSelector
@@ -109,6 +113,8 @@ private val HermesOutline = Color(0xFFD6E2DF)
 private val HermesTextMuted = Color(0xFF61716F)
 private val HermesOrange = Color(0xFFB34B2D)
 private val HermesPurple = Color(0xFF4C5DB6)
+private val HermesSet = Color(0xFF7C3AED)
+private val HermesBlue = Color(0xFF3157A4)
 private val HermesColorScheme = lightColorScheme(
     primary = HermesGreen,
     onPrimary = Color.White,
@@ -123,8 +129,9 @@ private val HermesColorScheme = lightColorScheme(
 )
 
 private enum class SessionState { CHECKING, LOGGED_OUT, LOGGED_IN }
-private enum class InventoryAction { IN, OUT, LOT_REGISTER, SET_OUT }
+private enum class InventoryAction { IN, OUT, LOT_REGISTER, SET_OUT, LOOKUP }
 private enum class MainTab { HOME, WORK, HISTORY, PROFILE }
+private enum class LedgerType(val label: String) { INVENTORY("수불 재고"), STOCK("가계상 재고") }
 private enum class SetComponent(val apiValue: String, val label: String) {
     PBA("PBA", "PBA"),
     OUTER("OUTER", "OUTER"),
@@ -138,6 +145,7 @@ private data class QrMaterialData(
     val receivedDate: String = "",
     val lot: String = "",
     val inspector: String = "",
+    val grade: String = "",
 )
 
 private data class CompletionData(
@@ -223,6 +231,7 @@ private fun LoginScreen(onLogin: () -> Unit) {
     var message by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var devServerUrl by rememberSaveable { mutableStateOf(ApiClient.baseUrl()) }
+    var showDevSettings by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     Column(
@@ -230,85 +239,113 @@ private fun LoginScreen(onLogin: () -> Unit) {
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .imePadding()
-            .padding(24.dp),
+            .padding(horizontal = 24.dp, vertical = 28.dp),
         verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Box(
+            Modifier.size(64.dp).clip(RoundedCornerShape(20.dp)).background(HermesGreen),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Filled.Inventory2, contentDescription = null, tint = Color.White, modifier = Modifier.size(34.dp))
+        }
+        Spacer(Modifier.height(18.dp))
         Text("Logistics System", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-        Text(if (BuildConfig.IS_DEV) "DEV · 로컬 테스트 환경" else "현장 입고·출고", color = HermesGreen, fontWeight = FontWeight.Bold)
+        Text("현장 재고를 정확하고 빠르게", color = HermesTextMuted)
+        Spacer(Modifier.height(30.dp))
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            shape = RoundedCornerShape(24.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        ) {
+            Column(Modifier.fillMaxWidth().padding(18.dp)) {
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("아이디") },
+                    placeholder = { Text("아이디를 입력하세요") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("비밀번호") },
+                    placeholder = { Text("비밀번호를 입력하세요") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, if (passwordVisible) "비밀번호 숨기기" else "비밀번호 보기")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (message.isNotBlank()) {
+                    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEAE4)), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                        Text(message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                Spacer(Modifier.height(18.dp))
+                Button(
+                    enabled = !loading && username.isNotBlank() && password.isNotBlank(),
+                    onClick = {
+                        if (BuildConfig.IS_DEV) {
+                            val serverError = ApiClient.updateDevServerUrl(devServerUrl)
+                            if (serverError != null) { message = serverError; return@Button }
+                        }
+                        loading = true
+                        message = ""
+                        scope.launch {
+                            val result = withContext(Dispatchers.IO) { ApiClient.login(username.trim(), password) }
+                            loading = false
+                            when {
+                                result.error != null -> message = result.error
+                                result.requiresPasswordChange -> message = "웹사이트에서 비밀번호를 먼저 변경해 주세요."
+                                else -> onLogin()
+                            }
+                        }
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                ) {
+                    if (loading) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.5.dp, color = Color.White)
+                    else Text("로그인", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(HermesGreen.copy(alpha = 0.08f)).padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = HermesGreen, modifier = Modifier.size(18.dp))
+            Text("승인된 계정으로 안전하게 로그인합니다.", color = HermesTextMuted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 8.dp))
+        }
         if (BuildConfig.IS_DEV) {
             Spacer(Modifier.height(10.dp))
+            OutlinedButton(onClick = { showDevSettings = !showDevSettings }, shape = RoundedCornerShape(12.dp)) {
+                Text(if (showDevSettings) "DEV 서버 설정 닫기" else "DEV 서버 설정")
+            }
+        }
+        if (BuildConfig.IS_DEV && showDevSettings) {
+            Spacer(Modifier.height(8.dp))
             OutlinedTextField(
                 value = devServerUrl,
                 onValueChange = { devServerUrl = it },
                 label = { Text("DEV 서버 주소") },
                 supportingText = { Text("노트북 Wi-Fi IP가 바뀌면 로그인 전에 수정하세요.") },
                 singleLine = true,
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        Spacer(Modifier.height(28.dp))
-        OutlinedTextField(
-            value = username,
-            onValueChange = { username = it },
-            label = { Text("아이디") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("비밀번호") },
-            singleLine = true,
-            visualTransformation = if (passwordVisible) {
-                VisualTransformation.None
-            } else {
-                PasswordVisualTransformation()
-            },
-            trailingIcon = {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(
-                        imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                        contentDescription = if (passwordVisible) "비밀번호 숨기기" else "비밀번호 보기",
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        if (message.isNotBlank()) Text(message, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp))
-        Spacer(Modifier.height(20.dp))
-        Button(
-            enabled = !loading && username.isNotBlank() && password.isNotBlank(),
-            onClick = {
-                if (BuildConfig.IS_DEV) {
-                    val serverError = ApiClient.updateDevServerUrl(devServerUrl)
-                    if (serverError != null) {
-                        message = serverError
-                        return@Button
-                    }
-                }
-                loading = true
-                message = ""
-                scope.launch {
-                    val result = withContext(Dispatchers.IO) { ApiClient.login(username.trim(), password) }
-                    loading = false
-                    when {
-                        result.error != null -> message = result.error
-                        result.requiresPasswordChange -> message = "웹사이트에서 비밀번호를 먼저 변경해 주세요."
-                        else -> onLogin()
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            if (loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    strokeWidth = 2.5.dp,
-                    color = Color.White,
-                )
-            } else Text("로그인")
-        }
+        Spacer(Modifier.height(14.dp))
+        Text(if (BuildConfig.IS_DEV) "Logistics Operations · DEV" else "Logistics Operations · PROD", color = HermesTextMuted, style = MaterialTheme.typography.bodySmall)
     }
 }
 
@@ -332,6 +369,7 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
     var warehouse by rememberSaveable { mutableStateOf("창고재고") }
     var scanQty by rememberSaveable { mutableStateOf("1") }
     var action by rememberSaveable { mutableStateOf<InventoryAction?>(null) }
+    var ledgerType by rememberSaveable { mutableStateOf(LedgerType.INVENTORY) }
     var mainTab by rememberSaveable { mutableStateOf(MainTab.HOME) }
     var results by remember { mutableStateOf(emptyList<InventoryItem>()) }
     var selected by remember { mutableStateOf<InventoryItem?>(null) }
@@ -346,7 +384,7 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
     var historyMessage by remember { mutableStateOf("") }
     var showExitDialog by rememberSaveable { mutableStateOf(false) }
     var currentUser by remember { mutableStateOf(ApiClient.currentUser()) }
-    var setTargetText by rememberSaveable { mutableStateOf("50") }
+    var setTargetText by rememberSaveable { mutableStateOf("") }
     var setActiveComponent by rememberSaveable { mutableStateOf(SetComponent.PBA) }
     var setActiveGrade by rememberSaveable { mutableStateOf("") }
     var setAllocations by remember { mutableStateOf(emptyList<SetAllocation>()) }
@@ -395,6 +433,7 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
         loading = false
         message = completionMessage
         setAllocations = emptyList()
+        setTargetText = ""
         setActiveComponent = SetComponent.PBA
         setActiveGrade = ""
         setReview = false
@@ -410,11 +449,11 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
         if (action != nextAction) resetWork(nextAction)
     }
 
-    fun loadHistory() {
+    fun loadHistory(targetLedger: LedgerType = ledgerType) {
         historyLoading = true
         historyMessage = ""
         scope.launch {
-            val result = withContext(Dispatchers.IO) { ApiClient.history() }
+            val result = withContext(Dispatchers.IO) { ApiClient.history(stockLedger = targetLedger == LedgerType.STOCK) }
             historyLoading = false
             if (result.error != null) {
                 historyMessage = result.error
@@ -440,6 +479,8 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
                     warehouseType = warehouse.trim(),
                     itemCode = itemCodeOverride ?: qrData?.itemCode.orEmpty(),
                     lot = if (itemCodeOverride != null) qrData?.lot.orEmpty() else "",
+                    grade = if (itemCodeOverride != null) qrData?.grade.orEmpty() else "",
+                    stockLedger = ledgerType == LedgerType.STOCK,
                 )
             }
             loading = false
@@ -469,11 +510,13 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
             report(false, setMessage)
             return
         }
-        if (setActiveGrade.isBlank()) {
-            setMessage = "QR 인식 실패 · 출고할 등급(A/B/F)을 먼저 선택하세요."
+        val qrGrade = parsed.grade.ifBlank { if (ledgerType == LedgerType.INVENTORY) "A" else "" }
+        if (qrGrade.isBlank()) {
+            setMessage = "QR 인식 실패 · 등급 정보가 없습니다."
             report(false, setMessage)
             return
         }
+        setActiveGrade = qrGrade
         setMessage = "QR 품목과 LOT 재고를 확인하고 있습니다."
         scope.launch {
             val result = withContext(Dispatchers.IO) {
@@ -482,6 +525,8 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
                     warehouseType = warehouse,
                     itemCode = parsed.itemCode,
                     lot = parsed.lot,
+                    grade = qrGrade,
+                    stockLedger = ledgerType == LedgerType.STOCK,
                 )
             }
             if (result.error != null) {
@@ -490,9 +535,9 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
                 if (result.error.contains("로그인이 만료")) onSessionExpired()
                 return@launch
             }
-            val item = result.value.orEmpty().firstOrNull { it.grade == setActiveGrade }
+            val item = result.value.orEmpty().firstOrNull { it.grade.equals(qrGrade, ignoreCase = true) }
             if (item == null) {
-                setMessage = "QR과 일치하는 ${setActiveGrade}등급 재고를 찾지 못했습니다."
+                setMessage = "QR과 일치하는 ${qrGrade}등급 재고를 찾지 못했습니다."
                 report(false, setMessage)
                 return@launch
             }
@@ -596,6 +641,7 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
         val setCurrent = setAllocations.filter { it.component == setActiveComponent }.sumOf { it.qty }
         LiveScannerScreen(
             onBack = { showScanner = false },
+            allowMissingGrade = ledgerType == LedgerType.INVENTORY,
             setComponent = if (action == InventoryAction.SET_OUT) setActiveComponent else null,
             setProgress = if (action == InventoryAction.SET_OUT) "$setCurrent / $setTarget EA" else "",
             setGrade = if (action == InventoryAction.SET_OUT) setActiveGrade else "",
@@ -620,7 +666,12 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
             } else null,
             onUse = { parsed, detectedQty ->
                 if (action != InventoryAction.SET_OUT) {
-                    qrData = parsed
+                    val normalizedGrade = parsed.grade.ifBlank { if (ledgerType == LedgerType.INVENTORY) "A" else "" }
+                    if (normalizedGrade.isBlank()) {
+                        message = "QR에서 등급 정보를 확인할 수 없습니다."
+                        return@LiveScannerScreen
+                    }
+                    qrData = parsed.copy(grade = normalizedGrade)
                     keyword = parsed.itemCode
                     scanQty = if (detectedQty > 0) detectedQty.toString() else ""
                     mainTab = MainTab.WORK
@@ -680,6 +731,23 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
     }
 
     if (selected != null && action != null) {
+        if (action == InventoryAction.LOOKUP) {
+            QuickLookupResultScreen(
+                item = selected!!,
+                qrData = qrData,
+                ledgerLabel = ledgerType.label,
+                onNextScan = {
+                    selected = null
+                    qrData = null
+                    openScanner()
+                },
+                onClose = {
+                    resetWork(null)
+                    mainTab = MainTab.HOME
+                },
+            )
+            return
+        }
         if (showLotDetail) {
             LotDetailScreen(
                 item = selected!!,
@@ -705,6 +773,7 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
                 completion = CompletionData(action!!, selected!!, quantity, result, qrData)
             },
             onSessionExpired = onSessionExpired,
+            stockLedger = ledgerType == LedgerType.STOCK,
         )
         return
     }
@@ -748,9 +817,19 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
                 modifier = Modifier.padding(scaffoldPadding),
                 userId = currentUser,
                 history = history,
+                ledgerType = ledgerType,
+                onLedgerChange = {
+                    ledgerType = it
+                    loadHistory(it)
+                },
                 onScan = {
                     resetWork(null)
                     mainTab = MainTab.WORK
+                },
+                onLookup = {
+                    resetWork(InventoryAction.LOOKUP)
+                    mainTab = MainTab.WORK
+                    openScanner()
                 },
             )
             MainTab.PROFILE -> ProfileScreen(
@@ -765,16 +844,28 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
                 message = historyMessage,
                 userId = currentUser,
                 onRefresh = { loadHistory() },
+                ledgerType = ledgerType,
+                onLedgerChange = {
+                    ledgerType = it
+                    loadHistory(it)
+                },
             )
             MainTab.WORK -> {
                 if (action == null) {
                     ActionSelectionScreen(
                         modifier = Modifier.padding(scaffoldPadding),
+                        ledgerType = ledgerType,
+                        onLedgerChange = {
+                            ledgerType = it
+                            resetWork(null)
+                            loadHistory(it)
+                        },
                         onSelect = { selectAction(it) },
                     )
                 } else if (action == InventoryAction.SET_OUT) {
                     SetOutboundScreen(
                         modifier = Modifier.padding(scaffoldPadding),
+                        ledgerLabel = ledgerType.label,
                         targetText = setTargetText,
                         onTargetChange = {
                             if (setAllocations.isEmpty()) setTargetText = it.filter(Char::isDigit)
@@ -801,8 +892,6 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
                             setMessage = ""
                             setReview = true
                         },
-                        onBackFromReview = { setReview = false },
-                        onChangeAction = { resetWork(null) },
                         onConfirm = {
                             val target = setTargetText.toIntOrNull() ?: 0
                             if (target > 0) {
@@ -824,6 +913,7 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
                                                     qty = allocation.qty,
                                                 )
                                             },
+                                            stockLedger = ledgerType == LedgerType.STOCK,
                                         )
                                     }
                                     setSubmitting = false
@@ -841,6 +931,7 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
                     WorkEntryScreen(
                         modifier = Modifier.padding(scaffoldPadding),
                         action = action!!,
+                        ledgerLabel = ledgerType.label,
                         warehouse = warehouse,
                         onWarehouseChange = { warehouse = it },
                         keyword = keyword,
@@ -865,6 +956,8 @@ private fun InventoryScreen(onSessionExpired: () -> Unit, onLogout: () -> Unit) 
 @Composable
 private fun ActionSelectionScreen(
     modifier: Modifier = Modifier,
+    ledgerType: LedgerType,
+    onLedgerChange: (LedgerType) -> Unit,
     onSelect: (InventoryAction) -> Unit,
 ) {
     Column(
@@ -875,10 +968,20 @@ private fun ActionSelectionScreen(
     ) {
         Text("작업 선택", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text("수행할 재고 작업을 선택하세요.", color = HermesTextMuted)
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LedgerType.entries.forEach { ledger ->
+                if (ledger == ledgerType) {
+                    Button(onClick = { onLedgerChange(ledger) }, modifier = Modifier.weight(1f)) { Text(ledger.label) }
+                } else {
+                    OutlinedButton(onClick = { onLedgerChange(ledger) }, modifier = Modifier.weight(1f)) { Text(ledger.label) }
+                }
+            }
+        }
         Spacer(Modifier.height(20.dp))
         InventoryActionCard(
             title = "입고",
-            description = "도착한 품목의 재고를 증가시킵니다.",
+            description = "입고된 품목의 재고를 증가시킵니다.",
             icon = Icons.Filled.AddBox,
             background = Color(0xFFE0F4EE),
             accent = HermesGreen,
@@ -886,7 +989,7 @@ private fun ActionSelectionScreen(
         Spacer(Modifier.height(10.dp))
         InventoryActionCard(
             title = "출고",
-            description = "선택한 LOT와 전체 재고를 차감합니다.",
+            description = "출고된 품목의 재고를 차감합니다.",
             icon = Icons.Filled.IndeterminateCheckBox,
             background = Color(0xFFFFEAE4),
             accent = Color(0xFFB34B2D),
@@ -894,10 +997,10 @@ private fun ActionSelectionScreen(
         Spacer(Modifier.height(10.dp))
         InventoryActionCard(
             title = "세트 출고",
-            description = "PBA·OUTER·INNER·TOP COVER의 여러 LOT를 함께 출고합니다.",
+            description = "4가지 자재를 세트로 출고합니다.",
             icon = Icons.Filled.Inventory2,
-            background = Color(0xFFE0F4EE),
-            accent = HermesGreen,
+            background = Color(0xFFF2E8FF),
+            accent = HermesSet,
         ) { onSelect(InventoryAction.SET_OUT) }
         Spacer(Modifier.height(10.dp))
         InventoryActionCard(
@@ -949,6 +1052,7 @@ private fun InventoryActionCard(
 private fun WorkEntryScreen(
     modifier: Modifier = Modifier,
     action: InventoryAction,
+    ledgerLabel: String,
     warehouse: String,
     onWarehouseChange: (String) -> Unit,
     keyword: String,
@@ -967,12 +1071,14 @@ private fun WorkEntryScreen(
         InventoryAction.OUT -> "출고"
         InventoryAction.LOT_REGISTER -> "LOT 등록"
         InventoryAction.SET_OUT -> "세트 출고"
+        InventoryAction.LOOKUP -> "QR 수량 조회"
     }
     val actionAccent = when (action) {
         InventoryAction.IN -> HermesGreen
         InventoryAction.OUT -> Color(0xFFB34B2D)
         InventoryAction.LOT_REGISTER -> Color(0xFF4C5DB6)
-        InventoryAction.SET_OUT -> HermesGreen
+        InventoryAction.SET_OUT -> HermesSet
+        InventoryAction.LOOKUP -> HermesBlue
     }
 
     Column(
@@ -982,7 +1088,7 @@ private fun WorkEntryScreen(
             .imePadding()
             .padding(16.dp)
     ) {
-        Text(actionLabel, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("$ledgerLabel · $actionLabel", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Text("QR을 스캔하거나 품목을 검색하세요.", color = Color(0xFF61716F))
         Spacer(Modifier.height(14.dp))
         Card(
@@ -998,7 +1104,8 @@ private fun WorkEntryScreen(
             }
         }
         Spacer(Modifier.height(14.dp))
-        Text("창고 유형", color = Color(0xFF61716F))
+        if (ledgerLabel == LedgerType.INVENTORY.label) Text("창고 유형", color = Color(0xFF61716F))
+        if (ledgerLabel == LedgerType.INVENTORY.label) {
         Box {
             Card(
                 modifier = Modifier.fillMaxWidth().clickable { warehouseExpanded = true },
@@ -1029,6 +1136,7 @@ private fun WorkEntryScreen(
                 }
             }
         }
+        }
         Spacer(Modifier.height(14.dp))
         Card(
             colors = CardDefaults.cardColors(containerColor = HermesNavy),
@@ -1038,7 +1146,7 @@ private fun WorkEntryScreen(
                 Icon(Icons.Filled.QrCodeScanner, contentDescription = null, tint = HermesMint, modifier = Modifier.size(32.dp))
                 Spacer(Modifier.height(10.dp))
                 Text("QR을 스캔해 주세요", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("품목코드와 LOT를 읽어 자동으로 재고를 조회합니다.", color = Color(0xFFC8D7D5))
+                Text(if (action == InventoryAction.LOOKUP) "처리 없이 품목코드·LOT·등급별 수량만 확인합니다." else "품목코드와 LOT를 읽어 자동으로 재고를 조회합니다.", color = Color(0xFFC8D7D5))
                 Spacer(Modifier.height(14.dp))
                 Button(onClick = onScan, modifier = Modifier.fillMaxWidth()) { Text("카메라 열기") }
             }
@@ -1093,6 +1201,8 @@ private fun HistoryScreen(
     message: String,
     userId: String,
     onRefresh: () -> Unit,
+    ledgerType: LedgerType,
+    onLedgerChange: (LedgerType) -> Unit,
 ) {
     var filter by rememberSaveable { mutableStateOf("전체") }
     fun isLotRegistration(item: InventoryHistoryItem): Boolean =
@@ -1125,6 +1235,13 @@ private fun HistoryScreen(
             }
         }
         Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LedgerType.entries.forEach { ledger ->
+                if (ledger == ledgerType) Button(onClick = { onLedgerChange(ledger) }, modifier = Modifier.weight(1f)) { Text(ledger.label) }
+                else OutlinedButton(onClick = { onLedgerChange(ledger) }, modifier = Modifier.weight(1f)) { Text(ledger.label) }
+            }
+        }
+        Spacer(Modifier.height(12.dp))
         Card(
             colors = CardDefaults.cardColors(containerColor = HermesNavy),
             shape = RoundedCornerShape(22.dp),
@@ -1233,6 +1350,47 @@ private fun HistoryStat(label: String, count: Int, accent: Color, modifier: Modi
 }
 
 @Composable
+private fun QuickLookupResultScreen(
+    item: InventoryItem,
+    qrData: QrMaterialData?,
+    ledgerLabel: String,
+    onNextScan: () -> Unit,
+    onClose: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
+        Text("$ledgerLabel · 조회 전용", color = HermesGreen, fontWeight = FontWeight.Bold)
+        Text("QR 재고 조회", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Text("재고 증감 없이 현재 수량만 보여줍니다.", color = HermesTextMuted)
+        Spacer(Modifier.height(16.dp))
+        Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Column(Modifier.fillMaxWidth().padding(20.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(item.itemCode, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text("${item.grade.ifBlank { qrData?.grade.orEmpty() }} 등급", color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(999.dp)).background(HermesGreen).padding(horizontal = 11.dp, vertical = 5.dp))
+                }
+                Text(item.itemName, style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(14.dp))
+                ProfileInfoRow("LOT", qrData?.lot.orEmpty().ifBlank { "-" })
+                ProfileInfoRow("최초 입고일자", qrData?.receivedDate.orEmpty().ifBlank { "-" })
+                ProfileInfoRow("검사원", qrData?.inspector.orEmpty().ifBlank { "-" })
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Card(shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFE7F6F1))) {
+            Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text("해당 LOT 현재 수량", color = HermesTextMuted)
+                Text("${item.lotQty} EA", color = HermesGreen, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                Text("${item.grade.ifBlank { qrData?.grade.orEmpty() }}등급 전체 재고 ${item.qty} EA", color = HermesTextMuted)
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        Button(onClick = onNextScan, modifier = Modifier.fillMaxWidth()) { Text("다음 QR 조회") }
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) { Text("홈으로") }
+    }
+}
+
+@Composable
 private fun LotDetailScreen(
     item: InventoryItem,
     qrData: QrMaterialData?,
@@ -1293,6 +1451,7 @@ private fun LotDetailScreen(
 @Composable
 private fun SetOutboundScreen(
     modifier: Modifier = Modifier,
+    ledgerLabel: String,
     targetText: String,
     onTargetChange: (String) -> Unit,
     activeComponent: SetComponent,
@@ -1308,8 +1467,6 @@ private fun SetOutboundScreen(
     onScan: () -> Unit,
     onRemove: (SetAllocation) -> Unit,
     onReview: () -> Unit,
-    onBackFromReview: () -> Unit,
-    onChangeAction: () -> Unit,
     onConfirm: () -> Unit,
 ) {
     var remarkExpanded by remember { mutableStateOf(false) }
@@ -1321,13 +1478,12 @@ private fun SetOutboundScreen(
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(16.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedButton(onClick = if (review) onBackFromReview else onChangeAction) { Text("← 이전") }
-            Column(Modifier.padding(start = 12.dp)) {
-                Text(if (review) "FINAL CHECK" else "SET OUTBOUND", color = HermesGreen, fontWeight = FontWeight.Bold)
-                Text(if (review) "세트 출고 최종 확인" else "다중 LOT 세트 출고", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            }
-        }
+        Text(ledgerLabel, color = HermesGreen, fontWeight = FontWeight.Bold)
+        Text(
+            if (review) "세트 출고 최종 확인" else "자재별 LOT 세트 출고",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
         Spacer(Modifier.height(14.dp))
 
         if (review) {
@@ -1351,7 +1507,7 @@ private fun SetOutboundScreen(
                         Spacer(Modifier.height(4.dp))
                         Text(message, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.height(6.dp))
-                        Text("← 이전을 눌러 문제가 있는 LOT를 삭제한 뒤 다른 LOT를 스캔하세요.", color = HermesTextMuted, style = MaterialTheme.typography.bodySmall)
+                        Text("문제가 있는 LOT를 수정한 뒤 다시 확인해 주세요.", color = HermesTextMuted, style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 Spacer(Modifier.height(12.dp))
@@ -1435,6 +1591,7 @@ private fun SetOutboundScreen(
                     label = { Text("세트 수량") },
                     suffix = { Text("SET") },
                     supportingText = { Text(if (allocations.isEmpty()) "수량 입력 후 자재별 QR을 스캔하세요." else "스캔 시작 후에는 LOT를 모두 삭제해야 수량을 바꿀 수 있습니다.") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1583,12 +1740,14 @@ private fun CompletionScreen(
         InventoryAction.OUT -> "출고"
         InventoryAction.LOT_REGISTER -> "LOT 등록"
         InventoryAction.SET_OUT -> "세트 출고"
+        InventoryAction.LOOKUP -> "재고 조회"
     }
     val accent = when (data.action) {
         InventoryAction.IN -> HermesGreen
         InventoryAction.OUT -> HermesOrange
         InventoryAction.LOT_REGISTER -> HermesPurple
-        InventoryAction.SET_OUT -> HermesGreen
+        InventoryAction.SET_OUT -> HermesSet
+        InventoryAction.LOOKUP -> HermesBlue
     }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -1630,7 +1789,10 @@ private fun HomeDashboard(
     modifier: Modifier = Modifier,
     userId: String,
     history: List<InventoryHistoryItem>,
+    ledgerType: LedgerType,
+    onLedgerChange: (LedgerType) -> Unit,
     onScan: () -> Unit,
+    onLookup: () -> Unit,
 ) {
     val inboundCount = history.count { it.movementType == "IN" }
     val outboundCount = history.count { it.movementType == "OUT" }
@@ -1658,22 +1820,32 @@ private fun HomeDashboard(
                         Text("DEV", color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(999.dp)).background(Color(0xFFE17A22)).padding(horizontal = 10.dp, vertical = 4.dp))
                     }
                 }
+                Spacer(Modifier.height(14.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    LedgerType.entries.forEach { ledger ->
+                        if (ledger == ledgerType) {
+                            Button(onClick = { onLedgerChange(ledger) }, modifier = Modifier.weight(1f)) { Text(ledger.label) }
+                        } else {
+                            OutlinedButton(onClick = { onLedgerChange(ledger) }, modifier = Modifier.weight(1f)) { Text(ledger.label, color = Color.White) }
+                        }
+                    }
+                }
                 Spacer(Modifier.height(22.dp))
-                Card(
-                    modifier = Modifier.fillMaxWidth().clickable(onClick = onScan),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = HermesGreen),
-                ) {
-                    Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(Color.White.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Filled.QrCodeScanner, contentDescription = null, tint = Color.White, modifier = Modifier.size(30.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Card(modifier = Modifier.weight(1f).clickable(onClick = onScan), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = HermesGreen)) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                            Icon(Icons.Filled.Inventory2, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                            Spacer(Modifier.height(10.dp))
+                            Text("재고 처리", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text("입고·출고·LOT·세트", color = Color(0xFFD8F5ED), style = MaterialTheme.typography.bodySmall)
                         }
-                        Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                            Text("빠르고 정확한 작업", color = Color(0xFFD8F5ED), style = MaterialTheme.typography.bodySmall)
-                            Text("QR 스캔 시작", color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                        }
-                        Box(Modifier.size(34.dp).clip(RoundedCornerShape(17.dp)).background(Color.White), contentAlignment = Alignment.Center) {
-                            Text("›", color = HermesGreen, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    }
+                    Card(modifier = Modifier.weight(1f).clickable(onClick = onLookup), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                            Icon(Icons.Filled.QrCodeScanner, contentDescription = null, tint = HermesGreen, modifier = Modifier.size(28.dp))
+                            Spacer(Modifier.height(10.dp))
+                            Text("QR 수량 조회", color = HermesNavy, fontWeight = FontWeight.Bold)
+                            Text("스캔 즉시 재고 확인", color = HermesTextMuted, style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
@@ -1757,9 +1929,10 @@ private fun ProductActionCard(
 
 @Composable
 private fun ProfileScreen(modifier: Modifier = Modifier, userId: String, onLogout: () -> Unit) {
+    val context = LocalContext.current
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
         Text("내 정보", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Text("계정과 앱 정보를 확인하세요.", color = Color(0xFF61716F))
+        Text("계정 정보와 업무 서비스를 확인하세요.", color = Color(0xFF61716F))
         Spacer(Modifier.height(18.dp))
         Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = HermesNavy)) {
             Row(Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1777,19 +1950,24 @@ private fun ProfileScreen(modifier: Modifier = Modifier, userId: String, onLogou
             Column(Modifier.fillMaxWidth().padding(18.dp)) {
                 Text("앱 정보", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(14.dp))
+                ProfileInfoRow("로그인 계정", userId)
+                ProfileInfoRow("업무 권한", "로그인 계정 기준 적용")
+                ProfileInfoRow("연결 상태", if (BuildConfig.IS_DEV) "개발 환경" else "운영 환경")
                 ProfileInfoRow("앱 버전", BuildConfig.VERSION_NAME)
-                ProfileInfoRow("환경", if (BuildConfig.IS_DEV) "DEV" else "PROD")
-                ProfileInfoRow("QR 스캔", "인터넷 없이도 인식")
             }
         }
         Spacer(Modifier.height(14.dp))
         Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
             Column(Modifier.fillMaxWidth().padding(18.dp)) {
-                Text("작업 안내", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(10.dp))
-                Text("• QR 인식 후 품목코드와 LOT를 확인하세요.")
-                Text("• 수량과 등급을 확인한 뒤 최종 처리하세요.")
-                Text("• 오류가 있으면 처리하지 말고 다시 스캔하세요.")
+                Text("업무 서비스", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                Text("상세 재고와 관리 기능은 웹사이트에서 확인할 수 있습니다.", color = HermesTextMuted, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp, bottom = 14.dp))
+                Button(
+                    onClick = {
+                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://logistics-system-a5kn.onrender.com")))
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = HermesGreen),
+                ) { Text("관리자 웹사이트 열기") }
             }
         }
         Spacer(Modifier.height(22.dp))
@@ -1808,6 +1986,7 @@ private fun ProfileInfoRow(label: String, value: String) {
 @Composable
 private fun LiveScannerScreen(
     onBack: () -> Unit,
+    allowMissingGrade: Boolean = true,
     setComponent: SetComponent? = null,
     setProgress: String = "",
     setGrade: String = "",
@@ -1882,7 +2061,12 @@ private fun LiveScannerScreen(
                             }
                             locked.set(parsedValue.itemCode.isNotBlank())
                             if (parsedValue.itemCode.isNotBlank()) {
-                                currentOnSetUse?.let { validateSetQr ->
+                                if (parsedValue.grade.isBlank() && !allowMissingGrade) {
+                                    feedbackSuccess = false
+                                    feedbackText = "QR에서 등급 정보를 확인할 수 없습니다."
+                                    rawText = feedbackText
+                                    toneGenerator.startTone(ToneGenerator.TONE_SUP_ERROR, 420)
+                                } else currentOnSetUse?.let { validateSetQr ->
                                     validating = true
                                     toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 90)
                                     validateSetQr(parsedValue) { success, text ->
@@ -2011,30 +2195,9 @@ private fun LiveScannerScreen(
                         Text("${setComponent.label} 선택", color = setComponentColor(setComponent), fontWeight = FontWeight.Bold)
                         Text(setProgress, fontWeight = FontWeight.Bold)
                     }
-                    Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("등급", color = HermesTextMuted, fontWeight = FontWeight.SemiBold)
-                        listOf("A", "B", "F").forEach { grade ->
-                            if (grade == setGrade) {
-                                Button(
-                                    onClick = { },
-                                    contentPadding = ButtonDefaults.ContentPadding,
-                                    modifier = Modifier.weight(1f).height(38.dp),
-                                ) { Text("$grade 등급", style = MaterialTheme.typography.labelMedium) }
-                            } else {
-                                OutlinedButton(
-                                    onClick = {
-                                        resetScan()
-                                        onSetGradeChange?.invoke(grade)
-                                    },
-                                    contentPadding = ButtonDefaults.ContentPadding,
-                                    modifier = Modifier.weight(1f).height(38.dp),
-                                ) { Text(grade, style = MaterialTheme.typography.labelMedium) }
-                            }
-                        }
-                    }
                     if (parsed.itemCode.isNotBlank()) {
                         Row(Modifier.fillMaxWidth().padding(top = 5.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("${parsed.itemCode} · ${setGrade.ifBlank { "등급 미선택" }}", fontWeight = FontWeight.Bold)
+                            Text("${parsed.itemCode} · ${parsed.grade.ifBlank { setGrade.ifBlank { "A" } }}등급", fontWeight = FontWeight.Bold)
                             Text("LOT ${parsed.lot.ifBlank { "-" }}", fontWeight = FontWeight.Bold)
                         }
                     }
@@ -2071,6 +2234,7 @@ private fun LiveScannerScreen(
                     Text("명칭(QR): ${parsed.itemName.ifBlank { "-" }}")
                     Text("LOT: ${parsed.lot.ifBlank { "-" }} · 검사원: ${parsed.inspector.ifBlank { "-" }}")
                     Text("최초 입고일자: ${parsed.receivedDate.ifBlank { "-" }}")
+                    Text("등급: ${parsed.grade.ifBlank { "A" }}")
                     Text(rawText, modifier = Modifier.padding(vertical = 8.dp))
                     Text("수량은 품목 확인 화면에서 입력합니다.", color = HermesTextMuted)
                     Spacer(Modifier.height(8.dp))
@@ -2102,6 +2266,7 @@ private fun parseMaterialQr(raw: String): QrMaterialData {
         receivedDate = value("입고일자", "최초입고일자"),
         lot = value("LOT", "Lot", "lot"),
         inspector = value("검사원"),
+        grade = value("등급", "GRADE", "GRD").uppercase(),
     )
 }
 
@@ -2114,6 +2279,7 @@ private fun MovementScreen(
     onBack: () -> Unit,
     onCompleted: (MovementResult, Int) -> Unit,
     onSessionExpired: () -> Unit,
+    stockLedger: Boolean,
 ) {
     var qtyText by rememberSaveable(item.id, action) {
         mutableStateOf(
@@ -2133,16 +2299,19 @@ private fun MovementScreen(
         InventoryAction.OUT -> "출고"
         InventoryAction.LOT_REGISTER -> "LOT 등록"
         InventoryAction.SET_OUT -> "세트 출고"
+        InventoryAction.LOOKUP -> "재고 조회"
     }
     val actionAccent = when (action) {
         InventoryAction.IN -> HermesGreen
         InventoryAction.OUT -> HermesOrange
         InventoryAction.LOT_REGISTER -> HermesPurple
-        InventoryAction.SET_OUT -> HermesGreen
+        InventoryAction.SET_OUT -> HermesSet
+        InventoryAction.LOOKUP -> HermesBlue
     }
     val remarkOptions = when (action) {
         InventoryAction.OUT -> listOf("연구시료", "양산", "직접 입력")
         InventoryAction.IN -> listOf("연구시료 반납", "양산 반납", "직접 입력")
+        InventoryAction.LOOKUP -> emptyList()
         else -> emptyList()
     }
     val finalRemark = when {
@@ -2178,6 +2347,7 @@ private fun MovementScreen(
                         qty = qty,
                         inbound = action != InventoryAction.OUT,
                         lot = qrData?.lot.orEmpty(),
+                        stockLedger = stockLedger,
                     )
                 }
                 if (duplicate.error != null) {
@@ -2203,6 +2373,7 @@ private fun MovementScreen(
                         firstReceivedDate = qrData?.receivedDate.orEmpty(),
                         beforeQty = item.qty,
                         lotBeforeQty = item.lotQty,
+                        stockLedger = stockLedger,
                     )
                 } else {
                     ApiClient.move(
@@ -2215,6 +2386,7 @@ private fun MovementScreen(
                         firstReceivedDate = qrData?.receivedDate.orEmpty(),
                         beforeQty = item.qty,
                         lotBeforeQty = item.lotQty,
+                        stockLedger = stockLedger,
                     )
                 }
             }
@@ -2294,10 +2466,12 @@ private fun MovementScreen(
         val afterTotal = when(action) {
             InventoryAction.OUT, InventoryAction.SET_OUT -> item.qty - enteredQty
             InventoryAction.IN, InventoryAction.LOT_REGISTER -> item.qty + enteredQty
+            InventoryAction.LOOKUP -> item.qty
         }
         val afterLot = when(action) {
             InventoryAction.OUT, InventoryAction.SET_OUT -> item.lotQty - enteredQty
             InventoryAction.IN, InventoryAction.LOT_REGISTER -> item.lotQty + enteredQty
+            InventoryAction.LOOKUP -> item.lotQty
         }
         Spacer(Modifier.height(12.dp))
         Card(
@@ -2379,6 +2553,7 @@ private fun MovementScreen(
                     InventoryAction.OUT -> "출고 확정"
                     InventoryAction.LOT_REGISTER -> "LOT 등록 확정"
                     InventoryAction.SET_OUT -> "세트 출고 확정"
+                    InventoryAction.LOOKUP -> "확인"
                 }
             )
         }

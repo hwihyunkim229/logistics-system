@@ -1,4 +1,5 @@
 import json
+import os
 from app.ai.client import ask_ai
 from app.ai.prompts import ANSWER_PROMPT, GENERAL_KNOWLEDGE_PROMPT
 
@@ -8,7 +9,27 @@ PERIOD_LABELS = {
     "this_week": "이번 주",
     "this_month": "이번 달",
     "all": "전체 기간",
+    "previous_month": "지난달",
+    "previous_week": "지난주",
 }
+
+def _period_label(period):
+    if period in PERIOD_LABELS:
+        return PERIOD_LABELS[period]
+    re_module = __import__("re")
+    date_match = re_module.fullmatch(r"date_(\d{4})(\d{2})(\d{2})", period or "")
+    if date_match:
+        year, month, day = date_match.groups()
+        return f"{year}년 {int(month)}월 {int(day)}일"
+    range_match = re_module.fullmatch(r"range_(\d{4})(\d{2})(\d{2})_(\d{4})(\d{2})(\d{2})", period or "")
+    if range_match:
+        sy, sm, sd, ey, em, ed = range_match.groups()
+        return f"{sy}-{sm}-{sd}~{ey}-{em}-{ed}"
+    match = re_module.fullmatch(r"last_(\d+)_(days|weeks|months)", period or "")
+    if not match:
+        return "전체 기간"
+    count, unit = match.groups()
+    return f"최근 {count}{ {'days': '일', 'weeks': '주', 'months': '개월'}[unit] }"
 
 def _garbled(text):
     return bool(text) and text.count("�") >= 3
@@ -50,6 +71,9 @@ def make_answer(question, result):
     if result.get("status") not in AI_REQUIRED:
         return fallback
 
+    if os.getenv("AI_ENHANCE_STRUCTURED_ANSWERS", "0").strip().lower() not in ("1", "true", "on", "yes"):
+        return fallback
+
     context = json.dumps(
         {
             "question": question,
@@ -72,8 +96,17 @@ def make_answer(question, result):
 def _fallback_answer(result):
     status = result.get("status")
 
-    if status in ("capabilities", "analysis_limit", "project_knowledge"):
+    if status in ("capabilities", "analysis_limit", "project_knowledge", "smalltalk"):
         return result.get("message", "요청을 처리할 수 없습니다.")
+
+    if status == "need_clarification":
+        lines = [result.get("prompt", "어떤 항목인지 선택해 주세요."), ""]
+        lines.extend(
+            f"{index}. {choice.get('label', '')}"
+            for index, choice in enumerate(result.get("choices", []), 1)
+        )
+        lines.extend(("", "번호나 항목 이름으로 답해 주세요."))
+        return "\n".join(lines)
 
     if status == "blocked":
         return result.get("message", "보안상 해당 정보는 제공할 수 없습니다.")
@@ -101,6 +134,15 @@ def _fallback_answer(result):
 
     if status == "mrp_dashboard":
         return _mrp_dashboard_answer(result)
+
+    if status == "mrp_shortage_summary":
+        count = result.get("shortage_count", 0)
+        qty = result.get("total_shortage", 0)
+        if result.get("mode") == "count":
+            return f"현재 MRP 부족 자재는 총 {count:,}개 품목입니다."
+        if result.get("mode") == "qty":
+            return f"현재 MRP 부족 자재의 총 부족수량은 {qty:,.1f}개입니다."
+        return f"현재 MRP 부족 자재는 {count:,}개 품목이며, 총 부족수량은 {qty:,.1f}개입니다."
 
     if status == "none":
         return result.get("message", "조회된 데이터가 없습니다.")
@@ -227,7 +269,7 @@ def _fallback_answer(result):
 
 def _flow_count_answer(result):
     product_name = result.get("product_name") or "전체 제품"
-    period = PERIOD_LABELS.get(result.get("period"), "전체 기간")
+    period = _period_label(result.get("period"))
     flow_type = result.get("flow_type")
 
     if flow_type == "inbound":
@@ -313,7 +355,7 @@ def _stock_summary_answer(result):
     return "\n".join(lines)
 
 def _login_summary_answer(result):
-    period = PERIOD_LABELS.get(result.get("period"), "전체 기간")
+    period = _period_label(result.get("period"))
     lines = [
         f"{period} 로그인 이력은 {result.get('count', 0):,}건입니다."
     ]
@@ -338,7 +380,7 @@ def _login_summary_answer(result):
     return "\n".join(lines)
 
 def _logistics_dashboard_answer(result):
-    period = PERIOD_LABELS.get(result.get("period"), "전체 기간")
+    period = _period_label(result.get("period"))
 
     return (
         f"제품 물류 현황입니다.\n\n"
@@ -449,7 +491,10 @@ def _rows_answer(result):
                 f"({row['item_code']})이며, 수량은 {row['qty']:,}개입니다."
             )
 
-    header = f"{label} 조회 결과 {len(rows)}건입니다."
+    period = result.get("period")
+    period_prefix = f"{_period_label(period)} " if period and period != "all" else ""
+    result_word = "표시 결과" if result.get("truncated") else "조회 결과"
+    header = f"{period_prefix}{label} {result_word} {len(rows)}건입니다."
 
     if "total_qty" in result:
         header += f" 총 수량은 {result['total_qty']:,}개입니다."
@@ -461,7 +506,10 @@ def _rows_answer(result):
 
     if result.get("truncated"):
         lines.append("")
-        lines.append("결과가 많아 일부만 표시했습니다. 품목명이나 코드로 더 좁혀 주세요.")
+        if result.get("requested_limit") == 1:
+            lines.append("가장 최근 입출고 1건만 표시했습니다.")
+        else:
+            lines.append("결과가 많아 일부만 표시했습니다. 품목명이나 코드로 더 좁혀 주세요.")
 
     return "\n".join(lines)
 
@@ -500,8 +548,12 @@ def _domain_label(domain):
         "activity": "활동 로그",
         "inventory_movement": "수불 재고 입출고 이력",
         "stock_movement": "가계상 재고 입출고 이력",
+        "combined_stock_movement": "전체 재고 입출고 이력",
         "mrp_result": "MRP 부족 수량",
         "workflow": "Workflow",
+        "workflow_status": "Workflow 진행 현황",
+        "rental_stock": "대여 재고",
+        "rental_movement": "대여 재고 입출고 이력",
         "inventory_lot": "수불 재고 LOT",
     }.get(domain, "데이터")
 
@@ -520,17 +572,17 @@ def _format_row(domain, row):
                 f"Grade {row['grade']}" if row.get("grade") else "",
             ])
         )
+        return (
+            f"{row['item_name']} ({row['item_code']}) "
+            f"{row['warehouse_type']}"
+            f"{f' [{extra}]' if extra else ''}: {row['qty']:,} EA"
+        )
 
     if domain == "inventory_lot":
         return (
             f"LOT {row.get('lot') or '-'} · "
             f"{row.get('item_name') or '-'} ({row.get('item_code') or '-'}) · "
             f"{row.get('warehouse_type') or '-'} · {row.get('qty', 0):,} EA"
-        )
-        return (
-            f"{row['item_name']} ({row['item_code']}) "
-            f"{row['warehouse_type']}"
-            f"{f' [{extra}]' if extra else ''}: {row['qty']:,} EA"
         )
 
     if domain == "bom":
@@ -572,9 +624,26 @@ def _format_row(domain, row):
 
     if domain in ("inventory_movement", "stock_movement"):
         warehouse = f" {row['warehouse_type']}" if row.get("warehouse_type") else ""
+        lot = f", LOT {row['lot']}" if row.get("lot") else ""
+        movement_label = {
+            "IN": "입고",
+            "OUT": "출고",
+            "ADJUST": "재고 조정",
+        }.get(row.get("movement_type"), row.get("movement_type") or "-")
         return (
             f"{row['created_at']} {row['item_name']} ({row['item_code']}){warehouse} "
-            f"{row.get('movement_type') or '-'} {row.get('qty', 0):,} EA ({row.get('user') or '-'})"
+            f"{movement_label} {row.get('qty', 0):,} EA{lot} ({row.get('user') or '-'})"
+        )
+
+    if domain == "combined_stock_movement":
+        lot = f", LOT {row['lot']}" if row.get("lot") else ""
+        movement_label = {"IN": "입고", "OUT": "출고", "ADJUST": "재고 조정"}.get(
+            row.get("movement_type"), row.get("movement_type") or "-"
+        )
+        return (
+            f"[{row.get('stock_type')}] {row.get('created_at')} "
+            f"{row.get('item_name')} ({row.get('item_code')}) "
+            f"{movement_label} {row.get('qty', 0):,} EA{lot}"
         )
 
     if domain == "mrp_result":
@@ -597,6 +666,25 @@ def _format_row(domain, row):
             f"{row.get('item_name') or '-'} ({row.get('item_code') or '-'}) · "
             f"LOT {row.get('lot') or '-'} · {row.get('qty', 0):,} EA · "
             f"{row.get('status') or '-'}"
+        )
+
+    if domain == "workflow_status":
+        status_label = {"IN_PROGRESS": "진행 중", "COMPLETED": "완료", "CANCELLED": "취소"}.get(row.get("status"), row.get("status") or "-")
+        return (
+            f"{row.get('workflow_no') or '-'} · {row.get('item_name') or '-'} "
+            f"({row.get('item_code') or '-'}) · {row.get('stage_name') or '-'} · "
+            f"{row.get('department') or '-'} · {status_label}"
+        )
+
+    if domain == "rental_stock":
+        return f"{row.get('item_name')} ({row.get('item_code')}), {row.get('category')}, {row.get('qty', 0):,} EA"
+
+    if domain == "rental_movement":
+        movement_label = "입고" if row.get("movement_type") == "IN" else "출고"
+        return (
+            f"{row.get('issue_date')} {row.get('item_name')} ({row.get('item_code')}) "
+            f"{movement_label} {row.get('qty', 0):,} EA · {row.get('requester') or '-'} · "
+            f"{row.get('department') or '-'} · S/N {row.get('serial_number') or '-'}"
         )
 
     return ", ".join(f"{key}: {value}" for key, value in row.items())

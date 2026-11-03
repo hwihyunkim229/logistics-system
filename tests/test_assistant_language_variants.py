@@ -57,6 +57,31 @@ class AssistantLanguageVariantTests(unittest.TestCase):
             with self.subTest(question=question):
                 self.assert_route(question, tool)
 
+    def test_typo_and_chat_style_variants(self):
+        cases = (
+            ("수불제고 원자재 몇개임?", "inventory.search"),
+            ("부족자제 좀 보여주라", "mrp.shortage_search"),
+            ("mrt 부족 품목 탑 5", "mrp.shortage_search"),
+            ("생상계획 잡힌 제품 뭐뭐야", "production.products"),
+            ("카트 플렛폼 iem 워크플로어 번호 좀", "workflow.search"),
+            ("수불 재고 입출고현항 보여주셈", "inventory.movement_search"),
+            ("수불재고 엑셀 업로두할 때 필수행?", "project.upload_help"),
+        )
+        for question, tool in cases:
+            with self.subTest(question=question):
+                self.assert_route(question, tool)
+
+    def test_spacing_punctuation_and_politeness_do_not_change_intent(self):
+        cases = (
+            "수불   재고 원자재 수량 알려주시겠어요???",
+            "수불 재고 원자재 수량 좀 부탁드려요~",
+            "수불재고 원자재 몇개임ㅋㅋ",
+            "혹시 수불재고 원자재 총수량 확인 가능할까요ㅠㅠ",
+        )
+        for question in cases:
+            with self.subTest(question=question):
+                self.assert_route(question, "inventory.search", category="원자재")
+
 
 if __name__ == "__main__":
     unittest.main()
