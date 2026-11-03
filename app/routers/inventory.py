@@ -566,6 +566,7 @@ def inventory_mobile_items(
     keyword: str = Query(default="", max_length=100),
     item_code: str = Query(default="", max_length=100),
     lot: str = Query(default="", max_length=100),
+    grade: str = Query(default="", max_length=10),
     warehouse_type: str = Query(default=""),
     limit: int = Query(default=50, ge=1, le=100),
     db: Session = Depends(get_db),
@@ -576,6 +577,8 @@ def inventory_mobile_items(
     normalized_code = normalize_item_code(item_code) if item_code.strip() else ""
     if normalized_code:
         query = query.filter(Inventory.item_code == normalized_code)
+    if grade.strip():
+        query = query.filter(Inventory.grade == grade.strip().upper())
     # 원자재 LOT는 InventoryLot에 저장되므로, QR의 LOT는 상세 수량 조회에만 사용한다.
     if warehouse_type.strip():
         if warehouse_type.strip() not in WAREHOUSE_TYPES:

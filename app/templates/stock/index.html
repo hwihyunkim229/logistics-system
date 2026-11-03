@@ -128,6 +128,19 @@ button + button{
     margin-left:6px;
 }
 
+.lot-toggle{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:28px;padding:0 6px;border:1px solid #d9e5e2;border-radius:7px;color:#40504d;background:#fff;font-size:12px;font-weight:600}
+.lot-toggle:hover,.lot-toggle[aria-expanded="true"]{color:#087864;border-color:#087864;background:#edf8f5}
+.lot-toggle-count{min-width:20px;padding:2px 4px;border-radius:4px;color:#087864;background:#e7f4f1;font-weight:700;text-align:center}
+.lot-detail-row{display:none;background:#f7fbfa}.lot-detail-row.open{display:table-row}
+.lot-detail-cell{text-align:left!important;padding:8px 24px 14px 80px!important}
+.lot-detail-table{width:100%;border-collapse:collapse;background:white;border:1px solid #dfe9e6;border-radius:10px;overflow:hidden}
+.lot-detail-table th,.lot-detail-table td{position:static!important;background:white!important;color:#334!important;padding:9px 12px!important;border-bottom:1px solid #e7eeec!important;text-align:center!important}
+.lot-unclassified{color:#a65b00;font-weight:600}
+.lot-register-options{display:grid;gap:10px;margin-top:16px}.lot-register-options button+button{margin-left:0}
+.lot-register-option{display:flex;flex-direction:column;align-items:flex-start;width:100%!important;min-height:64px!important;height:auto!important;padding:12px 16px!important;margin:0!important;border:1px solid #d9e5e2;border-radius:10px;background:#fff;color:#263633;text-align:left;white-space:normal;box-sizing:border-box}
+.lot-register-option:hover{border-color:#087864;background:#f3faf8;color:#087864;transform:none}.lot-register-option span{margin-top:5px;color:#71817e;font-size:12px;font-weight:400;line-height:1.45}
+.lot-upload-guide{margin:12px 0;padding:12px;border-radius:9px;background:#f5f8f7;color:#52605d;font-size:13px;line-height:1.55;text-align:left}
+
 .search-row{
     margin-bottom:12px;
 }
@@ -463,6 +476,7 @@ th input[type="checkbox"]{
     </button>
 </div>
 
+{% set raw_material_view = current_category == '원자재' %}
 <div class="card bottom">
     <div class="stock-card-header">
         <h3 id="stockTitle">
@@ -482,6 +496,10 @@ th input[type="checkbox"]{
             <button onclick="document.getElementById('excelFile').click()">
                 📂 엑셀 업로드
             </button>
+
+            {% if raw_material_view %}
+            <button onclick="openLotRegisterChoiceModal()">➕ LOT 등록</button>
+            {% endif %}
 
             <input
                 type="file"
@@ -666,6 +684,7 @@ th input[type="checkbox"]{
 
         <thead>
         <tr>
+            {% if raw_material_view %}<th style="width:118px;">LOT 내역</th>{% endif %}
             <th style="width:60px;">
                 <input
                     type="checkbox"
@@ -682,7 +701,14 @@ th input[type="checkbox"]{
 
         {% for item in items %}
         <tr
-            data-category="{{ item.category }}">
+            data-category="{{ item.category }}"
+            data-code="{{ item.item_code }}"
+            data-name="{{ item.item_name }}"
+            data-grade="{{ item.grade or '' }}">
+
+            {% if raw_material_view %}
+            <td><button class="lot-toggle" type="button" onclick="toggleLotRows({{ item.id }},this)" aria-label="LOT 상세 펼치기" aria-expanded="false"><span class="lot-toggle-count">{{ lot_details_by_stock.get(item.id, [])|length }}</span></button></td>
+            {% endif %}
 
             <td>
                 <input
@@ -738,6 +764,13 @@ th input[type="checkbox"]{
                 {{ item.qty }}
             </td>
         </tr>
+        {% if raw_material_view %}
+        <tr id="lot-detail-{{ item.id }}" class="lot-detail-row"><td colspan="7" class="lot-detail-cell"><table class="lot-detail-table"><thead><tr><th>LOT</th><th>최초 입고일자</th><th>검사원</th><th>현재 잔량</th></tr></thead><tbody>
+        {% for lot_row in lot_details_by_stock.get(item.id, []) %}<tr><td>{{ lot_row.lot }}</td><td>{{ lot_row.first_received_date.strftime('%Y-%m-%d') if lot_row.first_received_date else '-' }}</td><td>{{ lot_row.inspector or '-' }}</td><td>{{ lot_row.qty }} EA</td></tr>{% endfor %}
+        {% if unclassified_by_stock.get(item.id,0)>0 %}<tr><td class="lot-unclassified">미분류(기초재고)</td><td>-</td><td>-</td><td class="lot-unclassified">{{ unclassified_by_stock.get(item.id,0) }} EA</td></tr>{% endif %}
+        {% if not lot_details_by_stock.get(item.id) and unclassified_by_stock.get(item.id,0)==0 %}<tr><td colspan="4">등록된 LOT 재고가 없습니다.</td></tr>{% endif %}
+        </tbody></table></td></tr>
+        {% endif %}
         {% endfor %}
         </tbody>
     </table>
@@ -763,6 +796,28 @@ th input[type="checkbox"]{
         <span class="page-disabled">»</span>
         {% endif %}
 </div>
+
+{% if raw_material_view %}
+<div id="lotRegisterChoiceModal" class="modal"><div class="modal-content" style="width:400px"><h3>LOT 등록 방식 선택</h3><div class="lot-register-options"><button class="lot-register-option" onclick="chooseDirectLotRegister()"><strong>직접 등록</strong><span>선택한 원자재 한 건의 LOT를 입력합니다.</span></button><button class="lot-register-option" onclick="openLotExcelUploadModal()"><strong>LOT 엑셀 업로드</strong><span>여러 원자재 LOT를 한 번에 등록합니다.</span></button></div><div class="modal-buttons"><button onclick="closeLotRegisterChoiceModal()">취소</button></div></div></div>
+
+<div id="lotExcelUploadModal" class="modal"><div class="modal-content" style="width:430px"><h3>가계상 원자재 LOT 엑셀 업로드</h3><div class="lot-upload-guide">예시 파일을 내려받아 <b>품목코드, Grade, LOT, 수량</b>을 입력하세요.<br>수량은 해당 LOT와 가계상 총재고에 입고로 반영됩니다.</div><button type="button" onclick="location.href='/stock/lot-upload-template'">⬇ 예시 파일 다운로드</button><input type="file" id="lotExcelFile" accept=".xlsx,.xls" style="margin-top:14px"><div class="modal-buttons"><button onclick="uploadLotExcel()">업로드</button><button onclick="closeLotExcelUploadModal()">취소</button></div></div></div>
+
+<div id="lotRegisterModal" class="modal">
+    <div class="modal-content">
+        <h3>가계상 원자재 LOT 등록</h3>
+        <p id="lotRegisterItem" style="color:#64748b"></p>
+        <input type="text" id="lotRegisterLot" placeholder="LOT" style="width:100%;box-sizing:border-box;margin-bottom:8px">
+        <input type="number" id="lotRegisterQty" min="0" value="0" placeholder="입고 수량 (정보만 등록 시 0)" style="width:100%;box-sizing:border-box;margin-bottom:8px">
+        <input type="date" id="lotRegisterDate" style="width:100%;box-sizing:border-box;margin-bottom:8px">
+        <input type="text" id="lotRegisterInspector" placeholder="검사원" style="width:100%;box-sizing:border-box;margin-bottom:8px">
+        <textarea id="lotRegisterRemark" placeholder="비고 (선택사항)" rows="2" style="width:100%;box-sizing:border-box"></textarea>
+        <div class="modal-buttons">
+            <button onclick="submitLotRegister()">LOT 등록</button>
+            <button onclick="closeLotRegisterModal()">취소</button>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div
     id="qtyModal"
@@ -796,6 +851,12 @@ th input[type="checkbox"]{
                 font-size:14px;
             ">
         </textarea>
+
+        <div id="moveLotField" style="display:none;margin-top:10px">
+            <label style="display:block;font-size:13px;color:#666;margin-bottom:6px">출고 LOT</label>
+            <select id="moveLotSelect" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px"><option value="">미분류 재고</option></select>
+            <p id="moveLotHint" style="font-size:12px;color:#777;margin:6px 0 0"></p>
+        </div>
 
         <div class="modal-buttons">
 
@@ -915,6 +976,8 @@ function moveIn(){
     }
     currentAction = "in";
 
+    document.getElementById("moveLotField").style.display = "none";
+
     document.getElementById(
         "modalTitle"
     ).innerText = "입고 수량";
@@ -924,7 +987,7 @@ function moveIn(){
     ).style.display="flex";
 }
 
-function moveOut(){
+async function moveOut(){
     if(getSelectedIds().length===0){
         wfAlert("품목을 선택하세요.");
         return;
@@ -935,9 +998,70 @@ function moveOut(){
         "modalTitle"
     ).innerText = "출고 수량";
 
-    document.getElementById(
-        "qtyModal"
-    ).style.display="flex";
+    const ids = getSelectedIds();
+    const selectedRows = Array.from(document.querySelectorAll('.rowCheck:checked'));
+    const singleRaw = selectedRows.length === 1 && selectedRows[0].closest('tr').dataset.category === '원자재';
+    const field = document.getElementById('moveLotField');
+    const select = document.getElementById('moveLotSelect');
+    field.style.display = singleRaw ? 'block' : 'none';
+    select.innerHTML = '<option value="">미분류 재고</option>';
+    document.getElementById('moveLotHint').innerText = '';
+    if(singleRaw){
+        const response = await fetch(`/stock/${ids[0]}/lots`);
+        const result = await response.json();
+        if(!response.ok){ wfAlert(result.message || 'LOT 목록을 불러오지 못했습니다.'); return; }
+        result.lots.forEach(row=>{ const option=document.createElement('option'); option.value=row.lot; option.textContent=`${row.lot} · ${row.qty} EA`; select.appendChild(option); });
+        document.getElementById('moveLotHint').innerText = `미분류 ${result.unclassified_qty} EA · 출고할 LOT를 선택하세요.`;
+        if(result.lots.length===1 && result.unclassified_qty===0) select.value=result.lots[0].lot;
+    }
+    document.getElementById("qtyModal").style.display="flex";
+}
+
+function toggleLotRows(id,button){ const row=document.getElementById(`lot-detail-${id}`); if(!row)return; const opened=row.classList.toggle('open'); button.setAttribute('aria-expanded',opened?'true':'false'); button.setAttribute('aria-label',opened?'LOT 내역 닫기':'LOT 내역 펼치기'); }
+
+function openLotRegisterChoiceModal(){ document.getElementById('lotRegisterChoiceModal').style.display='flex'; }
+function closeLotRegisterChoiceModal(){ document.getElementById('lotRegisterChoiceModal').style.display='none'; }
+function chooseDirectLotRegister(){ closeLotRegisterChoiceModal(); openLotRegisterModal(); }
+function openLotExcelUploadModal(){ closeLotRegisterChoiceModal(); document.getElementById('lotExcelUploadModal').style.display='flex'; }
+function closeLotExcelUploadModal(){ document.getElementById('lotExcelUploadModal').style.display='none'; document.getElementById('lotExcelFile').value=''; }
+
+function openLotRegisterModal(){
+    const checked = Array.from(document.querySelectorAll('.rowCheck:checked'));
+    if(checked.length !== 1){ wfAlert('LOT 등록할 원자재 품목을 한 개만 선택하세요.'); return; }
+    const row = checked[0].closest('tr');
+    if(row.dataset.category !== '원자재'){ wfAlert('LOT 등록은 원자재 품목만 가능합니다.'); return; }
+    document.getElementById('lotRegisterItem').innerText = `${row.dataset.code} · ${row.dataset.name} · ${row.dataset.grade || '-'}등급`;
+    document.getElementById('lotRegisterModal').dataset.inventoryId = checked[0].value;
+    document.getElementById('lotRegisterModal').style.display = 'flex';
+}
+
+function closeLotRegisterModal(){ document.getElementById('lotRegisterModal').style.display = 'none'; }
+
+async function submitLotRegister(){
+    const modal = document.getElementById('lotRegisterModal');
+    const payload = {
+        inventory_id: Number(modal.dataset.inventoryId),
+        lot: document.getElementById('lotRegisterLot').value.trim(),
+        qty: Number(document.getElementById('lotRegisterQty').value || 0),
+        first_received_date: document.getElementById('lotRegisterDate').value,
+        inspector: document.getElementById('lotRegisterInspector').value.trim(),
+        remark: document.getElementById('lotRegisterRemark').value.trim()
+    };
+    if(!payload.lot){ wfAlert('LOT를 입력하세요.'); return; }
+    const response = await fetch('/stock/lot-register', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    const result = await response.json();
+    if(!response.ok || result.status === 'error'){ wfAlert(result.message || 'LOT 등록에 실패했습니다.'); return; }
+    openResultModal(payload.qty > 0 ? `LOT ${payload.lot} 등록 및 ${payload.qty} EA 입고가 완료되었습니다.` : `LOT ${payload.lot} 정보가 등록되었습니다.`);
+}
+
+async function uploadLotExcel(){
+    const file=document.getElementById('lotExcelFile').files[0];
+    if(!file){ wfAlert('업로드할 엑셀 파일을 선택하세요.'); return; }
+    const formData=new FormData(); formData.append('file',file);
+    const response=await fetch('/stock/lot-upload',{method:'POST',body:formData});
+    const result=await response.json().catch(()=>({message:'서버 응답을 확인할 수 없습니다.'}));
+    if(!response.ok||result.status!=='success'){ wfAlert(result.message||'LOT 엑셀 업로드에 실패했습니다.'); return; }
+    openResultModal(result.message);
 }
 
 function confirmQty(){
@@ -967,10 +1091,13 @@ function confirmQty(){
         body:JSON.stringify({
             ids:ids,
             qty:qty,
-            remark:remark
+            remark:remark,
+            lot:currentAction==='out' && document.getElementById('moveLotField').style.display!=='none' ? document.getElementById('moveLotSelect').value : ''
         })
     })
-    .then(()=>{
+    .then(async response=>{
+        const result = await response.json();
+        if(!response.ok || result.status === 'error'){ wfAlert(result.message || '처리에 실패했습니다.'); return; }
 
         document.getElementById(
             "qtyInput"
@@ -979,6 +1106,8 @@ function confirmQty(){
         document.getElementById(
             "remarkInput"
         ).value = "";
+
+        document.getElementById("moveLotField").style.display = "none";
 
         location.reload();
     });
@@ -1037,6 +1166,7 @@ function closeModal(){
     document.getElementById(
         "qtyModal"
     ).style.display="none";
+    document.getElementById("moveLotField").style.display="none";
 
     document.getElementById(
         "qtyInput"

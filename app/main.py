@@ -29,6 +29,7 @@ from app.models import (
     activity_log,
     stock,
     stock_movement,
+    stock_lot,
     item_master_history,
     bom,
     production_plan,
@@ -75,6 +76,7 @@ import app.workflow.models
 from app.workflow.schema import ensure_workflow_schema
 from app.rental_schema import ensure_rental_schema
 from app.inventory_schema import ensure_inventory_schema
+from app.stock_schema import ensure_stock_schema
 import time
 from fastapi.responses import JSONResponse, Response
 from app.utils.access_logger import save_access_log, should_record
@@ -354,3 +356,4 @@ Base.metadata.create_all(
 ensure_workflow_schema(engine)
 ensure_rental_schema(engine)
 ensure_inventory_schema(engine)
+ensure_stock_schema(engine)

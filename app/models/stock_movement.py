@@ -1,5 +1,6 @@
 from sqlalchemy import (
     Column,
+    Date,
     Integer,
     String,
     DateTime
@@ -19,6 +20,14 @@ class StockMovement(Base):
     qty = Column(Integer)
     user = Column(String)
     source = Column(String)
+    lot = Column(String)
+    inspector = Column(String)
+    first_received_date = Column(Date)
+    grade = Column(String)
+    request_id = Column(String)
+    set_name = Column(String)
+    set_component = Column(String)
+    set_count = Column(Integer)
     created_at = Column(
         DateTime,
         default=utc_now_naive
