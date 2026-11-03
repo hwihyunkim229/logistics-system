@@ -671,4 +671,13 @@ body::-webkit-scrollbar-thumb:hover{
     .search-box{ width:100%; }
     .modal-grid,
     .form-grid{ grid-template-columns:1fr; }
+    .workflow-page{ gap:16px; }
+    .page-header{ align-items:stretch; flex-direction:column; gap:10px; }
+    .toolbar-left{ align-items:stretch; flex-direction:column; width:100%; }
+    .toolbar-left > *{ width:100%; }
+    .toolbar-left .btn{ min-height:42px; }
+    .section-header{ align-items:flex-start; padding:14px 16px; }
+    .notification-item{ align-items:flex-start; flex-direction:column; padding:14px 16px; }
+    .file-picker{ align-items:stretch; flex-direction:column; }
+    .file-picker-name{ max-width:100% !important; }
 }
