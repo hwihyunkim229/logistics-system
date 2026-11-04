@@ -233,8 +233,28 @@ class AssistantAgent:
                     "movement_type": movement_type,
                     "period": previous.get("period", "all"),
                     "limit": previous.get("limit", 1),
+                    "require_lot": bool(previous.get("require_lot") or "lot" in compact),
                 },
             }
+
+        # LOT-only wording such as "LOT 등록된 거 보여줘" or "LOT만 보여줘"
+        # is a filter on the current movement query, not a new unrelated search.
+        if (
+            context
+            and context.get("tool") in ("inventory.movement_search", "stock.movement_search")
+            and "lot" in compact
+            and not explicit_domain
+        ):
+            arguments = dict(context.get("arguments", {}))
+            arguments["require_lot"] = True
+            movement_type = extract_movement_type(text)
+            if movement_type:
+                arguments["movement_type"] = movement_type
+            if has_period_phrase:
+                arguments["period"] = followup_period
+            if "최근" in compact or any(marker in compact for marker in ("하나", "한개")):
+                arguments["limit"] = 1
+            return {"tool": context["tool"], "arguments": arguments}
 
         if (
             context

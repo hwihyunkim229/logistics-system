@@ -124,6 +124,30 @@ class AssistantPageFollowupTests(unittest.TestCase):
         self.assertEqual(selected["arguments"]["limit"], 1)
         self.assertTrue(selected["arguments"]["require_lot"])
 
+    def test_lot_only_followup_keeps_inventory_movement_context(self):
+        agent = AssistantAgent(None)
+        memory.save_context(
+            "inventory-lot-only",
+            "inventory.movement_search",
+            {"item": "", "warehouse_type": "", "movement_type": "OUT", "period": "all", "limit": 15},
+        )
+        selected = agent._resolve_follow_up("LOT만 보여줘", "inventory-lot-only")
+        self.assertEqual(selected["tool"], "inventory.movement_search")
+        self.assertEqual(selected["arguments"]["movement_type"], "OUT")
+        self.assertTrue(selected["arguments"]["require_lot"])
+
+    def test_registered_lot_followup_keeps_stock_movement_context(self):
+        agent = AssistantAgent(None)
+        memory.save_context(
+            "stock-lot-only",
+            "stock.movement_search",
+            {"item": "", "movement_type": "IN", "period": "all", "limit": 15},
+        )
+        selected = agent._resolve_follow_up("LOT 등록된 거 보여줘", "stock-lot-only")
+        self.assertEqual(selected["tool"], "stock.movement_search")
+        self.assertEqual(selected["arguments"]["movement_type"], "IN")
+        self.assertTrue(selected["arguments"]["require_lot"])
+
     def test_switching_combined_query_to_inventory_keeps_filters(self):
         agent = AssistantAgent(None)
         memory.save_context(

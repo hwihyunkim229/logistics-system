@@ -1002,6 +1002,7 @@ def stock_movement_search(
     movement_type: str = "",
     period: str = "all",
     limit: int = MAX_ROWS,
+    require_lot: bool = False,
 ):
     keyword = _keyword(item)
     query = db.query(StockMovement)
@@ -1019,6 +1020,12 @@ def stock_movement_search(
         query = query.filter(StockMovement.movement_type == movement_type)
     else:
         query = query.filter(StockMovement.movement_type.in_(("IN", "OUT")))
+
+    if require_lot:
+        query = query.filter(
+            StockMovement.lot.isnot(None),
+            func.trim(StockMovement.lot) != "",
+        )
 
     start, end = _period_range(period)
 
@@ -1046,6 +1053,7 @@ def stock_movement_search(
                 "movement_type": row.movement_type,
                 "qty": row.qty or 0,
                 "user": row.user,
+                "lot": row.lot,
             }
             for row in rows[:limit]
         ],

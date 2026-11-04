@@ -1085,6 +1085,18 @@ def resolve_tool(question):
         )
         limit = 1 if asks_single else 15
 
+        if "가계상" in text:
+            return {
+                "tool": "stock.movement_search",
+                "arguments": {
+                    "item": "",
+                    "movement_type": movement_type,
+                    "period": period,
+                    "limit": limit,
+                    "require_lot": "lot" in text,
+                }
+            }
+
         if has_inventory_context(text) or "lot" in text:
             return {
                 "tool": "inventory.movement_search",
@@ -1095,17 +1107,6 @@ def resolve_tool(question):
                     "period": period,
                     "limit": limit,
                     "require_lot": "lot" in text,
-                }
-            }
-
-        if "가계상" in text:
-            return {
-                "tool": "stock.movement_search",
-                "arguments": {
-                    "item": "",
-                    "movement_type": movement_type,
-                    "period": period,
-                    "limit": limit,
                 }
             }
 

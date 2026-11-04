@@ -236,6 +236,12 @@ class AssistantRoutingTests(unittest.TestCase):
         self.assertTrue(result["arguments"]["require_lot"])
         self.assertEqual(result["arguments"]["limit"], 1)
 
+    def test_explicit_book_stock_lot_question_stays_in_book_stock(self):
+        result = resolve_tool("가계상 재고에서 최근 입고된 LOT 보여줘")
+        self.assertEqual(result["tool"], "stock.movement_search")
+        self.assertEqual(result["arguments"]["movement_type"], "IN")
+        self.assertTrue(result["arguments"]["require_lot"])
+
     def test_ambiguous_stock_question_requests_clarification(self):
         result = resolve_tool("재고 현황 알려줘")
         self.assertEqual(result["tool"], "assistant.clarify")
