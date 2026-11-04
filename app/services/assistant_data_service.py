@@ -13,6 +13,7 @@ from app.models.activity_log import ActivityLog
 from app.models.bom import BOM
 from app.models.inbound import Inbound
 from app.models.inventory import Inventory
+from app.models.inventory_lot import InventoryLot
 from app.models.inventory_movement import InventoryMovement
 from app.models.item import Item
 from app.models.item_master import ItemMaster
@@ -25,6 +26,7 @@ from app.models.production_plan import ProductionPlan
 from app.models.rental_movement import RentalMovement
 from app.models.rental_stock import RentalStock
 from app.models.stock import Stock
+from app.models.stock_lot import StockLot
 from app.models.stock_movement import StockMovement
 from app.models.user import User
 from app.workflow.models.workflow_item import WorkflowItem
@@ -168,44 +170,27 @@ def rental_movement_search(db, item: str = "", movement_type: str = "", period: 
     }
 
 @tool("inventory.lot_summary")
-def inventory_lot_summary(db, limit: int = MAX_ROWS):
+def inventory_lot_summary(db, limit: int = MAX_ROWS, sort: str = "lot"):
     limit = max(1, min(int(limit or MAX_ROWS), 30))
-    base_filter = (
-        Inventory.lot.isnot(None),
-        func.trim(Inventory.lot) != "",
-    )
     query = (
         db.query(
-            Inventory.lot,
-            Inventory.item_code,
+            InventoryLot.lot,
+            InventoryLot.item_code,
             Inventory.item_name,
-            Inventory.warehouse_type,
+            InventoryLot.warehouse_type,
             Inventory.category,
-            func.sum(Inventory.qty).label("qty"),
+            InventoryLot.qty,
+            InventoryLot.created_at,
         )
-        .filter(*base_filter)
-        .group_by(
-            Inventory.lot,
-            Inventory.item_code,
-            Inventory.item_name,
-            Inventory.warehouse_type,
-            Inventory.category,
-        )
-        .order_by(Inventory.lot, Inventory.item_code)
+        .join(Inventory, Inventory.id == InventoryLot.inventory_id)
     )
+    if sort == "recent":
+        query = query.order_by(InventoryLot.created_at.desc(), InventoryLot.id.desc())
+    else:
+        query = query.order_by(InventoryLot.lot, InventoryLot.item_code)
     rows = query.limit(limit + 1).all()
-    total_lots = (
-        db.query(func.count(distinct(Inventory.lot)))
-        .filter(*base_filter)
-        .scalar()
-        or 0
-    )
-    total_qty = (
-        db.query(func.coalesce(func.sum(Inventory.qty), 0))
-        .filter(*base_filter)
-        .scalar()
-        or 0
-    )
+    total_lots = db.query(func.count(distinct(InventoryLot.lot))).scalar() or 0
+    total_qty = db.query(func.coalesce(func.sum(InventoryLot.qty), 0)).scalar() or 0
     return {
         "status": "rows" if rows else "none",
         "domain": "inventory_lot",
@@ -221,6 +206,49 @@ def inventory_lot_summary(db, limit: int = MAX_ROWS):
                 "warehouse_type": row.warehouse_type,
                 "category": row.category,
                 "qty": row.qty or 0,
+                "created_at": format_kst(row.created_at, "%Y-%m-%d %H:%M"),
+            }
+            for row in rows[:limit]
+        ],
+    }
+
+@tool("stock.lot_summary")
+def stock_lot_summary(db, limit: int = MAX_ROWS, sort: str = "lot"):
+    limit = max(1, min(int(limit or MAX_ROWS), 30))
+    query = (
+        db.query(
+            StockLot.lot,
+            StockLot.item_code,
+            Stock.item_name,
+            Stock.category,
+            StockLot.qty,
+            StockLot.created_at,
+        )
+        .join(Stock, Stock.id == StockLot.stock_id)
+    )
+    if sort == "recent":
+        query = query.order_by(StockLot.created_at.desc(), StockLot.id.desc())
+    else:
+        query = query.order_by(StockLot.lot, StockLot.item_code)
+    rows = query.limit(limit + 1).all()
+    total_lots = db.query(func.count(distinct(StockLot.lot))).scalar() or 0
+    total_qty = db.query(func.coalesce(func.sum(StockLot.qty), 0)).scalar() or 0
+    return {
+        "status": "rows" if rows else "none",
+        "domain": "stock_lot",
+        "message": "현재 가계상 재고에 등록된 LOT 데이터가 없습니다." if not rows else "",
+        "total_rows": int(total_lots),
+        "total_qty": int(total_qty),
+        "truncated": len(rows) > limit,
+        "requested_limit": limit,
+        "rows": [
+            {
+                "lot": row.lot,
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "category": row.category,
+                "qty": row.qty or 0,
+                "created_at": format_kst(row.created_at, "%Y-%m-%d %H:%M"),
             }
             for row in rows[:limit]
         ],

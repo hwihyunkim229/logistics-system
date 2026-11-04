@@ -242,6 +242,25 @@ class AssistantRoutingTests(unittest.TestCase):
         self.assertEqual(result["arguments"]["movement_type"], "IN")
         self.assertTrue(result["arguments"]["require_lot"])
 
+    def test_recent_registered_lot_requires_inventory_domain_choice(self):
+        result = resolve_tool("최근 등록된 LOT 알려줘")
+        self.assertEqual(result["tool"], "assistant.clarify")
+        choices = result["arguments"]["choices"]
+        self.assertEqual([choice["tool"] for choice in choices], [
+            "inventory.lot_summary", "stock.lot_summary",
+        ])
+        self.assertTrue(all(choice["arguments"]["limit"] == 1 for choice in choices))
+        self.assertTrue(all(choice["arguments"]["sort"] == "recent" for choice in choices))
+
+    def test_explicit_recent_registered_lot_uses_requested_inventory_domain(self):
+        inventory = resolve_tool("수불재고에서 최근 등록된 LOT 알려줘")
+        self.assertEqual(inventory["tool"], "inventory.lot_summary")
+        self.assertEqual(inventory["arguments"], {"limit": 1, "sort": "recent"})
+
+        stock = resolve_tool("가계상 재고에서 최근 등록된 LOT 알려줘")
+        self.assertEqual(stock["tool"], "stock.lot_summary")
+        self.assertEqual(stock["arguments"], {"limit": 1, "sort": "recent"})
+
     def test_ambiguous_stock_question_requests_clarification(self):
         result = resolve_tool("재고 현황 알려줘")
         self.assertEqual(result["tool"], "assistant.clarify")

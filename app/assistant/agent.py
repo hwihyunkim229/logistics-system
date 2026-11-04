@@ -44,7 +44,7 @@ GENERIC_FALLBACK_TOOLS = {
 
 CONTEXT_PRESERVING_TOOLS = {
     "inventory.search", "inventory.lot_summary", "inventory.movement_search",
-    "stock.summary", "stock.movement_search", "stock.combined_movement_search",
+    "stock.summary", "stock.lot_summary", "stock.movement_search", "stock.combined_movement_search",
     "logistics.flow_count", "rental.summary", "rental.movement_search",
     "mrp.shortage_search", "mrp.shortage_summary", "mrp.dashboard",
     "bom.detail", "production.plan", "production.products",

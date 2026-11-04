@@ -555,6 +555,7 @@ def _domain_label(domain):
         "rental_stock": "대여 재고",
         "rental_movement": "대여 재고 입출고 이력",
         "inventory_lot": "수불 재고 LOT",
+        "stock_lot": "가계상 재고 LOT",
     }.get(domain, "데이터")
 
 def _format_row(domain, row):
@@ -578,11 +579,12 @@ def _format_row(domain, row):
             f"{f' [{extra}]' if extra else ''}: {row['qty']:,} EA"
         )
 
-    if domain == "inventory_lot":
+    if domain in ("inventory_lot", "stock_lot"):
         return (
+            f"{row.get('created_at') + ' · ' if row.get('created_at') else ''}"
             f"LOT {row.get('lot') or '-'} · "
             f"{row.get('item_name') or '-'} ({row.get('item_code') or '-'}) · "
-            f"{row.get('warehouse_type') or '-'} · {row.get('qty', 0):,} EA"
+            f"{(row.get('warehouse_type') or row.get('category') or '-')} · {row.get('qty', 0):,} EA"
         )
 
     if domain == "bom":

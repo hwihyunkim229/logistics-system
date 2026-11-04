@@ -696,11 +696,14 @@ def resolve_tool(question):
                 "choices": mixed_choices,
             }}
 
-    explicit_inventory = has_inventory_context(text)
+    inventory_context = has_inventory_context(text)
     after_malgo = compact_text.split("말고", 1)[1] if "말고" in compact_text else ""
     preferred_inventory = bool(after_malgo and any(marker in after_malgo for marker in ("수불", "창고", "외주", "제공")))
     preferred_stock = bool(after_malgo and "가계상" in after_malgo)
     explicit_stock = "가계상" in text and not preferred_inventory
+    # "가계상재고" contains the substring "계상재고" used by the legacy
+    # inventory detector, so an explicit book-stock request must win.
+    explicit_inventory = inventory_context and not explicit_stock
     explicit_logistics = contains_any(text, ("제품 물류", "제품물류", "시리얼"))
 
     ambiguous_days = bare_day_count(question)
@@ -767,14 +770,25 @@ def resolve_tool(question):
 
     if (
         "lot" in text
-        and has_inventory_context(text)
-        and contains_any(text, ("현황", "목록", "보여", "알려", "조회"))
+        and contains_any(text, ("등록", "최근", "최신", "현황", "목록", "보여", "알려", "조회"))
         and not contains_any(text, ("입고", "출고", "입출고"))
         and not re.search(r"lot\s*[A-Za-z]*\d+", question or "", re.IGNORECASE)
     ):
+        recent = contains_any(text, ("최근", "최신"))
+        args = {"limit": 1 if recent else 15, "sort": "recent" if recent else "lot"}
+        if explicit_inventory:
+            return {"tool": "inventory.lot_summary", "arguments": args}
+        if explicit_stock:
+            return {"tool": "stock.lot_summary", "arguments": args}
         return {
-            "tool": "inventory.lot_summary",
-            "arguments": {}
+            "tool": "assistant.clarify",
+            "arguments": {
+                "prompt": "어느 재고의 LOT를 확인할까요?",
+                "choices": [
+                    {"label": "수불 재고 LOT", "tool": "inventory.lot_summary", "arguments": args},
+                    {"label": "가계상 재고 LOT", "tool": "stock.lot_summary", "arguments": args},
+                ],
+            },
         }
 
     workflow_department = extract_workflow_department(text)
