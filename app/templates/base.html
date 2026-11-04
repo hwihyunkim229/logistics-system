@@ -753,12 +753,12 @@ html.sidebar-collapsed-preload .main{
 }
 </style>
 
-<link rel="stylesheet" href="/static/css/app-modern.css?v=20261103-1">
+<link rel="stylesheet" href="/static/css/app-modern.css?v=20261104-1">
 
 <link rel="preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"></noscript>
 <link rel="stylesheet" href="/static/css/multi-filter.css?v=20260910-1">
-<script defer src="/static/js/multi-filter.js?v=20260910-1"></script>
+<script defer src="/static/js/multi-filter.js?v=20261104-1"></script>
 </head>
 
 {% set state_data = request.scope.get("state", {}) %}
@@ -1170,7 +1170,7 @@ document.addEventListener("keydown", function (event) {
 {% include "assistant/assistant.html" %}
 <!-- Re-apply the shared layer after page-level legacy styles. The same file is
      already loaded in <head>, so the browser reuses its cached response. -->
-<link rel="stylesheet" href="/static/css/app-modern.css?v=20261103-1">
+<link rel="stylesheet" href="/static/css/app-modern.css?v=20261104-1">
 <script>
 document.addEventListener("DOMContentLoaded", function () {
     const sidebar = document.querySelector(".sidebar");
@@ -1184,6 +1184,8 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelectorAll(".sidebar a[href]").forEach(function (link) {
         link.addEventListener("click", function () {
             if (!window.matchMedia("(max-width: 768px)").matches) return;
+            const href = (link.getAttribute("href") || "").trim();
+            if (link.classList.contains("menu-parent") || !href || href.startsWith("javascript:") || href.startsWith("#")) return;
             sidebar.classList.remove("mobile-open");
             document.body.classList.remove("mobile-nav-open");
         });

@@ -774,10 +774,18 @@ button.page-tab {
     .sidebar.collapsed,
     html.sidebar-collapsed-preload .sidebar {
         width:min(84vw, 300px) !important;
+        height:100dvh !important;
+        max-height:100dvh;
         transform:translateX(-105%);
         transition:transform .22s ease !important;
         box-shadow:0 18px 50px rgba(3,18,20,.28);
         padding-top:max(16px, env(safe-area-inset-top)) !important;
+        padding-bottom:calc(24px + env(safe-area-inset-bottom)) !important;
+        overflow-x:hidden !important;
+        overflow-y:auto !important;
+        overscroll-behavior:contain;
+        -webkit-overflow-scrolling:touch;
+        touch-action:pan-y;
     }
     .sidebar.mobile-open { transform:translateX(0); }
     .sidebar.collapsed h3,

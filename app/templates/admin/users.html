@@ -327,7 +327,17 @@
     font-weight:800;
     cursor:pointer;
 }
-@media(max-width:720px){.permission-panel{padding:14px}.permission-summary{width:100%;margin-left:0}}
+@media(max-width:720px){
+    .admin-page{gap:14px}
+    .admin-card{padding:18px 14px;border-radius:16px;overflow:visible}
+    .permission-panel{padding:14px}
+    .permission-summary{width:100%;margin-left:0}
+    .user-table-wrap{width:100%;max-width:100%;overflow-x:auto;border-radius:12px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+    .user-table{min-width:650px;border-radius:12px}
+    .user-table thead th{padding:14px 16px}
+    .user-table tbody td{padding:16px}
+    .action-wrap{justify-content:flex-start;white-space:nowrap}
+}
 </style>
 
 <div class="admin-page">

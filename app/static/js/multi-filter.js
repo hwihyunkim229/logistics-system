@@ -14,6 +14,7 @@
         }
     };
     function enhance(select) {
+        let viewportWidth = window.innerWidth;
         const param = select.dataset.filterParam || select.name;
         const local = select.hasAttribute('data-filter-local');
         const auto = !!select.getAttribute('onchange');
@@ -98,7 +99,7 @@
             const height = Math.min(340, window.innerHeight - 24);
             panel.style.maxHeight = height + 'px';
             panel.style.top = Math.max(12, Math.min(rect.bottom + 6, window.innerHeight - height - 12)) + 'px';
-            search.focus();
+            if (!window.matchMedia('(max-width: 768px)').matches) search.focus();
         });
         search.addEventListener('input', render);
         clear.addEventListener('click', () => { draft.clear(); render(); });
@@ -124,7 +125,12 @@
         panel.addEventListener('focusout', event => {
             if (event.relatedTarget && !panel.contains(event.relatedTarget) && event.relatedTarget !== trigger) close();
         });
-        window.addEventListener('resize', () => close());
+        window.addEventListener('resize', () => {
+            // A mobile software keyboard changes the viewport height only.
+            const nextWidth = window.innerWidth;
+            if (Math.abs(nextWidth - viewportWidth) > 2) close();
+            viewportWidth = nextWidth;
+        });
 
         select.addEventListener('change', refresh);
         new MutationObserver(refresh).observe(select, {childList:true, subtree:true, attributes:true, attributeFilter:['disabled']});
