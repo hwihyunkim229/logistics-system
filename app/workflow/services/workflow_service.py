@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.workflow.services.request_service import create_request
 from app.workflow.services.approval_service import approve_request
@@ -59,15 +60,25 @@ class WorkflowService:
     def __init__(self, db: Session):
         self.db = db
 
-    def _next_workflow_seq(self):
+    def _next_workflow_seq(self, date_key: str):
+        counter_key = f"workflow_no:{date_key}"
         counter = (
             self.db.query(WorkflowCounter)
-            .filter(WorkflowCounter.key == "workflow_no")
+            .filter(WorkflowCounter.key == counter_key)
             .first()
         )
 
         if counter is None:
-            counter = WorkflowCounter(key="workflow_no", value=0)
+            latest_no = (
+                self.db.query(func.max(WorkflowItem.workflow_no))
+                .filter(WorkflowItem.workflow_no.like(f"WF-{date_key}-%"))
+                .scalar()
+            )
+            try:
+                initial_value = int(latest_no.rsplit("-", 1)[1]) if latest_no else 0
+            except (ValueError, IndexError):
+                initial_value = 0
+            counter = WorkflowCounter(key=counter_key, value=initial_value)
             self.db.add(counter)
             self.db.flush()
 
@@ -95,6 +106,78 @@ class WorkflowService:
         requested_by: str,
         remark: str = "",
     ):
+        item = self._get_item(workflow_no)
+
+        if item.current_stage != int(WorkflowStage.PURCHASE_RECEIVED):
+            raise ValueError("구매 입고 단계의 항목만 수입 검사를 의뢰할 수 있습니다.")
+
+        if item.status != "IN_PROGRESS":
+            raise ValueError("진행 중인 Workflow만 수입 검사를 의뢰할 수 있습니다.")
+
+        before_qty = item.qty or 0
+        if qty < 1 or qty > before_qty:
+            raise ValueError("검사 의뢰 수량은 현재 입고 수량 이하여야 합니다.")
+
+        if qty < before_qty:
+            remaining_qty = before_qty - qty
+            now = datetime.now(ZoneInfo("Asia/Seoul"))
+            today = now.strftime("%Y%m%d")
+            remaining_item = WorkflowItem(
+                workflow_no="TEMP",
+                item_code=item.item_code,
+                item_name=item.item_name,
+                purchase_item_code=item.purchase_item_code or item.item_code,
+                purchase_item_name=item.purchase_item_name or item.item_name,
+                lot=item.lot,
+                purchase_lot=item.purchase_lot or item.lot,
+                rev=item.rev,
+                qty=remaining_qty,
+                initial_qty=remaining_qty,
+                process_qty=0,
+                received_at=item.received_at,
+                current_stage=int(WorkflowStage.PURCHASE_RECEIVED),
+                current_department="purchase",
+                status="IN_PROGRESS",
+                created_by=requested_by,
+                service_type=item.service_type,
+            )
+            self.db.add(remaining_item)
+            self.db.flush()
+            seq = self._next_workflow_seq(today)
+            remaining_item.workflow_no = f"WF-{today}-{seq:06d}"
+
+            item.qty = qty
+            item.initial_qty = qty
+            item.updated_at = now
+
+            add_history(
+                self.db,
+                workflow_no=item.workflow_no,
+                stage=int(WorkflowStage.PURCHASE_RECEIVED),
+                action="SPLIT_OUT",
+                user_name=requested_by,
+                department="purchase",
+                before_qty=before_qty,
+                after_qty=qty,
+                remark=(
+                    f"수입 검사 부분 의뢰: {qty} EA / "
+                    f"구매 잔량 {remaining_qty} EA를 "
+                    f"{remaining_item.workflow_no}로 분리"
+                ),
+            )
+            add_history(
+                self.db,
+                workflow_no=remaining_item.workflow_no,
+                stage=int(WorkflowStage.PURCHASE_RECEIVED),
+                action="SPLIT_FROM",
+                user_name=requested_by,
+                department="purchase",
+                before_qty=0,
+                after_qty=remaining_qty,
+                remark=(
+                    f"{item.workflow_no} 수입 검사 부분 의뢰 잔량에서 분리"
+                ),
+            )
 
         return create_request(
             db=self.db,
@@ -188,6 +271,78 @@ class WorkflowService:
             next_stage=int(WorkflowStage.PACKAGING_REQUEST),
         )
 
+    def split_request_remainder(
+        self,
+        item: WorkflowItem,
+        request_qty: int,
+        remainder_stage: int,
+        created_by: str,
+    ):
+        before_qty = item.qty or 0
+        remaining_qty = before_qty - request_qty
+        if remaining_qty <= 0:
+            return None
+
+        now = datetime.now(ZoneInfo("Asia/Seoul"))
+        today = now.strftime("%Y%m%d")
+        remaining_item = WorkflowItem(
+            workflow_no="TEMP",
+            item_code=item.item_code,
+            item_name=item.item_name,
+            purchase_item_code=item.purchase_item_code,
+            purchase_item_name=item.purchase_item_name,
+            purchase_lot=item.purchase_lot,
+            lot=item.lot,
+            rev=item.rev,
+            qty=remaining_qty,
+            initial_qty=remaining_qty,
+            process_qty=remaining_qty,
+            received_at=item.received_at,
+            prev_item_code=item.prev_item_code,
+            prev_item_name=item.prev_item_name,
+            prev_lot=item.prev_lot,
+            current_stage=remainder_stage,
+            current_department="material",
+            status="IN_PROGRESS",
+            created_by=created_by,
+            service_type=item.service_type,
+        )
+        self.db.add(remaining_item)
+        self.db.flush()
+        seq = self._next_workflow_seq(today)
+        remaining_item.workflow_no = f"WF-{today}-{seq:06d}"
+        item.qty = request_qty
+        if item.process_qty:
+            item.process_qty = request_qty
+        item.updated_at = now
+
+        add_history(
+            self.db,
+            workflow_no=item.workflow_no,
+            stage=item.current_stage,
+            action="SPLIT_OUT",
+            user_name=created_by,
+            department="material",
+            before_qty=before_qty,
+            after_qty=request_qty,
+            remark=(
+                f"부분 요청 {request_qty} EA / 잔량 {remaining_qty} EA를 "
+                f"{remaining_item.workflow_no}로 분리"
+            ),
+        )
+        add_history(
+            self.db,
+            workflow_no=remaining_item.workflow_no,
+            stage=remainder_stage,
+            action="SPLIT_FROM",
+            user_name=created_by,
+            department="material",
+            before_qty=0,
+            after_qty=remaining_qty,
+            remark=f"{item.workflow_no} 부분 요청 잔량에서 분리",
+        )
+        return remaining_item
+
     def approve(
         self,
         request_id: int,
@@ -279,8 +434,9 @@ class WorkflowService:
         self.db.add(item)
         self.db.flush()
 
-        seq = self._next_workflow_seq()
-        today = datetime.now().strftime("%Y%m%d")
+        now = datetime.now(ZoneInfo("Asia/Seoul"))
+        today = now.strftime("%Y%m%d")
+        seq = self._next_workflow_seq(today)
         item.workflow_no = f"WF-{today}-{seq:06d}"
 
         add_history(
@@ -357,8 +513,8 @@ class WorkflowService:
 
         self.db.add(item)
         self.db.flush()
-        seq = self._next_workflow_seq()
         today = now.strftime("%Y%m%d")
+        seq = self._next_workflow_seq(today)
         item.workflow_no = f"WF-{today}-{seq:06d}"
         remnant.qty = available_qty - qty
 
@@ -437,6 +593,7 @@ class WorkflowService:
         self,
         workflow_no: str,
         rejected_by: str,
+        reject_type: str = "REWORK",
         remark: str = "",
     ):
         item = self._get_item(workflow_no)
@@ -449,6 +606,45 @@ class WorkflowService:
                 f"반려할 수 없는 단계입니다. "
                 f"(현재: {get_stage_name(item.current_stage)})"
             )
+
+        if (
+            redone_stage in (
+                int(WorkflowStage.QUALITY_INSPECTION),
+                int(WorkflowStage.PROCESS_INSPECTION),
+            )
+            and reject_type == "PHYSICAL_MISMATCH"
+        ):
+            item.current_department = "quality"
+            item.updated_at = datetime.now(ZoneInfo("Asia/Seoul"))
+
+            add_history(
+                self.db,
+                workflow_no=workflow_no,
+                stage=redone_stage,
+                action="HOLD",
+                user_name=rejected_by,
+                department="material",
+                before_qty=item.qty,
+                after_qty=item.qty,
+                remark=(remark or "실물/인계 수량 불일치") + " (검사 결과 유지)",
+                result="PENDING_CORRECTION",
+            )
+            add_notification(
+                self.db,
+                workflow_no=workflow_no,
+                department="quality",
+                title="실물 불일치 조치 요청",
+                message=(
+                    f"{workflow_no} 자재 확인 중 실물 불일치가 확인되었습니다. "
+                    f"{get_stage_name(redone_stage)} 결과는 유지되며 "
+                    "실물 확인 및 조치가 필요합니다."
+                    + (f" 사유: {remark}" if remark else "")
+                ),
+                notification_type="PHYSICAL_MISMATCH",
+            )
+            self.db.commit()
+            self.db.refresh(item)
+            return item
 
         redo_department = get_department(rollback_stage + 1)
         before_qty = item.qty
@@ -1413,18 +1609,53 @@ class WorkflowService:
             raise Exception("출고 수량이 올바르지 않습니다.")
 
         before_qty = item.qty
+        remaining_qty = before_qty - ship_qty
+        remaining_item = None
 
-        add_remnant(
-            self.db,
-            workflow_no=workflow_no,
-            stage=int(WorkflowStage.SERVICE_SHIPMENT),
-            department="material",
-            item_code=item.item_code,
-            item_name=item.item_name,
-            lot=item.lot,
-            qty=before_qty - ship_qty,
-            reason="PARTIAL_SHIP",
-        )
+        if remaining_qty > 0:
+            now = datetime.now(ZoneInfo("Asia/Seoul"))
+            today = now.strftime("%Y%m%d")
+            remaining_item = WorkflowItem(
+                workflow_no="TEMP",
+                item_code=item.item_code,
+                item_name=item.item_name,
+                purchase_item_code=item.purchase_item_code,
+                purchase_item_name=item.purchase_item_name,
+                purchase_lot=item.purchase_lot,
+                lot=item.lot,
+                rev=item.rev,
+                qty=remaining_qty,
+                initial_qty=remaining_qty,
+                process_qty=remaining_qty,
+                received_at=item.received_at,
+                prev_item_code=item.prev_item_code,
+                prev_item_name=item.prev_item_name,
+                prev_lot=item.prev_lot,
+                current_stage=int(WorkflowStage.MATERIAL_FINAL_CONFIRM),
+                current_department="material",
+                status="IN_PROGRESS",
+                created_by=shipped_by,
+                service_type=item.service_type,
+            )
+            self.db.add(remaining_item)
+            self.db.flush()
+            seq = self._next_workflow_seq(today)
+            remaining_item.workflow_no = f"WF-{today}-{seq:06d}"
+
+            add_history(
+                self.db,
+                workflow_no=remaining_item.workflow_no,
+                stage=int(WorkflowStage.MATERIAL_FINAL_CONFIRM),
+                action="SPLIT_FROM",
+                user_name=shipped_by,
+                department="material",
+                before_qty=0,
+                after_qty=remaining_qty,
+                remark=(
+                    f"{workflow_no} 부분 출고 잔량에서 분리 "
+                    f"({remaining_qty} EA)"
+                ),
+            )
 
         item.current_stage = int(WorkflowStage.SERVICE_SHIPMENT)
         item.current_department = "material"
@@ -1441,7 +1672,15 @@ class WorkflowService:
             department="material",
             before_qty=before_qty,
             after_qty=ship_qty,
-            remark=remark or f"제품 출고 완료 ({ship_qty} EA)",
+            remark=(
+                remark
+                or (
+                    f"부분 출고 완료 ({ship_qty} EA) / 잔량 {remaining_qty} EA "
+                    f"-> {remaining_item.workflow_no}"
+                    if remaining_item
+                    else f"제품 출고 완료 ({ship_qty} EA)"
+                )
+            ),
         )
 
         add_notification(

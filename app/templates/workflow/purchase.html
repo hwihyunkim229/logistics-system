@@ -190,15 +190,32 @@
             <td>
                 {% if item.current_stage <= 2 %}
                 <button
+                    type="button"
                     class="btn btn-secondary btn-sm"
                     data-workflow="{{ item.workflow_no }}"
                     data-code="{{ item.purchase_display_code }}"
                     data-name="{{ item.purchase_display_name }}"
                     data-lot="{{ item.purchase_display_lot or '' }}"
+                    data-qty="{{ item.initial_qty or item.qty }}"
+                    data-can-edit-qty="{{ 'true' if item.purchase_can_edit_qty else 'false' }}"
                     data-received="{{ item.purchase_received_at.strftime('%Y-%m-%dT%H:%M') if item.purchase_received_at else '' }}"
-                    onclick="openItemEditModal(this.dataset.workflow, this.dataset.code, this.dataset.name, this.dataset.lot, this.dataset.received)">
+                    onclick="openItemEditModal(this.dataset.workflow, this.dataset.code, this.dataset.name, this.dataset.lot, this.dataset.qty, this.dataset.canEditQty, this.dataset.received)">
                     수정
                 </button>
+                {% endif %}
+                {% if item.purchase_can_delete %}
+                <form method="post" action="/workflow/purchase/delete" style="display:inline;">
+                    <input type="hidden" name="workflow_no" value="{{ item.workflow_no }}">
+                    <button
+                        type="submit"
+                        class="btn btn-danger btn-sm"
+                        data-workflow="{{ item.workflow_no }}"
+                        data-code="{{ item.purchase_display_code }}"
+                        data-lot="{{ item.purchase_display_lot or '-' }}"
+                        onclick="confirmWorkflowDelete(event, this)">
+                        삭제
+                    </button>
+                </form>
                 {% endif %}
             </td>
         </tr>
@@ -421,10 +438,10 @@ function requestSelected(){
 let requestQueue = [];
 let requestQueueIndex = 0;
 
-function openNextRequestModal(){
+async function openNextRequestModal(){
     const row = requestQueue[requestQueueIndex];
     if(!row){
-        wfAlert("선택한 항목의 수입 검사 의뢰가 완료되었습니다.");
+        await wfAlert("선택한 항목의 수입 검사 의뢰가 완료되었습니다.");
         // 엑셀 업로드 완료 메시지처럼 기존 URL에 남아 있는 쿼리값을
         // 재사용하지 않도록 구매 기본 화면으로 이동한다.
         window.location.href = "/workflow/purchase";
@@ -831,6 +848,11 @@ document.addEventListener("DOMContentLoaded", function(){
             </div>
 
             <div class="modal-row">
+                <label>입고 수량</label>
+                <input id="editQty" name="qty" type="number" min="1" step="1" required>
+            </div>
+
+            <div class="modal-row">
                 <label>입고 일자</label>
                 <input id="editReceivedAt" name="received_at" type="datetime-local">
             </div>
@@ -844,12 +866,33 @@ document.addEventListener("DOMContentLoaded", function(){
 </div>
 
 <script>
-function openItemEditModal(workflowNo, itemCode, itemName, lot, receivedAt){
+async function confirmWorkflowDelete(event, button){
+    event.preventDefault();
+    const workflow = button.dataset.workflow;
+    const code = button.dataset.code;
+    const lot = button.dataset.lot;
+    const confirmed = await wfConfirm(
+        workflow + "\n품목코드: " + code + "\nLOT: " + lot
+        + "\n\n이 구매 입고 건을 삭제하시겠습니까?",
+        "구매 입고 삭제",
+        "삭제"
+    );
+
+    if (confirmed) {
+        button.disabled = true;
+        button.form.submit();
+    }
+}
+
+function openItemEditModal(workflowNo, itemCode, itemName, lot, qty, canEditQty, receivedAt){
     document.getElementById("editWorkflowNo").value = workflowNo;
     document.getElementById("editWorkflowDisplay").value = workflowNo;
     document.getElementById("editItemCode").value = itemCode;
     document.getElementById("editItemName").value = itemName;
     document.getElementById("editLot").value = lot;
+    const qtyInput = document.getElementById("editQty");
+    qtyInput.value = qty;
+    qtyInput.readOnly = canEditQty !== "true";
     document.getElementById("editReceivedAt").value = receivedAt;
     document.getElementById("itemEditModal").style.display = "flex";
 }
@@ -857,6 +900,7 @@ function openItemEditModal(workflowNo, itemCode, itemName, lot, receivedAt){
 function validateItemEdit(){
     const code = document.getElementById("editItemCode").value.trim();
     const name = document.getElementById("editItemName").value.trim();
+    const qty = Number(document.getElementById("editQty").value);
 
     if (!code){
         wfAlert("품목 코드를 입력해주세요.");
@@ -865,6 +909,11 @@ function validateItemEdit(){
 
     if (!name){
         wfAlert("품명을 입력해주세요.");
+        return false;
+    }
+
+    if (!Number.isInteger(qty) || qty < 1){
+        wfAlert("입고 수량은 1개 이상의 정수로 입력해주세요.");
         return false;
     }
 

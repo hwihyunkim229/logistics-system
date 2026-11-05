@@ -39,6 +39,47 @@ KST = ZoneInfo("Asia/Seoul")
 def now_kst_str():
     return datetime.now(KST).strftime("%Y-%m-%d %H:%M")
 
+def get_mrp_result_range(request: Request):
+    mode = (request.query_params.get("range_mode") or "").strip()
+    if not mode:
+        mode = (request.query_params.get("projection_months") or "6").strip()
+    if mode not in {"3", "6", "12", "custom"}:
+        mode = "6"
+
+    start_text = (request.query_params.get("start_date") or "").strip()
+    end_text = (request.query_params.get("end_date") or "").strip()
+    start_value = None
+    end_value = None
+    error = ""
+
+    if mode == "custom":
+        try:
+            start_value = date.fromisoformat(start_text)
+            end_value = date.fromisoformat(end_text)
+        except ValueError:
+            error = "직접 선택 기간의 시작일과 종료일을 확인해 주세요."
+        if not start_text or not end_text:
+            error = "직접 선택 시 시작일과 종료일을 모두 입력해 주세요."
+        elif start_value and end_value and start_value > end_value:
+            error = "시작일은 종료일보다 늦을 수 없습니다."
+
+    return {
+        "mode": mode,
+        "start_text": start_text,
+        "end_text": end_text,
+        "start": start_value if not error else None,
+        "end": end_value if not error else None,
+        "error": error,
+    }
+
+def plans_in_date_range(plans, start_value, end_value):
+    if start_value is None or end_value is None:
+        return plans
+    return [
+        plan for plan in plans
+        if start_value <= plan.plan_date <= end_value
+    ]
+
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
@@ -2647,18 +2688,14 @@ def mrp_result(
     year = filter_ints(request, "year")
     month = filter_ints(request, "month")
     week = filter_ints(request, "week")
-    projection_months = request.query_params.get(
-        "projection_months",
-        "6"
-    )
+    range_filter = get_mrp_result_range(request)
+    range_mode = range_filter["mode"]
+    custom_start = range_filter["start"]
+    custom_end = range_filter["end"]
+    projection_months = int(range_mode) if range_mode != "custom" else 1
 
-    try:
-        projection_months = int(projection_months)
-    except (TypeError, ValueError):
-        projection_months = 6
-
-    if projection_months not in {3, 6, 12}:
-        projection_months = 6
+    if range_mode == "custom":
+        year, month, week = [], [], []
 
     q = request.query_params.get(
         "q",
@@ -2676,6 +2713,13 @@ def mrp_result(
         db.query(ProductionPlan)
         .all()
     )
+    plans_for_calculation = plans_in_date_range(
+        plans_for_filter,
+        custom_start,
+        custom_end,
+    )
+    if range_mode == "custom" and range_filter["error"]:
+        plans_for_calculation = []
 
     years = sorted(
         {
@@ -2737,7 +2781,7 @@ def mrp_result(
         year=year,
         month=month,
         week=week,
-        all_plans=plans_for_filter,
+        all_plans=plans_for_calculation,
         inventory_rows=inventory_rows,
         bom_rows=bom_rows,
         material_rows=material_rows,
@@ -2757,7 +2801,9 @@ def mrp_result(
         inventory_count,
     )
 
-    if not year and not month and not week:
+    if range_mode == "custom":
+        all_rows = rows
+    elif not year and not month and not week:
         all_rows = rows
     else:
         _, all_rows, _, _ = calculate_mrp(
@@ -2770,7 +2816,13 @@ def mrp_result(
         )
 
     projection_start = date.today().replace(day=1)
-    if year and month:
+    if custom_start and custom_end:
+        projection_start = custom_start.replace(day=1)
+        projection_months = (
+            (custom_end.year - custom_start.year) * 12
+            + custom_end.month - custom_start.month + 1
+        )
+    elif year and month:
         projection_start = date(min(year), min(month), 1)
 
     month_columns, monthly_rows = build_monthly_projection(
@@ -2804,6 +2856,10 @@ def mrp_result(
             "monthly_rows": monthly_rows,
             "projection_start": projection_start,
             "projection_months": projection_months,
+            "range_mode": range_mode,
+            "start_date": range_filter["start_text"],
+            "end_date": range_filter["end_text"],
+            "date_range_error": range_filter["error"],
         },
     )
 
@@ -2814,19 +2870,9 @@ def download_monthly_mrp_result(
 ):
     year = filter_ints(request, "year")
     month = filter_ints(request, "month")
-    projection_months = request.query_params.get(
-        "projection_months",
-        "6",
-    )
-
-
-    try:
-        projection_months = int(projection_months)
-    except (TypeError, ValueError):
-        projection_months = 6
-
-    if projection_months not in {3, 6, 12}:
-        projection_months = 6
+    range_filter = get_mrp_result_range(request)
+    range_mode = range_filter["mode"]
+    projection_months = int(range_mode) if range_mode != "custom" else 1
 
     q = request.query_params.get("q", "")
     shortage_only = (
@@ -2834,6 +2880,12 @@ def download_monthly_mrp_result(
     )
 
     all_plans = db.query(ProductionPlan).all()
+    if range_mode == "custom":
+        all_plans = plans_in_date_range(
+            all_plans,
+            range_filter["start"],
+            range_filter["end"],
+        ) if not range_filter["error"] else []
     inventory_rows = db.query(Inventory).all()
     bom_rows = db.query(BOM).all()
     material_rows = db.query(MaterialMaster).all()
@@ -2849,7 +2901,13 @@ def download_monthly_mrp_result(
     )
 
     projection_start = date.today().replace(day=1)
-    if year and month:
+    if range_filter["start"] and range_filter["end"]:
+        projection_start = range_filter["start"].replace(day=1)
+        projection_months = (
+            (range_filter["end"].year - range_filter["start"].year) * 12
+            + range_filter["end"].month - range_filter["start"].month + 1
+        )
+    elif year and month:
         projection_start = date(min(year), min(month), 1)
 
     month_columns, monthly_rows = build_monthly_projection(
@@ -3022,6 +3080,22 @@ def download_mrp_result(
     year = filter_ints(request, "year")
     month = filter_ints(request, "month")
     week = filter_ints(request, "week")
+    range_filter = get_mrp_result_range(request)
+
+    calculation_kwargs = {
+        "year": year,
+        "month": month,
+        "week": week,
+    }
+    if range_filter["mode"] == "custom":
+        all_plans = db.query(ProductionPlan).all()
+        calculation_kwargs = {
+            "all_plans": plans_in_date_range(
+                all_plans,
+                range_filter["start"],
+                range_filter["end"],
+            ) if not range_filter["error"] else [],
+        }
 
 
     q = request.query_params.get(
@@ -3038,9 +3112,7 @@ def download_mrp_result(
 
     _, rows, _, _ = calculate_mrp(
         db,
-        year=year,
-        month=month,
-        week=week,
+        **calculation_kwargs,
     )
 
     rows = filter_mrp_rows(

@@ -43,13 +43,37 @@
         130px
         130px
         170px
-        120px
-        minmax(180px, 1fr)
-        auto
+        150px
+        minmax(220px, 1fr)
         auto
         auto;
-    gap:10px;
+    gap:12px;
     align-items:end;
+}
+.filter-grid.is-custom-mode{
+    grid-template-columns:170px 170px 150px minmax(240px, 1fr) auto auto;
+}
+.mrp-page .filter-grid .multi-filter,
+.mrp-page .filter-grid .multi-filter-trigger{
+    width:100%;
+    height:48px !important;
+    min-height:48px !important;
+    box-sizing:border-box !important;
+    border-radius:8px !important;
+}
+.mrp-page .filter-grid .product-select{
+    display:block;
+    width:100% !important;
+    height:48px !important;
+}
+.mrp-page .filter-grid .product-select-trigger{
+    width:100% !important;
+    height:48px !important;
+    min-height:48px !important;
+    box-sizing:border-box !important;
+    border-radius:8px !important;
+    padding:0 12px !important;
+    font-size:12px !important;
 }
 label{
     display:block;
@@ -58,22 +82,28 @@ label{
     font-size:12px;
     font-weight:800;
 }
-select, input{
+.mrp-page .filter-grid select,
+.mrp-page .filter-grid input:not([type="checkbox"]){
     width:100%;
-    height:38px;
+    height:48px !important;
+    min-height:48px !important;
+    box-sizing:border-box !important;
     padding:8px 10px;
     border:1px solid #cbd5e1;
-    border-radius:6px;
+    border-radius:8px !important;
     background:white;
 }
-.toggle{
-    height:40px;
+.mrp-page .filter-grid .toggle{
+    height:48px !important;
+    min-height:48px !important;
+    box-sizing:border-box !important;
+    margin-bottom:0;
     display:flex;
     align-items:center;
     gap:8px;
     padding:0 10px;
     border:1px solid #cbd5e1;
-    border-radius:6px;
+    border-radius:8px !important;
     white-space:nowrap;
     color:#334155;
     font-weight:700;
@@ -114,6 +144,38 @@ select, input{
     color:#94a3b8;
     border-color:#e2e8f0;
     cursor:not-allowed;
+}
+.filter-actions{
+    display:flex;
+    align-items:center;
+    gap:8px;
+}
+.mrp-page .filter-actions .btn,
+.mrp-page .filter-actions button.btn,
+.mrp-page .filter-actions a.btn{
+    width:86px;
+    min-width:86px;
+    height:48px !important;
+    min-height:48px !important;
+    box-sizing:border-box !important;
+    padding:0 12px !important;
+    border-radius:8px !important;
+    font-size:12px !important;
+}
+.custom-date-range{
+    display:contents;
+}
+.custom-date-range.is-hidden{
+    display:none;
+}
+.period-filter.is-custom-hidden{
+    display:none;
+}
+.filter-error{
+    margin-top:10px;
+    color:#b91c1c;
+    font-size:13px;
+    font-weight:700;
 }
 .mrp-toast{
     position:fixed;
@@ -596,6 +658,9 @@ td{
 }
 @media (max-width: 1200px){
     .filter-grid{
+        grid-template-columns:repeat(3, minmax(170px, 1fr));
+    }
+    .filter-grid.is-custom-mode{
         grid-template-columns:repeat(2, minmax(170px, 1fr));
     }
     .summary-grid{
@@ -603,6 +668,18 @@ td{
     }
     .detail-box{
         grid-template-columns:1fr;
+    }
+}
+@media (max-width: 760px){
+    .filter-grid,
+    .filter-grid.is-custom-mode{
+        grid-template-columns:1fr;
+    }
+    .filter-actions{
+        width:100%;
+    }
+    .filter-actions .btn{
+        flex:1;
     }
 }
 .monthly-panel{
@@ -737,9 +814,9 @@ td{
             <a
                 id="mrpDownloadLink"
                 class="btn success"
-                data-monthly-href="/mrp/result/download/monthly?year={{ selected_year or '' }}&month={{ selected_month or '' }}&projection_months={{ projection_months }}&q={{ q|urlencode }}&shortage_only={{ 'true' if shortage_only else 'false' }}"
-                data-detail-href="/mrp/result/download?year={{ selected_year or '' }}&month={{ selected_month or '' }}&week={{ selected_week or '' }}&q={{ q|urlencode }}&shortage_only={{ 'true' if shortage_only else 'false' }}"
-                href="/mrp/result/download/monthly?year={{ selected_year or '' }}&month={{ selected_month or '' }}&projection_months={{ projection_months }}&q={{ q|urlencode }}&shortage_only={{ 'true' if shortage_only else 'false' }}"
+                data-monthly-href="/mrp/result/download/monthly?year={{ selected_year or '' }}&month={{ selected_month or '' }}&range_mode={{ range_mode }}&start_date={{ start_date }}&end_date={{ end_date }}&q={{ q|urlencode }}&shortage_only={{ 'true' if shortage_only else 'false' }}"
+                data-detail-href="/mrp/result/download?year={{ selected_year or '' }}&month={{ selected_month or '' }}&week={{ selected_week or '' }}&range_mode={{ range_mode }}&start_date={{ start_date }}&end_date={{ end_date }}&q={{ q|urlencode }}&shortage_only={{ 'true' if shortage_only else 'false' }}"
+                href="/mrp/result/download/monthly?year={{ selected_year or '' }}&month={{ selected_month or '' }}&range_mode={{ range_mode }}&start_date={{ start_date }}&end_date={{ end_date }}&q={{ q|urlencode }}&shortage_only={{ 'true' if shortage_only else 'false' }}"
             >
                 엑셀 다운로드
             </a>
@@ -755,8 +832,18 @@ td{
 
     <div class="panel">
         <form action="/mrp/result" method="get">
-            <div class="filter-grid">
-                <div>
+            <div class="filter-grid{% if range_mode == 'custom' %} is-custom-mode{% endif %}" id="mrpFilterGrid">
+                <div id="mrpCustomDateRange" class="custom-date-range{% if range_mode != 'custom' %} is-hidden{% endif %}">
+                    <div class="custom-date-field">
+                        <label for="mrpStartDate">시작일</label>
+                        <input id="mrpStartDate" type="date" name="start_date" value="{{ start_date }}">
+                    </div>
+                    <div class="custom-date-field">
+                        <label for="mrpEndDate">종료일</label>
+                        <input id="mrpEndDate" type="date" name="end_date" value="{{ end_date }}">
+                    </div>
+                </div>
+                <div class="period-filter{% if range_mode == 'custom' %} is-custom-hidden{% endif %}">
                     <label>Year</label>
 
                     <select data-multi-filter name="year" id="mrpYear">
@@ -781,7 +868,7 @@ td{
                     </select>
                 </div>
 
-                <div>
+                <div class="period-filter{% if range_mode == 'custom' %} is-custom-hidden{% endif %}">
                     <label>Month</label>
 
                     <select data-multi-filter name="month" id="mrpMonth">
@@ -806,7 +893,7 @@ td{
                     </select>
                 </div>
 
-                <div>
+                <div class="period-filter{% if range_mode == 'custom' %} is-custom-hidden{% endif %}">
                     <label>Week</label>
 
                     <select data-multi-filter name="week" id="mrpWeek" {% if not selected_month %}disabled{% endif %}>
@@ -833,15 +920,16 @@ td{
 
                 <div>
                     <label>조회기간</label>
-                    <select name="projection_months">
-                        {% for option in [3, 6, 12] %}
+                    <select name="range_mode" id="mrpRangeMode">
+                        {% for option in ['3', '6', '12'] %}
                         <option
                             value="{{ option }}"
-                            {% if projection_months == option %}selected{% endif %}
+                            {% if range_mode == option %}selected{% endif %}
                         >
-                            {{ option }}개월{% if option == 12 %} (1년){% endif %}
+                            {{ option }}개월{% if option == '12' %} (1년){% endif %}
                         </option>
                         {% endfor %}
+                        <option value="custom" {% if range_mode == 'custom' %}selected{% endif %}>직접 선택</option>
                     </select>
                 </div>
 
@@ -863,9 +951,12 @@ td{
                     >
                     부족 품목만 보기
                 </label>
-                <button class="btn" type="submit">MRP 계산</button>
-                <a class="btn secondary" href="/mrp/result">초기화</a>
+                <div class="filter-actions">
+                    <button class="btn" type="submit">MRP 계산</button>
+                    <a class="btn secondary" href="/mrp/result">초기화</a>
+                </div>
             </div>
+            {% if date_range_error %}<div class="filter-error">{{ date_range_error }}</div>{% endif %}
         </form>
     </div>
 
@@ -949,7 +1040,11 @@ td{
             <div>
                 <h2 style="font-size:20px;">월별 누적 예상 재고</h2>
                 <div class="page-subtitle">
+                    {% if range_mode == 'custom' and start_date and end_date %}
+                    {{ start_date }} ~ {{ end_date }} 생산계획을 현재재고에 순차 반영합니다.
+                    {% else %}
                     {{ projection_start.strftime("%Y년 %m월") }} 현재재고를 기준으로 향후 {{ projection_months }}개월 생산계획을 순차 반영합니다.
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -1523,16 +1618,56 @@ function syncMrpMonthOptions(){
     replaceOptions(monthSelect, availableMonths(years), MultiFilter.values(monthSelect), '전체 월', month => month + '월');
     syncMrpWeekOptions();
 }
+function syncMrpRangeMode(){
+    const rangeMode = document.getElementById('mrpRangeMode');
+    const filterGrid = document.getElementById('mrpFilterGrid');
+    const customRange = document.getElementById('mrpCustomDateRange');
+    const startDate = document.getElementById('mrpStartDate');
+    const endDate = document.getElementById('mrpEndDate');
+    const isCustom = rangeMode?.value === 'custom';
+
+    customRange?.classList.toggle('is-hidden', !isCustom);
+    filterGrid?.classList.toggle('is-custom-mode', isCustom);
+    document.querySelectorAll('.period-filter').forEach(field => {
+        field.classList.toggle('is-custom-hidden', isCustom);
+    });
+    if(startDate) startDate.required = isCustom;
+    if(endDate) endDate.required = isCustom;
+
+    ['mrpYear', 'mrpMonth', 'mrpWeek'].forEach(id => {
+        const select = document.getElementById(id);
+        if(!select) return;
+        select.disabled = isCustom || (id === 'mrpWeek' && !MultiFilter.values(document.getElementById('mrpMonth')).length);
+        MultiFilter.refresh(select);
+    });
+}
 
 document.addEventListener("DOMContentLoaded", function(){
     const yearSelect = document.getElementById("mrpYear");
     const monthSelect = document.getElementById("mrpMonth");
+    const rangeMode = document.getElementById("mrpRangeMode");
     const filterForm = yearSelect && yearSelect.form;
 
     yearSelect?.addEventListener("change", syncMrpMonthOptions);
     monthSelect?.addEventListener("change", syncMrpWeekOptions);
+    rangeMode?.addEventListener("change", syncMrpRangeMode);
+    syncMrpRangeMode();
 
-    filterForm?.addEventListener("submit", function(){
+    filterForm?.addEventListener("submit", function(event){
+        if(rangeMode?.value === 'custom'){
+            const startDate = document.getElementById('mrpStartDate').value;
+            const endDate = document.getElementById('mrpEndDate').value;
+            if(!startDate || !endDate){
+                event.preventDefault();
+                showMrpToast('시작일과 종료일을 모두 선택해 주세요.', 'error');
+                return;
+            }
+            if(startDate > endDate){
+                event.preventDefault();
+                showMrpToast('시작일은 종료일보다 늦을 수 없습니다.', 'error');
+                return;
+            }
+        }
         const submitButton = filterForm.querySelector('button[type="submit"]');
         if(!submitButton) return;
         submitButton.disabled = true;

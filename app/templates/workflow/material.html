@@ -117,7 +117,8 @@
                         class="btn btn-danger btn-sm"
                         data-workflow="{{ item.workflow_no }}"
                         data-stage="{{ item.current_stage_name }}"
-                        onclick="openStageRejectModal(this.dataset.workflow, this.dataset.stage)">
+                        data-stage-id="{{ item.current_stage }}"
+                        onclick="openStageRejectModal(this.dataset.workflow, this.dataset.stage, this.dataset.stageId)">
                         반려
                     </button>
                 </td>
@@ -368,6 +369,14 @@
                 <input id="stageRejectStage" readonly>
             </div>
 
+            <div class="modal-row" id="stageRejectTypeWrap" style="display:none;">
+                <label>반려 유형</label>
+                <select id="stageRejectType" name="reject_type">
+                    <option value="PHYSICAL_MISMATCH">실물/인계 수량 불일치 · 검사 결과 유지</option>
+                    <option value="REWORK">검사 결과 오류 · 품질 재검사</option>
+                </select>
+            </div>
+
             <div class="modal-row">
                 <label>반려 사유</label>
                 <input name="remark" placeholder="반려 사유를 입력하세요" required>
@@ -469,10 +478,16 @@ function openConfirmModal(workflowNo, itemName, label, attachmentId, summary){
     document.getElementById("confirmModal").style.display = "flex";
 }
 
-function openStageRejectModal(workflowNo, stageName){
+function openStageRejectModal(workflowNo, stageName, stageId){
     document.getElementById("stageRejectWorkflowNo").value = workflowNo;
     document.getElementById("stageRejectWorkflow").value = workflowNo;
     document.getElementById("stageRejectStage").value = stageName;
+    const typeWrap = document.getElementById("stageRejectTypeWrap");
+    const typeSelect = document.getElementById("stageRejectType");
+    const isInspection = [4, 11].includes(Number(stageId));
+    typeWrap.style.display = isInspection ? "block" : "none";
+    typeSelect.disabled = !isInspection;
+    typeSelect.value = isInspection ? "PHYSICAL_MISMATCH" : "REWORK";
     document.getElementById("stageRejectModal").style.display = "flex";
 }
 

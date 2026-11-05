@@ -13,6 +13,8 @@ from app.workflow.utils import get_db
 from app.workflow.services.workflow_service import WorkflowService
 from app.workflow.models.workflow_item import WorkflowItem
 from app.workflow.models.workflow_request import WorkflowRequest
+from app.workflow.models.workflow_history import WorkflowHistory
+from app.workflow.models.workflow_inspection import WorkflowInspection
 from app.workflow.models.workflow_stage import (
     WorkflowStage,
     get_stage_name,
@@ -74,6 +76,7 @@ def purchase_page(
 ):
     workflow_list = (
         db.query(WorkflowItem)
+        .filter(WorkflowItem.status != "CANCELLED")
         .order_by(
             WorkflowItem.id.desc()
         )
@@ -91,13 +94,16 @@ def purchase_page(
 
     inspection_requested_at = {}
     inspection_requested_qty = {}
+    request_statuses = {}
 
     for row in request_rows:
         inspection_requested_at[row.workflow_no] = row.requested_at
-        inspection_requested_qty[row.workflow_no] = (
-            inspection_requested_qty.get(row.workflow_no, 0)
-            + (row.request_qty or 0)
-        )
+        request_statuses.setdefault(row.workflow_no, []).append(row.status)
+        if row.status != "REJECTED":
+            inspection_requested_qty[row.workflow_no] = (
+                inspection_requested_qty.get(row.workflow_no, 0)
+                + (row.request_qty or 0)
+            )
 
     for item in workflow_list:
         item.purchase_display_code = (
@@ -127,6 +133,13 @@ def purchase_page(
             - inspection_requested_qty.get(item.workflow_no, 0),
             0,
         )
+        statuses = request_statuses.get(item.workflow_no, [])
+        item.purchase_can_delete = (
+            item.current_stage == int(WorkflowStage.PURCHASE_RECEIVED)
+            and item.status == "IN_PROGRESS"
+            and all(status == "REJECTED" for status in statuses)
+        )
+        item.purchase_can_edit_qty = item.purchase_can_delete
 
     total_count = len(workflow_list)
     total_qty = sum(x.initial_qty or x.qty or 0 for x in workflow_list)
@@ -291,6 +304,7 @@ def update_item(
     item_code: str = Form(""),
     item_name: str = Form(""),
     lot: str = Form(""),
+    qty: int = Form(...),
     received_at: str = Form(""),
     db: Session = Depends(get_db),
 ):
@@ -303,6 +317,9 @@ def update_item(
     if item is None:
         return _redirect("Workflow를 찾을 수 없습니다.")
 
+    if item.status != "IN_PROGRESS":
+        return _redirect("진행 중인 Workflow만 수정할 수 있습니다.")
+
     if item.current_stage > int(WorkflowStage.QUALITY_REQUEST):
         return _redirect(
             "품질 승인 이후에는 구매 정보를 수정할 수 없습니다."
@@ -313,6 +330,30 @@ def update_item(
 
     if not (item_name or "").strip():
         return _redirect("품명은 필수 입력 항목입니다.")
+
+    if qty < 1:
+        return _redirect("입고 수량은 1개 이상이어야 합니다.")
+
+    if qty != (item.initial_qty or item.qty or 0):
+        active_request_exists = (
+            db.query(WorkflowRequest.id)
+            .filter(
+                WorkflowRequest.workflow_no == workflow_no,
+                WorkflowRequest.status != "REJECTED",
+            )
+            .first()
+        )
+        inspection_exists = (
+            db.query(WorkflowInspection.id)
+            .filter(WorkflowInspection.workflow_no == workflow_no)
+            .first()
+        )
+        if (
+            item.current_stage != int(WorkflowStage.PURCHASE_RECEIVED)
+            or active_request_exists is not None
+            or inspection_exists is not None
+        ):
+            return _redirect("수입 검사 의뢰 이후에는 입고 수량을 수정할 수 없습니다.")
 
     try:
         parsed = _parse_datetime_local(received_at)
@@ -325,12 +366,74 @@ def update_item(
     item.purchase_item_code = item.item_code
     item.purchase_item_name = item.item_name
     item.purchase_lot = item.lot
+    item.qty = qty
+    item.initial_qty = qty
 
     if parsed is not None:
         item.received_at = parsed
 
     item.updated_at = datetime.now(ZoneInfo("Asia/Seoul"))
 
+    db.commit()
+
+    return _redirect()
+
+@router.post("/delete")
+def delete_workflow(
+    request: Request,
+    workflow_no: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    item = (
+        db.query(WorkflowItem)
+        .filter(WorkflowItem.workflow_no == workflow_no)
+        .first()
+    )
+
+    if item is None:
+        return _redirect("Workflow를 찾을 수 없습니다.")
+
+    if (
+        item.current_stage != int(WorkflowStage.PURCHASE_RECEIVED)
+        or item.status != "IN_PROGRESS"
+    ):
+        return _redirect("수입 검사 의뢰 전의 구매 입고 건만 삭제할 수 있습니다.")
+
+    active_request_exists = (
+        db.query(WorkflowRequest.id)
+        .filter(
+            WorkflowRequest.workflow_no == workflow_no,
+            WorkflowRequest.status != "REJECTED",
+        )
+        .first()
+    )
+    if active_request_exists is not None:
+        return _redirect("대기 또는 승인된 요청이 있는 Workflow는 삭제할 수 없습니다.")
+
+    inspection_exists = (
+        db.query(WorkflowInspection.id)
+        .filter(WorkflowInspection.workflow_no == workflow_no)
+        .first()
+    )
+    if inspection_exists is not None:
+        return _redirect("검사 결과가 등록된 Workflow는 삭제할 수 없습니다.")
+
+    user = request.session.get("user", "SYSTEM")
+    item.status = "CANCELLED"
+    item.updated_at = datetime.now(ZoneInfo("Asia/Seoul"))
+    db.add(
+        WorkflowHistory(
+            workflow_no=workflow_no,
+            stage=int(WorkflowStage.PURCHASE_RECEIVED),
+            action="CANCEL",
+            user_name=user,
+            department="purchase",
+            before_qty=item.qty or 0,
+            after_qty=0,
+            remark="구매 입고 등록 삭제",
+            result="CANCELLED",
+        )
+    )
     db.commit()
 
     return _redirect()

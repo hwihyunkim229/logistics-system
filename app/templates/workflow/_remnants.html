@@ -65,12 +65,14 @@
                 <form
                     method="post"
                     action="/workflow/remnant/{{ row.id }}/restock"
-                    onsubmit="return confirmRestock(event, {{ row.qty }})">
+                    onsubmit="return confirmRestock(event, {{ row.qty }}, '{{ row.reason }}')">
                     <input
                         type="hidden"
                         name="redirect_to"
                         value="/workflow/{{ row.department }}">
-                    <button type="submit" class="btn btn-secondary btn-sm">재입고</button>
+                    <button type="submit" class="btn btn-secondary btn-sm">
+                        {{ "출고 대기 복구" if row.reason == "PARTIAL_SHIP" else "요청 대기 복구" if row.reason == "PARTIAL_REQUEST" else "재입고" }}
+                    </button>
                 </form>
                 {% endif %}
             </td>
@@ -90,15 +92,21 @@
 </div>
 
 <script>
-async function confirmRestock(e, qty){
+async function confirmRestock(e, qty, reason){
     e.preventDefault();
 
     const form = e.target;
 
+    const isPartialShip = reason === "PARTIAL_SHIP";
+    const isPartialRequest = reason === "PARTIAL_REQUEST";
     const confirmed = await wfConfirm(
-        "이 잔량(" + qty + " EA)을 새 Workflow(구매 입고 단계)로 재입고하시겠습니까?",
-        "잔량 재입고",
-        "재입고"
+        isPartialShip
+            ? "이 출고 잔량(" + qty + " EA)을 새 Workflow(자재 최종 확인 단계)로 복구하시겠습니까?"
+            : isPartialRequest
+            ? "이 요청 잔량(" + qty + " EA)을 새 Workflow(직전 자재 확인 단계)로 복구하시겠습니까?"
+            : "이 잔량(" + qty + " EA)을 새 Workflow(구매 입고 단계)로 재입고하시겠습니까?",
+        isPartialShip ? "출고 대기 복구" : isPartialRequest ? "요청 대기 복구" : "잔량 재입고",
+        isPartialShip || isPartialRequest ? "복구" : "재입고"
     );
 
     if (confirmed) form.submit();

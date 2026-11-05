@@ -31,6 +31,9 @@ def create_request(
     if item is None:
         raise ValueError("Workflow를 찾을 수 없습니다.")
 
+    if item.status != "IN_PROGRESS":
+        raise ValueError("진행 중인 Workflow만 요청할 수 있습니다.")
+
     request = WorkflowRequest(
         workflow_no=workflow_no,
         stage=stage,

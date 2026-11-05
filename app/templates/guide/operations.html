@@ -10,6 +10,7 @@
 </style>
 <style>
 .sidebar{scrollbar-width:thin;scrollbar-color:#4a7772 transparent}.sidebar::-webkit-scrollbar{width:7px}.sidebar::-webkit-scrollbar-track{background:transparent}.sidebar::-webkit-scrollbar-thumb{border:2px solid transparent;border-radius:20px;background:#4a7772;background-clip:padding-box}.sidebar::-webkit-scrollbar-thumb:hover{background:#65a39a;background-clip:padding-box}.sidebar-collapse{position:absolute;top:18px;right:14px;display:grid;place-items:center;width:30px;height:30px;padding:0;border:1px solid #36575a;border-radius:8px;background:#153438;color:#b8d1ce;cursor:pointer}.sidebar-collapse:hover{border-color:#58bbaa;color:#73dcc9}.step{display:flex!important;grid-template-columns:none!important;gap:12px}.step:before{flex:0 0 24px}.step code{display:inline;white-space:normal;overflow-wrap:anywhere}.section p,.section li,.step{word-break:normal;overflow-wrap:anywhere}.sidebar,.shell{transition:.2s ease}.guide-sidebar-collapsed .shell{grid-template-columns:76px minmax(0,1fr)}.guide-sidebar-collapsed .sidebar{padding:64px 12px 18px}.guide-sidebar-collapsed .sidebar-collapse{right:23px}.guide-sidebar-collapsed .brand,.guide-sidebar-collapsed .search,.guide-sidebar-collapsed .nav-title,.guide-sidebar-collapsed .sidebar-foot{display:none}.guide-sidebar-collapsed .nav a{justify-content:center;padding:8px 0;font-size:0;white-space:nowrap}.guide-sidebar-collapsed .nav i{width:28px;height:28px;font-size:10px}.guide-sidebar-collapsed .sidebar-collapse span{transform:rotate(180deg)}@media(max-width:920px){.sidebar-collapse{display:none}.guide-sidebar-collapsed .shell{grid-template-columns:1fr}.guide-sidebar-collapsed .sidebar{padding:26px 20px}.guide-sidebar-collapsed .brand{display:flex}.guide-sidebar-collapsed .search,.guide-sidebar-collapsed .nav-title,.guide-sidebar-collapsed .sidebar-foot{display:block}.guide-sidebar-collapsed .nav a{justify-content:flex-start;padding:8px 10px;font-size:12px}}
+html{scrollbar-width:thin;scrollbar-color:#9fb2b1 transparent;scrollbar-gutter:stable}html::-webkit-scrollbar{width:11px;height:11px}html::-webkit-scrollbar-track{background:transparent}html::-webkit-scrollbar-thumb{min-height:44px;border:3px solid transparent;border-radius:999px;background:#9fb2b1;background-clip:content-box}html::-webkit-scrollbar-thumb:hover{background:#718f8c;background-clip:content-box}.table-wrap{scrollbar-width:thin;scrollbar-color:#9fb2b1 #f3f7f6}.table-wrap::-webkit-scrollbar{width:9px;height:9px}.table-wrap::-webkit-scrollbar-track{background:#f3f7f6}.table-wrap::-webkit-scrollbar-thumb{border:2px solid #f3f7f6;border-radius:999px;background:#9fb2b1}.table-wrap::-webkit-scrollbar-thumb:hover{background:#718f8c}
 </style>
 <style>
 /* 넓은 화면에서는 사이드바를 제외한 영역을 모두 사용한다. */
@@ -37,10 +38,10 @@
   <nav class="nav" id="guideNav">
     <a href="#map"><i>01</i>메뉴별 용도</a><a href="#start"><i>02</i>로그인·공통 기능</a><a href="#inventory"><i>03</i>수불재고</a><a href="#stock"><i>04</i>가계상·품목관리</a><a href="#logistics"><i>05</i>제품·대여</a><a href="#workflow"><i>06</i>부서별 업무</a><a href="#mrp"><i>07</i>MRP</a><a href="#admin"><i>08</i>관리자 기능</a><a href="#excel"><i>09</i>엑셀 업로드</a><a href="#trouble"><i>10</i>오류 확인</a><a href="#check"><i>11</i>통합검색·도우미</a><a href="#change"><i>12</i>대량 변경</a>
   </nav>
-  <div class="sidebar-foot">기준 버전 2026-10-29<br>현재 메뉴·라우트·권한·로그 기준</div>
+  <div class="sidebar-foot">기준 버전 2026-11-05<br>현재 운영 화면 기준</div>
 </aside>
 <main class="main">
-  <div class="topbar"><span class="crumb">물류 시스템 / 운영가이드 / 2026.10.29</span><div class="actions"><button class="btn" onclick="document.getElementById('guideSearch').focus()">검색</button><button class="btn" onclick="window.print()">인쇄·PDF</button></div></div>
+  <div class="topbar"><span class="crumb">물류 시스템 / 운영가이드 / 2026.11.05</span><div class="actions"><button class="btn" onclick="document.getElementById('guideSearch').focus()">검색</button><button class="btn" onclick="window.print()">인쇄·PDF</button></div></div>
   <div class="content">
     <header class="hero"><div class="eyebrow">물류 시스템 사용 안내</div><h1>업무별 사용 방법과<br>확인 사항</h1><p>재고 입출고, LOT 등록, 엑셀 업로드, 부서별 업무 처리 방법을 정리했습니다. 작업 전 준비사항과 처리 후 확인할 내용을 함께 확인하세요.</p><div class="hero-meta"><span class="chip">수불재고·LOT</span><span class="chip">부서별 업무</span><span class="chip">MRP</span><span class="chip">엑셀 업로드</span><span class="chip">업무 로그</span></div></header>
     <div class="quick"><a href="#inventory"><b>원자재 LOT 등록</b><span>직접 등록, 엑셀 등록, LOT 출고</span></a><a href="#excel"><b>엑셀 업로드</b><span>추가, 수량 변경, 전체 교체 구분</span></a><a href="#trouble"><b>업로드 오류 확인</b><span>행 번호와 원인을 로그에서 확인</span></a><a href="#check"><b>통합 검색과 도우미</b><span>품목코드, S/N, LOT로 관련 데이터 찾기</span></a></div>
@@ -66,29 +67,57 @@
       <div class="callout danger">예시 파일의 <code>RAW-001</code>은 샘플입니다. 그대로 올리지 말고 실제 품목코드로 교체하세요.</div>
       <h3>일반 수불재고 업로드</h3><ul><li>필수 열: <code>품목코드 / 창고구분</code></li><li>선택 열: <code>구분 / LOT / Grade / 수량 / 비고</code></li><li>기존 코드+창고+LOT+Grade는 수량이 대체되고 신규 조합은 생성됩니다.</li><li>품명을 찾지 못한 행은 제외되며 결과가 <b>부분 성공</b>으로 기록됩니다.</li><li>활동 로그 상세에 최대 20개 제외 행·품목코드·원인이 남습니다.</li></ul>
       <h3>다운로드 검산</h3><p>원자재는 LOT별 행과 미분류 잔량 행으로 내려갑니다. 화면 총재고와 비교할 때 LOT 행과 LOT가 빈 미분류 행을 함께 합산합니다.</p>
-      <h3>대량 초기화</h3><div class="callout danger">재고 0 처리와 이력 삭제는 별도 DB 작업입니다. Neon 백업·승인·작업 전후 합계 검증 없이 실행하지 마세요. 상위 재고와 <code>inventory_lot</code>를 함께 확인해야 합니다.</div>
-      <h3>모바일·QR 재고 처리</h3><div class="steps"><div class="step">로그인 후 현재 계정과 서버 주소를 확인하고 입고·출고·LOT 등록 중 작업을 선택합니다.</div><div class="step">창고 유형을 선택하고 QR을 스캔하거나 품목코드·품명을 검색합니다.</div><div class="step">품목코드·LOT·총재고·LOT 잔량을 확인한 뒤 수량과 검사 정보를 입력합니다.</div><div class="step">최근 3분 내 동일 작업 경고가 나오면 실제 연속 작업인지 확인합니다.</div><div class="step">완료 화면과 앱 이력에서 변경 전후 수량을 대조합니다.</div></div><div class="callout warn">개발 서버 주소를 바꾸면 저장된 로그인 세션이 초기화될 수 있습니다. 운영·개발 서버를 혼동하지 마세요.</div>
+      <h3>선택 행 대량 수정</h3><div class="table-wrap"><table><thead><tr><th>기능</th><th>사용 조건</th><th>처리 후 확인</th></tr></thead><tbody><tr><td>수량 일괄 수정</td><td>같은 화면에서 수정할 행을 선택하고 각 행의 새 수량 입력</td><td>총재고·LOT 잔량·입출고 이력 대조</td></tr><tr><td>LOT 일괄 수정</td><td>선택한 재고 행의 LOT 값을 같은 값으로 변경할 때</td><td>기존 LOT 이력과 신규 LOT 조회</td></tr><tr><td>비고 일괄 수정</td><td>선택 행에 공통 관리 메모를 남길 때</td><td>필터 해제 후 전체 대상 확인</td></tr><tr><td>선택 삭제</td><td>실제 삭제 대상만 선택하고 수정 권한 보유</td><td>대상 건수·연결 LOT·이력 확인</td></tr></tbody></table></div>
+      <div class="callout warn">필터가 적용된 상태에서도 체크된 행만 처리됩니다. 실행 전 선택 건수와 첫 행·마지막 행의 품목코드를 확인하세요.</div>
+      <h3>이력과 Dashboard</h3><ul><li>입출고 이력은 유형, 품목코드·품명·LOT·작업자, 품목 구분으로 검색합니다.</li><li>화면 수량이 예상과 다르면 최근 이력의 변경 전·후 수량과 작업자를 먼저 확인합니다.</li><li>Dashboard의 합계는 현재 필터와 기간을 확인한 뒤 다운로드 결과와 비교합니다.</li></ul>
+      <h3>모바일·QR 재고 처리</h3><div class="steps"><div class="step">로그인 후 현재 계정을 확인하고 입고·출고·LOT 등록 중 작업을 선택합니다.</div><div class="step">창고 유형을 선택하고 QR을 스캔하거나 품목코드·품명을 검색합니다.</div><div class="step">품목코드·LOT·총재고·LOT 잔량을 확인한 뒤 수량과 검사 정보를 입력합니다.</div><div class="step">최근 3분 내 동일 작업 경고가 나오면 실제 연속 작업인지 확인합니다.</div><div class="step">완료 화면과 앱 이력에서 변경 전후 수량을 대조합니다.</div></div>
     </section>
 
     <section class="section searchable" id="stock"><div class="section-head"><span class="num">04</span><div><h2>가계상재고 운영</h2><p>수불재고와 독립된 품목·등급별 재고입니다.</p></div></div>
       <h3>품목 관리</h3><ul><li><code>기준 정보 → 품목 관리</code>에서 품목코드, 품명, Rev를 등록합니다.</li><li>신규 품목은 직접 등록하거나 엑셀로 추가합니다.</li><li>엑셀 업로드는 없는 코드만 추가하며 기존 품목을 수정하지 않습니다.</li><li>기존 품목의 코드·품명·Rev 변경은 화면의 수정 기능을 사용합니다.</li><li>화면 수정 후 가계상재고, 수불재고, BOM, 자재기준정보 등 연결된 화면을 확인합니다.</li></ul>
       <div class="steps"><div class="step">품목 관리에서 기준 품목을 준비합니다.</div><div class="step">초기 생성으로 품목·등급 행을 0으로 만듭니다.</div><div class="step"><code>품목코드 / 구분 / 등급 / 수량</code> 파일로 실제 수량을 등록합니다.</div><div class="step">입출고 후 이력과 Dashboard를 확인합니다.</div></div>
       <div class="callout warn">수량 업로드는 기존 수량에 더하지 않고 업로드 값으로 대체합니다. 빈 수량은 0이 될 수 있습니다.</div><p>수불·가계상 입출고 화면과 이력 다운로드 시간은 한국시간(KST)으로 표시됩니다.</p>
+      <h3>등급·수량 변경</h3><ul><li>단일 행의 수량과 Grade는 해당 행의 수정 기능을 사용합니다.</li><li>여러 행을 같은 Grade 또는 수량으로 바꿀 때만 일괄 수정 기능을 사용합니다.</li><li>Grade 변경 전 동일 품목·동일 Grade 행이 이미 있는지 확인해 중복 기준을 피합니다.</li><li>품목 기준정보 수정 후에는 품목 관리 이력과 연결된 가계상재고 행을 함께 확인합니다.</li></ul>
     </section>
 
     <section class="section searchable" id="logistics"><div class="section-head"><span class="num">05</span><div><h2>제품 물류와 대여 관리</h2><p>S/N 이력과 대여용 재고는 일반 수불재고와 별도로 운영합니다.</p></div></div>
       <div class="grid2"><div class="card"><b>제품 물류</b><p>제품 분류 → 입고/출고 → 스캔 또는 엑셀 → 날짜·Size·출고처 확인 → Dashboard 검증</p></div><div class="card"><b>대여 관리</b><p>분류·품목 재고 준비 → 요청자·조직·S/N 포함 출고/입고 → 이력 확인</p></div></div>
       <h3>제품 입고·출고</h3><ul><li>제품 분류를 먼저 선택한 뒤 입고 또는 출고 화면으로 이동합니다.</li><li>S/N 스캔, 엑셀 업로드, 선택 행 이동으로 입출고를 처리할 수 있습니다.</li><li>잘못 등록한 Size와 일부 항목은 화면에서 수정할 수 있으며 삭제 작업은 권한과 대상 범위를 확인합니다.</li><li>Dashboard에서 기간·제품·Size별 입출고 건수를 확인합니다.</li><li>제품 물류의 건수와 수불재고의 EA 수량은 관리 기준이 다릅니다.</li></ul>
+      <div class="table-wrap"><table><thead><tr><th>작업</th><th>입력·선택 기준</th><th>중복 방지 확인</th></tr></thead><tbody><tr><td>S/N 입고</td><td>제품 분류, 입고일자, Serial, Size</td><td>통합검색으로 동일 Serial 기존 이력 확인</td></tr><tr><td>S/N 출고</td><td>출고 대상 선택, 출고일자, Size, 출고처</td><td>현재 재고 상태와 마지막 입고 이력 확인</td></tr><tr><td>입출고 이동</td><td>선택한 행을 반대 상태로 이동</td><td>선택 건수와 이동 후 목록 확인</td></tr><tr><td>대량 수정</td><td>허용 필드와 동일 변경값 입력</td><td>필터 범위·대상 Serial·변경 로그 확인</td></tr></tbody></table></div>
       <h3>대여 재고와 이력</h3><ul><li>분류를 만든 뒤 품목을 직접 등록하거나 엑셀로 업로드합니다.</li><li>출고 시 본부, 부서, 요청자, 사이즈, S/N, 비고를 확인합니다.</li><li>입고는 기존 출고 이력을 기준으로 반납 처리합니다.</li><li>재고 현황과 입출고 이력은 각각 엑셀로 다운로드할 수 있습니다.</li></ul>
+      <div class="steps"><div class="step">대여 분류와 품목별 보유 수량을 준비합니다.</div><div class="step">출고할 품목과 수량을 선택하고 요청자·조직·S/N을 입력합니다.</div><div class="step">출고 완료 후 재고 감소와 대여 이력 생성을 확인합니다.</div><div class="step">반납 시 기존 출고 이력을 찾아 입고 처리합니다.</div><div class="step">재고 회복과 반납일·처리자 기록을 확인합니다.</div></div>
+      <div class="callout warn">대여 이력 엑셀 수정 시 기존 행의 이력ID를 유지합니다. 신규 행만 이력ID를 비워야 기존 기록이 중복 생성되지 않습니다.</div>
       <h3>권장 엑셀 열</h3><ul><li>제품 입고: <code>입고일자 / Serial / Size</code></li><li>제품 출고: <code>출고일자 / Serial / Size / 출고처</code></li><li>대여 재고: <code>품목코드 / 품명 / 수량</code></li><li>대여 이력: 전용 13개 열을 유지하고 신규 행의 이력ID는 비웁니다.</li></ul><div class="callout warn">같은 제품 물류 파일을 다시 올리면 중복 이력이 생길 수 있습니다. 재업로드 전 기존 S/N을 조회하세요.</div>
     </section>
 
-    <section class="section searchable" id="workflow"><div class="section-head"><span class="num">06</span><div><h2>CART PLATFORM IEM 업무 처리</h2><p>구매 입고부터 검사, 생산, 포장, 출하까지 같은 Workflow 번호로 처리합니다.</p></div></div>
-      <p>Dashboard에서 부서별 대기·진행·완료 건을 먼저 확인하고, 각 담당 메뉴에서 본인 단계의 작업을 처리합니다.</p>
-      <div class="flow"><span>구매 입고</span><em>›</em><span>수입 검사</span><em>›</em><span>자재 확인</span><em>›</em><span>생산 승인</span><em>›</em><span>생산 완료</span><em>›</em><span>공정 검사</span><em>›</em><span>포장</span><em>›</em><span>출하</span></div>
-      <div class="table-wrap"><table><thead><tr><th>담당</th><th>주요 작업</th><th>완료 전 확인</th></tr></thead><tbody><tr><td>구매</td><td>입고 등록·검사 의뢰</td><td>Product·코드·품명·LOT·수량·입고일</td></tr><tr><td>품질</td><td>승인/반려·수입/공정 검사</td><td>의뢰 수량·결과·첨부</td></tr><tr><td>자재</td><td>단계 확인·다음 요청·출하</td><td>실물 수량·LOT·잔량·불량</td></tr><tr><td>생산</td><td>생산 승인·생산/포장 완료</td><td>구성품·양품·불량·새 LOT</td></tr></tbody></table></div>
-      <div class="callout">반려, 불량 이관, 잔량 재입고·재사용은 전용 기능을 사용합니다. 원본 Workflow를 삭제해 이력을 끊지 않습니다.</div>
-      <h3>추가 처리</h3><ul><li>검사 첨부파일은 해당 검사 건에서 등록·다운로드·삭제합니다.</li><li>생산 중 발생한 불량과 입고 원자재 불량을 구분해 입력합니다.</li><li>남은 자재는 잔량 기능에서 재입고하거나 다음 생산에 사용합니다.</li><li>생산·포장 완료 전 양품, 불량, 사용 구성품, 새 LOT를 확인합니다.</li></ul>
+    <section class="section searchable" id="workflow"><div class="section-head"><span class="num">06</span><div><h2>CART PLATFORM IEM 업무 처리</h2><p>구매 입고부터 검사, 생산, 포장, 출하까지 Workflow 번호와 수량 이력으로 관리합니다.</p></div></div>
+      <p>Dashboard에서 부서별 대기·진행·완료 건을 먼저 확인하고, 각 담당 메뉴에서 본인 단계의 작업을 처리합니다. 부분 수량은 하나의 Workflow에 섞지 않고 새 Workflow로 분리합니다.</p>
+
+      <h3>기본 진행 순서</h3>
+      <div class="flow"><span>구매 입고</span><em>›</em><span>수입검사 의뢰</span><em>›</em><span>수입검사</span><em>›</em><span>자재 확인</span><em>›</em><span>생산</span><em>›</em><span>공정검사</span><em>›</em><span>세트 포장</span><em>›</em><span>최종 확인</span><em>›</em><span>제품 출고</span></div>
+      <div class="callout warn"><b>CRADLE 전용 경로</b> CRADLE은 완성된 포장 구성품으로 처리하므로 수입검사 후 생산·공정검사를 생략하고 세트 포장 대기로 이동합니다. RING은 생산과 공정검사를 진행합니다.</div>
+
+      <div class="table-wrap"><table><thead><tr><th>담당</th><th>주요 작업</th><th>완료 전 확인</th></tr></thead><tbody><tr><td>구매</td><td>입고 등록·수정·삭제·수입검사 의뢰</td><td>Product·코드·품명·LOT·입고수량·입고일</td></tr><tr><td>품질</td><td>의뢰 승인/반려·수입검사·공정검사</td><td>의뢰 수량·양품/불량·A/B/F·첨부자료</td></tr><tr><td>자재</td><td>결과 확인·다음 단계 요청·불량 이관 승인·출고</td><td>실물 수량·LOT·잔량·불량·검사 결과</td></tr><tr><td>생산</td><td>생산 승인·생산 완료·RING/CRADLE 세트 포장</td><td>구성품·양품·작업 불량·자재 반납 불량·새 LOT</td></tr></tbody></table></div>
+
+      <h3>부분 수량 처리</h3>
+      <div class="table-wrap"><table><thead><tr><th>현재 상황</th><th>진행 수량</th><th>남은 수량 처리</th></tr></thead><tbody><tr><td>입고 10개 중 5개만 수입검사 의뢰</td><td>기존 Workflow 5개가 품질로 이동</td><td>5개를 새 구매 Workflow로 자동 분리</td></tr><tr><td>생산 또는 공정검사 전 일부만 다음 단계 요청</td><td>선택 수량이 다음 단계로 이동</td><td>잔량을 새 Workflow로 분리해 직전 자재 확인 단계에 유지</td></tr><tr><td>포장 전 5개 중 4개만 요청</td><td>기존 Workflow 4개가 포장 요청으로 이동</td><td>1개를 새 Workflow로 분리해 포장 직전 자재 확인 단계에 유지</td></tr><tr><td>완제품 2개 중 1개만 출고</td><td>기존 Workflow 1개가 출고 완료</td><td>1개를 새 Workflow로 분리해 자재 최종 확인 단계에 유지</td></tr></tbody></table></div>
+      <div class="callout"><b>부분 요청·부분 출고 잔량은 구매 입고로 돌아가지 않습니다.</b> 신규 건은 자동 분리되고, 과거 잔량은 <code>요청 대기 복구</code> 또는 <code>출고 대기 복구</code>를 사용해 해당 자재 확인 단계로 복구합니다.</div>
+
+      <h3>자재 확인 승인과 반려</h3>
+      <div class="table-wrap"><table><thead><tr><th>확인 결과</th><th>선택할 처리</th><th>검사 결과</th><th>후속 작업</th></tr></thead><tbody><tr><td>검사 결과와 실물이 일치</td><td>승인</td><td>유지</td><td>다음 생산·검사·포장·출고 단계 요청</td></tr><tr><td>실물 수량 또는 인계 상태 불일치</td><td>실물/인계 수량 불일치</td><td>유지</td><td>품질팀 실물 조치 후 자재팀 재승인</td></tr><tr><td>양품/불량 또는 A/B/F 판정 오류</td><td>검사 결과 오류</td><td>재처리</td><td>품질팀 재검사 후 자재 확인</td></tr><tr><td>생산·포장 결과 오류</td><td>생산 결과 반려</td><td>완료 결과 롤백</td><td>생산팀 재작업 후 자재 확인</td></tr></tbody></table></div>
+      <div class="callout warn"><b>실물 불일치 반려는 재검사를 의미하지 않습니다.</b> 이미 완료된 수입검사·공정검사 결과는 유지하고, 누락 수량이나 인계 상태를 조치한 뒤 자재팀이 다시 승인합니다.</div>
+
+      <h3>RING·CRADLE 세트 생산과 포장</h3>
+      <div class="grid2"><div class="card"><b>RING 생산</b><p>구성 원자재를 생산 완료하면 RING 코드와 새 LOT로 변환합니다. 이후 공정검사에서 A/B/F 등급을 판정합니다.</p></div><div class="card"><b>제품 포장</b><p>RING과 CRADLE을 1:1로 결합해 CART PLATFORM IEM을 만듭니다. 적은 쪽 수량만큼 포장할 수 있습니다.</p></div></div>
+      <p>예: RING 2개와 CRADLE 4개가 있으면 IEM 2세트를 포장하고, 남은 CRADLE 2개는 <b>세트 미사용 잔량</b>으로 보관합니다.</p>
+
+      <h3>잔량과 불량 창고</h3>
+      <div class="table-wrap"><table><thead><tr><th>구분</th><th>의미</th><th>처리</th></tr></thead><tbody><tr><td>검사 불량</td><td>수입검사 또는 공정검사 불량</td><td>불량 자재 창고 보관, 양품 재입고 금지</td></tr><tr><td>작업 불량</td><td>생산·포장 작업 중 발생한 불량</td><td>생산팀 작업 불량 창고에서 자재팀 이관 요청</td></tr><tr><td>자재 불량(반납)</td><td>투입 자재 자체 문제로 생산팀이 반납</td><td>자재 불량 창고(반납) 출처를 유지해 이관</td></tr><tr><td>세트 미사용 잔량</td><td>세트 생산·포장에 사용하지 않은 정상 수량</td><td>다음 생산에 투입하거나 필요한 단계로 재사용</td></tr></tbody></table></div>
+
+      <h3>구매 수정·삭제와 Workflow 번호</h3>
+      <ul><li>수입검사 의뢰 전에는 품목코드, 품명, LOT, 입고일, 입고수량을 수정할 수 있습니다.</li><li>품질 반려로 구매 단계에 돌아왔고 활성 요청과 검사 결과가 없으면 수량을 다시 수정할 수 있습니다.</li><li>삭제는 수입검사 의뢰 전 또는 모든 요청이 반려된 구매 단계에서만 가능합니다.</li><li>삭제 처리한 건의 Workflow 번호와 작업 이력은 재사용하지 않습니다.</li><li>Workflow 번호는 한국시간 날짜별 순번으로 생성합니다.</li></ul>
+
+      <h3>작업 전후 확인</h3><ul><li>검사 첨부파일은 해당 검사 건에서 등록·다운로드·삭제합니다.</li><li>부분 처리 후 원본과 분리 Workflow의 수량 합계가 기존 수량과 같은지 확인합니다.</li><li>생산·포장 완료 전 양품, 불량, 사용 구성품, 새 LOT를 확인합니다.</li><li>출고 전 포장 수량, LOT, 남은 출고 대기 수량을 최종 확인합니다.</li><li>잘못 등록한 구매 건은 구매 화면의 삭제 기능을 사용합니다.</li></ul>
     </section>
 
     <section class="section searchable" id="mrp"><div class="section-head"><span class="num">07</span><div><h2>MRP 운영</h2><p>BOM, 생산계획, 수불재고, 공급 조건을 같은 기준으로 맞춥니다.</p></div></div>
@@ -98,40 +127,49 @@
       <p><b>필요량</b> = 계획 × BOM · <b>가용재고</b> = 대상 재고 − 이전 계획 소요량 · <b>부족량</b> = 필요량 − 가용재고 · <b>발주 권고</b> = 부족량을 MOQ 배수로 올림</p>
       <div class="callout">MRP 화면에 표시되는 발주량은 참고용입니다. 실제 발주나 재고 차감은 자동으로 처리되지 않습니다.</div>
       <h3>각 메뉴에서 하는 일</h3><ul><li><b>BOM:</b> 제품별 구성품과 1대당 소요량을 관리하고 목록을 다운로드합니다.</li><li><b>생산 계획:</b> 월별 일자별 생산 수량을 입력하고 주별 합계를 확인합니다.</li><li><b>자재 기준 정보:</b> 공급업체, LT(주), MOQ, 비고를 관리합니다.</li><li><b>MRP Result:</b> 기간별 필요량, 가용재고, 부족량, 권장 발주량을 조회·다운로드합니다.</li><li><b>Dashboard:</b> 전체 부족 품목과 주요 지표를 확인합니다.</li></ul>
+      <h3>결과가 예상과 다를 때</h3><div class="table-wrap"><table><thead><tr><th>현상</th><th>우선 확인</th><th>다음 확인</th></tr></thead><tbody><tr><td>필요량이 0</td><td>생산계획 기간과 제품명</td><td>BOM 제품명·구성품·소요량</td></tr><tr><td>가용재고가 0</td><td>수불재고 품목코드</td><td>창고 구분·Grade·이전 계획 차감</td></tr><tr><td>발주 권고가 과다</td><td>MOQ와 부족량</td><td>LT·중복 계획·BOM 소요량</td></tr><tr><td>결과에 품목이 없음</td><td>BOM과 계획 연결</td><td>필터·기간·품목 표기 공백</td></tr></tbody></table></div>
     </section>
 
     <section class="section searchable" id="admin"><div class="section-head"><span class="num">08</span><div><h2>권한과 작업 기록 확인</h2><p>사용자별 권한과 실제 작업 내역을 확인하는 방법입니다.</p></div></div>
       <h3>계정 관리</h3><ul><li>관리자는 계정을 만들고 역할과 팀을 지정합니다.</li><li>기능별 조회·수정·다운로드 권한을 따로 설정합니다.</li><li>비밀번호를 잊은 사용자는 관리자가 초기화할 수 있습니다.</li><li>계정 삭제 전 해당 사용자의 업무 이력과 인수인계를 확인합니다.</li></ul>
       <div class="grid2"><div class="card"><b>활동 로그</b><p>입고, 업로드, 수정, 삭제, 권한 변경 등 실제 업무 변경 내용을 확인합니다.</p></div><div class="card"><b>접근 감사 로그</b><p>URL, 상태코드, IP, 브라우저, 실패·부분 성공의 상세 사유를 확인합니다.</p></div></div>
       <div class="table-wrap"><table><thead><tr><th>결과</th><th>의미</th><th>조치</th></tr></thead><tbody><tr><td>성공</td><td>요청 정상 처리</td><td>건수·대표 데이터를 검증</td></tr><tr><td>부분 성공</td><td>일부 반영·일부 제외</td><td>제외 행과 품목코드 수정</td></tr><tr><td>실패</td><td>검증 실패</td><td>상세 사유의 행·컬럼·값 수정</td></tr><tr><td>세션/권한</td><td>로그인 또는 권한 문제</td><td>재로그인·관리자 권한 확인</td></tr></tbody></table></div>
-      <p>권한은 기능별 <code>조회 / 수정 / 다운로드</code>로 나뉩니다. <code>200 OK</code>는 요청 처리 성공일 뿐 데이터 정확성을 보장하지 않습니다.</p>
+      <p>권한은 기능별 <code>조회 / 수정 / 다운로드</code>로 나뉩니다. 작업 완료 후에는 화면의 대상 건수와 실제 데이터를 함께 확인합니다.</p>
+      <h3>권한 적용 기준</h3><ul><li><b>조회</b> 권한이 없으면 메뉴와 화면에 접근할 수 없습니다.</li><li><b>수정</b> 권한을 선택하면 해당 기능의 조회 권한도 함께 필요합니다.</li><li><b>다운로드</b> 권한은 화면 조회와 별도로 파일 반출 범위를 제어합니다.</li><li>관리자는 전체 기능 권한을 가지며 일반 사용자는 담당 업무에 필요한 최소 범위만 부여합니다.</li><li>권한 변경 후 대상 사용자가 다시 로그인해 메뉴와 버튼 노출을 확인합니다.</li></ul>
+      <h3>로그 확인 순서</h3><div class="steps"><div class="step">문제가 발생한 시간, 사용자, 화면 또는 URL을 확인합니다.</div><div class="step">접근 감사 로그에서 상태코드와 요청 결과를 확인합니다.</div><div class="step">데이터가 변경된 작업이면 활동 로그에서 대상과 변경 내용을 확인합니다.</div><div class="step">엑셀 작업이면 처리 건수와 제외 행 사유를 원본 파일과 대조합니다.</div></div>
       <h3>품목 기준정보 변경 영향</h3><ul><li>화면에서 품목을 수정하면 연결된 가계상재고, 이력, BOM, 수불재고, 자재기준정보 등에 변경을 전달합니다.</li><li>품목 관리 엑셀 업로드는 없는 코드만 추가하고 기존 코드를 갱신하지 않습니다.</li><li>Workflow 구성품 설정은 MRP BOM과 별도일 수 있으므로 관련 부서 화면을 함께 확인합니다.</li></ul>
-      <h3>백업</h3><p>관리자 DB 백업 기능은 현재 데이터 파일을 내려받는 기능입니다. Neon 운영 DB의 복구 시점이 필요한 작업은 Neon 스냅샷과 별도 백업 절차를 사용합니다.</p>
     </section>
 
     <section class="section searchable" id="excel"><div class="section-head"><span class="num">09</span><div><h2>엑셀 업로드할 때</h2><p>업로드 전 준비사항과 업로드 후 확인할 내용을 정리했습니다.</p></div></div>
       <div class="grid2"><div class="card"><b>업로드 전 확인</b><p>해당 화면에서 받은 최신 양식을 사용하고 열 제목과 시작 행을 유지합니다. 품목코드, 날짜, Grade, LOT를 확인하고 해당 업로드가 추가·수량 대체·전체 교체 중 어느 방식인지 먼저 확인합니다.</p></div><div class="card"><b>업로드 후 확인</b><p>처리 결과의 신규·수정·제외 건수를 확인합니다. 제외된 행은 로그에서 원인을 확인하고, 대표 품목의 화면 수량과 이력이 실제 파일 내용과 일치하는지 대조합니다.</p></div></div>
       <h3>저장 방식</h3><div class="table-wrap"><table><thead><tr><th>업로드</th><th>동작</th></tr></thead><tbody><tr><td>품목 관리</td><td>없는 코드만 추가</td></tr><tr><td>가계상 수량</td><td>품목+등급 수량 대체</td></tr><tr><td>수불 수량</td><td>코드+창고+LOT+Grade 대체/생성</td></tr><tr><td>원자재 LOT</td><td>LOT 잔량과 총재고에 입고 수량 추가</td></tr><tr><td>BOM</td><td>기존 BOM 전체 교체</td></tr><tr><td>생산계획</td><td>제품+날짜 추가/수정</td></tr><tr><td>Workflow 구매</td><td>행마다 신규 Workflow 생성</td></tr></tbody></table></div>
+      <h3>업로드 공통 절차</h3><div class="steps"><div class="step">작업할 화면에서 최신 예시 파일 또는 양식을 내려받습니다.</div><div class="step">열 제목을 바꾸지 않고 필수값·숫자·날짜 형식을 확인합니다.</div><div class="step">대표 1~3행으로 먼저 업로드해 저장 방식을 확인합니다.</div><div class="step">전체 파일을 업로드하고 신규·수정·제외 건수를 기록합니다.</div><div class="step">대표 품목을 화면·이력·다운로드 파일에서 다시 검산합니다.</div></div>
+      <div class="callout warn">같은 파일을 다시 업로드하기 전에 저장 방식이 <b>추가</b>인지 <b>대체</b>인지 확인하세요. S/N 입출고, LOT 입고, Workflow 구매 등록은 재업로드 시 중복 이력이 생길 수 있습니다.</div>
+      <h3>형식 점검</h3><ul><li>품목코드와 LOT의 앞뒤 공백, 숫자형 셀의 소수점, 날짜 셀의 표시 형식을 확인합니다.</li><li>Grade는 화면에서 허용하는 값만 사용하고 수량은 음수·문자·빈칸 허용 여부를 확인합니다.</li><li>오류가 난 행만 수정해 다시 올릴 때 이미 성공한 행이 중복 반영되지 않는지 확인합니다.</li></ul>
     </section>
 
     <section class="section searchable" id="trouble"><div class="section-head"><span class="num">10</span><div><h2>오류가 발생했을 때</h2><p>화면 메시지, 작업 기록, 업로드한 원본 파일을 차례로 확인합니다.</p></div></div>
-      <h3>업로드 400 실패</h3><ol><li>화면 오류 메시지를 확인합니다.</li><li>접근 감사 로그에서 해당 URL의 상세 사유를 확인합니다.</li><li>표시된 행 번호의 필수 컬럼, Grade, 수량, 날짜를 수정합니다.</li><li>LOT 업로드는 실제 원자재 코드+Grade 존재 여부를 확인합니다.</li></ol>
+      <h3>엑셀 업로드 실패</h3><ol><li>화면 오류 메시지를 확인합니다.</li><li>작업 기록에서 실패한 작업의 상세 사유를 확인합니다.</li><li>표시된 행 번호의 필수 컬럼, Grade, 수량, 날짜를 수정합니다.</li><li>LOT 업로드는 실제 원자재 코드+Grade 존재 여부를 확인합니다.</li></ol>
       <h3>부분 성공</h3><p>활동 로그의 제외 사유에서 행 번호와 품목코드를 확인합니다. 품목 관리와 가계상재고에서 품명을 찾지 못한 품목은 기준정보 등록 후 재업로드합니다.</p>
       <h3>MRP 재고 0</h3><ul><li>BOM 코드와 수불재고 코드가 같은가?</li><li>생산계획 제품명과 BOM 제품명이 같은가?</li><li>창고재고가 A등급인가?</li><li>재고가 가계상 또는 대여재고에만 있는가?</li><li>선택 기간 이전 계획이 차감됐는가?</li></ul>
       <h3>수량 불일치</h3><ul><li>창고·분류·Grade·기간 필터를 확인합니다.</li><li>원자재 총재고 = LOT 잔량 합 + 미분류 잔량인지 확인합니다.</li><li>다운로드에서 LOT 행과 미분류 행을 함께 합산합니다.</li><li>활동 로그로 마지막 작업자를 확인합니다.</li></ul>
-      <div class="callout">수불·가계상 이력은 UTC 저장값을 한국시간(KST)으로 변환합니다. 9시간 차이가 나면 최신 배포 여부를 확인합니다.</div>
+      <h3>Workflow가 예상 단계와 다를 때</h3><ul><li>Dashboard와 각 부서 화면에서 현재 단계와 담당 부서를 확인합니다.</li><li>요청이 반려됐는지, 실물 불일치로 보류됐는지, 검사 결과 오류로 재검사 중인지 구분합니다.</li><li>부분 수량은 원본과 분리 Workflow 번호를 함께 검색해 합계 수량을 확인합니다.</li><li><code>CANCELLED</code> 또는 <code>MERGED</code> 상태면 원본 번호의 이력과 대표 Workflow를 확인합니다.</li><li>잔량 창고에서는 사유가 부분 요청, 부분 출고, 세트 미사용, 불량 중 무엇인지 먼저 확인합니다.</li></ul>
+      <h3>로그인과 권한 오류</h3><div class="table-wrap"><table><thead><tr><th>현상</th><th>확인</th><th>조치</th></tr></thead><tbody><tr><td>로그인 화면으로 이동</td><td>세션 만료 여부</td><td>다시 로그인한 뒤 작업 결과 재확인</td></tr><tr><td>메뉴가 보이지 않음</td><td>조회 권한</td><td>관리자에게 기능 권한 확인</td></tr><tr><td>버튼이 비활성 또는 저장 실패</td><td>수정 권한·현재 상태</td><td>권한과 처리 가능 단계 확인</td></tr><tr><td>다운로드 실패</td><td>다운로드 권한</td><td>권한 부여 후 재로그인</td></tr></tbody></table></div>
     </section>
 
     <section class="section searchable" id="check"><div class="section-head"><span class="num">11</span><div><h2>통합 검색과 화면 도우미</h2><p>여러 메뉴에 흩어진 데이터를 찾거나 화면 이동이 필요할 때 사용합니다.</p></div></div>
       <h3>통합 검색</h3><ul><li>품목코드, 품명, S/N, LOT 등 알고 있는 값을 입력합니다.</li><li>검색 결과가 어느 메뉴의 데이터인지 확인한 뒤 원본 화면으로 이동합니다.</li><li>재고 수량과 입출고 이력은 검색 결과만으로 판단하지 말고 해당 재고 화면에서 다시 확인합니다.</li></ul>
+      <div class="table-wrap"><table><thead><tr><th>검색어</th><th>확인 가능한 대표 데이터</th><th>최종 확인 화면</th></tr></thead><tbody><tr><td>Serial</td><td>제품 입출고 이력·현재 상태</td><td>제품 물류 원본 목록</td></tr><tr><td>품목코드·품명</td><td>가계상·수불·대여·MRP·Workflow</td><td>각 재고 또는 업무 화면</td></tr><tr><td>LOT</td><td>원자재 LOT·수불 이력·Workflow</td><td>LOT 상세와 입출고 이력</td></tr><tr><td>Workflow No</td><td>현재 단계·부서·상태</td><td>Workflow Dashboard와 부서 화면</td></tr></tbody></table></div>
       <h3>화면 도우미</h3><ul><li>우측 하단 도우미에서 재고, 입출고, MRP 관련 질문을 입력할 수 있습니다.</li><li>답변에 이동 버튼이 표시되면 해당 메뉴로 이동해 실제 데이터를 확인합니다.</li><li>도우미 답변은 조회를 돕는 기능입니다. 입력·수정·삭제를 대신 처리하지 않습니다.</li><li>기간, 품목코드, 창고구분을 구체적으로 입력할수록 결과를 확인하기 쉽습니다.</li></ul>
       <div class="callout warn">검색 결과나 도우미 답변이 실제 화면과 다르면 실제 업무 화면과 활동 로그를 기준으로 판단합니다.</div>
     </section>
 
     <section class="section searchable" id="change"><div class="section-head"><span class="num">12</span><div><h2>데이터를 크게 변경할 때</h2><p>대량 수정이나 초기화 작업 전에 확인해야 할 내용입니다.</p></div></div>
-      <ul><li>중요 데이터 수정은 작업자, 승인자, 작업 전후 합계를 기록합니다.</li><li>대량 삭제·초기화는 Neon 백업 후 승인된 SQL만 사용합니다.</li><li>기능 변경 시 메뉴, 엑셀 열, 저장 방식, 검증 절차를 함께 갱신합니다.</li><li>오류는 화면 메시지, 접근 감사 로그, 활동 로그, 원본 파일로 원인을 확정합니다.</li></ul>
+      <div class="steps"><div class="step">대상 메뉴, 필터, 품목 범위, 예상 건수를 문서로 확정합니다.</div><div class="step">작업 전 화면 합계와 대표 데이터를 별도로 기록합니다.</div><div class="step">가능하면 소수 건으로 먼저 실행해 저장 방식과 연결 영향을 확인합니다.</div><div class="step">전체 작업 후 신규·수정·삭제·제외 건수를 기록합니다.</div><div class="step">화면, 이력, 다운로드 결과에서 작업 전후 합계를 검산합니다.</div></div>
+      <div class="table-wrap"><table><thead><tr><th>변경 유형</th><th>필수 확인</th><th>완료 기준</th></tr></thead><tbody><tr><td>수량 일괄 수정</td><td>대상 창고·분류·Grade·LOT·선택 건수</td><td>화면 합계와 이력의 변경 후 수량 일치</td></tr><tr><td>품목 기준정보 변경</td><td>연결 재고·BOM·MRP·Workflow 영향</td><td>관련 화면의 코드·품명 일치</td></tr><tr><td>엑셀 전체 교체</td><td>파일 전체 범위와 누락 행</td><td>파일 건수와 저장 건수 일치</td></tr><tr><td>대량 삭제·초기화</td><td>정확한 대상 조건·승인자·복구 방법</td><td>대상 외 데이터 불변과 이력 확인</td></tr></tbody></table></div>
+      <ul><li>중요 데이터 수정은 작업자, 승인자, 작업 전후 합계를 기록합니다.</li><li>오류는 화면 메시지, 접근 감사 로그, 활동 로그, 원본 파일로 원인을 확인합니다.</li><li>작업 중 조건이나 예상 건수가 달라지면 즉시 중단하고 대상을 다시 확인합니다.</li></ul>
     </section>
-    <footer class="footer">물류 시스템 운영가이드 · 2026-10-29 기준</footer>
+    <footer class="footer">물류 시스템 운영가이드 · 2026-11-05 기준</footer>
   </div>
 </main>
 </div>

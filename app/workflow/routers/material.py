@@ -8,10 +8,7 @@ from app.workflow.services.workflow_service import (
     WorkflowService,
     MATERIAL_CONFIRM_STAGES,
 )
-from app.workflow.services.remnant_service import (
-    add_remnant,
-    get_remnants,
-)
+from app.workflow.services.remnant_service import get_remnants
 from app.workflow.config import (
     REMNANT_REASON_NAMES,
     PREMADE_PACKAGING_CODES,
@@ -298,6 +295,7 @@ def reject_defect_transfer(
 def reject_stage(
     request: Request,
     workflow_no: str = Form(...),
+    reject_type: str = Form("REWORK"),
     remark: str = Form(""),
     db: Session = Depends(get_db),
 ):
@@ -309,6 +307,7 @@ def reject_stage(
         service.material_reject(
             workflow_no=workflow_no,
             rejected_by=user,
+            reject_type=reject_type,
             remark=remark,
         )
     except Exception as e:
@@ -345,8 +344,9 @@ def request_next(
             item.current_stage == int(WorkflowStage.MATERIAL_CONFIRM_1)
             and item.item_code in PREMADE_PACKAGING_CODES
         ):
-            
-            leftover = item.qty - qty
+            service.split_request_remainder(
+                item, qty, int(WorkflowStage.MATERIAL_CONFIRM_1), user
+            )
 
             service.request_packaging_direct(
                 workflow_no=workflow_no,
@@ -354,21 +354,6 @@ def request_next(
                 requested_by=user,
                 remark=remark,
             )
-
-            if leftover > 0:
-                item.qty = qty
-                add_remnant(
-                    db,
-                    workflow_no=workflow_no,
-                    stage=int(WorkflowStage.PACKAGING_REQUEST),
-                    department="material",
-                    item_code=item.item_code,
-                    item_name=item.item_name,
-                    lot=item.lot,
-                    qty=leftover,
-                    reason="PARTIAL_REQUEST",
-                )
-                db.commit()
 
         elif item.current_stage == int(WorkflowStage.MATERIAL_CONFIRM_1):
 
@@ -380,7 +365,9 @@ def request_next(
             )
 
         elif item.current_stage == int(WorkflowStage.MATERIAL_CONFIRM_2):
-            leftover = item.qty - qty
+            service.split_request_remainder(
+                item, qty, int(WorkflowStage.MATERIAL_CONFIRM_2), user
+            )
 
             service.request_process_inspection(
                 workflow_no=workflow_no,
@@ -389,23 +376,10 @@ def request_next(
                 remark=remark,
             )
 
-            if leftover > 0:
-                item.qty = qty
-                add_remnant(
-                    db,
-                    workflow_no=workflow_no,
-                    stage=int(WorkflowStage.PROCESS_INSPECTION_REQUEST),
-                    department="material",
-                    item_code=item.item_code,
-                    item_name=item.item_name,
-                    lot=item.lot,
-                    qty=leftover,
-                    reason="PARTIAL_REQUEST",
-                )
-                db.commit()
-
         elif item.current_stage == int(WorkflowStage.MATERIAL_CONFIRM_3):
-            leftover = item.qty - qty
+            service.split_request_remainder(
+                item, qty, int(WorkflowStage.MATERIAL_CONFIRM_3), user
+            )
 
             service.request_packaging(
                 workflow_no=workflow_no,
@@ -413,21 +387,6 @@ def request_next(
                 requested_by=user,
                 remark=remark,
             )
-
-            if leftover > 0:
-                item.qty = qty
-                add_remnant(
-                    db,
-                    workflow_no=workflow_no,
-                    stage=int(WorkflowStage.PACKAGING_REQUEST),
-                    department="material",
-                    item_code=item.item_code,
-                    item_name=item.item_name,
-                    lot=item.lot,
-                    qty=leftover,
-                    reason="PARTIAL_REQUEST",
-                )
-                db.commit()
 
         else:
             return _redirect(

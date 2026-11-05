@@ -1,6 +1,11 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 from app.workflow.models.workflow_remnant import WorkflowRemnant
 from app.workflow.models.workflow_item import WorkflowItem
+from app.workflow.models.workflow_stage import WorkflowStage
+from app.workflow.services.history_service import add_history
+from app.workflow.config import PREMADE_PACKAGING_CODES
 
 def add_remnant(
     db: Session,
@@ -192,10 +197,68 @@ def restock_remnant(
     qty = remnant.qty
     service_type = origin_item.service_type if origin_item else ""
 
+    service = WorkflowService(db)
+
+    if remnant.reason in ("PARTIAL_SHIP", "PARTIAL_REQUEST"):
+        now = datetime.now(ZoneInfo("Asia/Seoul"))
+        today = now.strftime("%Y%m%d")
+        if remnant.reason == "PARTIAL_SHIP":
+            target_stage = int(WorkflowStage.MATERIAL_FINAL_CONFIRM)
+        elif remnant.stage == int(WorkflowStage.PROCESS_INSPECTION_REQUEST):
+            target_stage = int(WorkflowStage.MATERIAL_CONFIRM_2)
+        elif item_code in PREMADE_PACKAGING_CODES:
+            target_stage = int(WorkflowStage.MATERIAL_CONFIRM_1)
+        else:
+            target_stage = int(WorkflowStage.MATERIAL_CONFIRM_3)
+        item = WorkflowItem(
+            workflow_no="TEMP",
+            item_code=item_code,
+            item_name=item_name,
+            purchase_item_code=(origin_item.purchase_item_code if origin_item else item_code),
+            purchase_item_name=(origin_item.purchase_item_name if origin_item else item_name),
+            purchase_lot=(origin_item.purchase_lot if origin_item else lot),
+            lot=lot,
+            rev=origin_item.rev if origin_item else "",
+            qty=qty,
+            initial_qty=qty,
+            process_qty=qty,
+            received_at=origin_item.received_at if origin_item else now,
+            prev_item_code=origin_item.prev_item_code if origin_item else None,
+            prev_item_name=origin_item.prev_item_name if origin_item else None,
+            prev_lot=origin_item.prev_lot if origin_item else None,
+            current_stage=target_stage,
+            current_department="material",
+            status="IN_PROGRESS",
+            created_by=restocked_by,
+            service_type=service_type,
+        )
+        db.add(item)
+        db.flush()
+        seq = service._next_workflow_seq(today)
+        item.workflow_no = f"WF-{today}-{seq:06d}"
+        add_history(
+            db,
+            workflow_no=item.workflow_no,
+            stage=target_stage,
+            action="RESTORE",
+            user_name=restocked_by,
+            department="material",
+            before_qty=0,
+            after_qty=qty,
+            remark=(
+                f"{remnant.workflow_no} "
+                f"{'부분 출고' if remnant.reason == 'PARTIAL_SHIP' else '부분 요청'} "
+                f"잔량 복구 "
+                f"({qty} EA)"
+            ),
+        )
+        db.delete(remnant)
+        db.commit()
+        db.refresh(item)
+        return item
+
     db.delete(remnant)
     db.commit()
-
-    service = WorkflowService(db)
 
     return service.create_workflow(
         item_code=item_code,
